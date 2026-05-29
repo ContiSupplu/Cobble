@@ -29,8 +29,10 @@ interface PerfModEntry {
 }
 
 const PERFORMANCE_MODS: PerfModEntry[] = [
-  // ── Core ──
+  // ── Core / Dependencies ──
   { slug: 'fabric-api', name: 'Fabric API', description: 'Core library required by most Fabric mods' },
+  { slug: 'cloth-config', name: 'Cloth Config', description: 'Config library required by many mods' },
+  { slug: 'modmenu', name: 'Mod Menu', description: 'In-game mod configuration menu' },
 
   // ── Rendering (FPS) ──
   { slug: 'sodium', name: 'Sodium', description: 'Rendering engine replacement (MASSIVE FPS boost)' },
@@ -46,7 +48,7 @@ const PERFORMANCE_MODS: PerfModEntry[] = [
   { slug: 'lithium', name: 'Lithium', description: 'Game logic optimizer' },
 
   // ── Chunk Loading & World Gen ──
-  { slug: 'c2me-fabric', name: 'C2ME', description: 'Multi-threaded chunk generation and loading' },
+  // NOTE: C2ME removed — requires Java 22+ but Loom ships Java 21
   { slug: 'noisium', name: 'Noisium', description: 'World generation speed optimization' },
 
   // ── Lighting ──

@@ -10,7 +10,7 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "com.Loom.dynamicisland.DynamicIslandMod"
+      "com.cobble.dynamicisland.DynamicIslandMod"
     ]
   },
   "depends": {
