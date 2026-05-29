@@ -1,5 +1,5 @@
 /**
- * Discord Rich Presence integration for Cobble Launcher
+ * Discord Rich Presence integration for Loom Launcher
  *
  * Uses @xhayper/discord-rpc to connect to the local Discord desktop client
  * and display what the user is playing.
@@ -8,7 +8,7 @@
  */
 import { Client } from '@xhayper/discord-rpc'
 
-// Default Cobble application — users can override with their own
+// Default Loom application — users can override with their own
 let applicationId = ''
 let rpcClient: Client | null = null
 let connected = false
@@ -107,8 +107,8 @@ export function setPlayingMinecraft(instanceName: string, version: string, loade
     details: instanceName,
     state: `Minecraft ${version}${loaderStr}`,
     startTimestamp: new Date(),
-    largeImageKey: 'cobble_logo',
-    largeImageText: 'Cobble Launcher',
+    largeImageKey: 'loom_logo',
+    largeImageText: 'Loom Launcher',
     smallImageKey: 'minecraft_icon',
     smallImageText: `Minecraft ${version}`,
     instance: false,
@@ -128,8 +128,8 @@ export function clearPlayingMinecraft(): void {
   setActivity({
     details: 'In the launcher',
     state: 'Browsing instances',
-    largeImageKey: 'cobble_logo',
-    largeImageText: 'Cobble Launcher',
+    largeImageKey: 'loom_logo',
+    largeImageText: 'Loom Launcher',
     instance: false,
   })
 }

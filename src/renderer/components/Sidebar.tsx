@@ -44,7 +44,7 @@ export default function Sidebar({ onOpenProfiles }: SidebarProps) {
         <NavLink to="/changing-room" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Changing Room">
           <svg {...I}><path d="M20.38 3.46L16 2 12 5.5 8 2 3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" /></svg>
         </NavLink>
-        <NavLink to="/gemini" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Pebble">
+        <NavLink to="/gemini" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Loomie">
           <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
             <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#sidebar-gem)" />
             <defs>

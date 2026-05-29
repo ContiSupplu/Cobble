@@ -1,6 +1,6 @@
 {
   "name": "jackoboy-launcher",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Personal Bedwars-focused Minecraft launcher",
   "main": "./out/main/index.js",
   "author": "_jackoboy",
@@ -11,8 +11,8 @@
     "preview": "electron-vite preview",
     "start": "electron-vite preview",
     "package": "electron-vite build && electron-builder --win",
-    "make": "electron-vite build && electron-builder --win --publish never",
-    "release": "electron-vite build && electron-builder --win --publish always"
+    "make": "electron-vite build && electron-builder --win --dir --publish never && node postbuild.js && electron-builder --win nsis --prepackaged dist/win-unpacked --publish never",
+    "release": "electron-vite build && electron-builder --win --dir --publish never && node postbuild.js && electron-builder --win nsis --prepackaged dist/win-unpacked --publish always"
   },
   "dependencies": {
     "@azure/msal-node": "^5.2.2",
@@ -42,8 +42,8 @@
     "vite": "^8.0.0"
   },
   "build": {
-    "appId": "com.jackoboy.launcher",
-    "productName": "Cobble",
+    "appId": "com.jackoboy.loom",
+    "productName": "Loom",
     "publish": [
       {
         "provider": "github",
@@ -55,12 +55,15 @@
       "target": [
         "nsis"
       ],
-      "icon": "resources/icon.png",
+      "icon": "resources/icon.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "resources/icon.ico",
+      "uninstallerIcon": "resources/icon.ico",
+      "installerHeaderIcon": "resources/icon.ico"
     },
     "directories": {
       "output": "dist"

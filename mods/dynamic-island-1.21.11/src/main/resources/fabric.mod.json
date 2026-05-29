@@ -3,14 +3,14 @@
   "id": "dynamic-island",
   "version": "${version}",
   "name": "Dynamic Island",
-  "description": "Dynamic Island HUD overlay connected to Cobble Launcher.",
-  "authors": ["Cobble Launcher"],
+  "description": "Dynamic Island HUD overlay connected to Loom Launcher.",
+  "authors": ["Loom Launcher"],
   "contact": {},
   "license": "All Rights Reserved",
   "environment": "client",
   "entrypoints": {
     "client": [
-      "com.cobble.dynamicisland.DynamicIslandMod"
+      "com.Loom.dynamicisland.DynamicIslandMod"
     ]
   },
   "depends": {

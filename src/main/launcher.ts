@@ -1,6 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
-import { existsSync, mkdirSync, readdirSync, writeFileSync, unlinkSync, copyFileSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from 'fs'
+import dns from 'dns'
 import { installTask } from '@xmcl/installer'
 import { launch, Version } from '@xmcl/core'
 import { Task } from '@xmcl/task'
@@ -10,6 +11,8 @@ import { startDynamicIslandServer, stopDynamicIslandServer, sendNotification } f
 import { getAllInstances } from './instances'
 import { getProxyJvmArgs } from './proxy-config'
 import { setPlayingMinecraft, clearPlayingMinecraft } from './discord'
+import { setHighPerformancePowerPlan, restoreDefaultPowerPlan, writeOptimizedGameSettings } from './system-optimizations'
+import { installPerformanceMods } from './performance-mods'
 
 // ============================================================
 // State
@@ -34,6 +37,19 @@ let cachedMojangVersions: any = null
 let versionCacheTime = 0
 const VERSION_CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 
+// Read a setting from the shared config file (same file index.ts storeGet uses)
+function readPerfModpackSetting(): boolean {
+  try {
+    const configPath = join(app.getPath('userData'), 'config', 'settings.json')
+    if (existsSync(configPath)) {
+      const data = JSON.parse(readFileSync(configPath, 'utf-8'))
+      // Default to true if not explicitly set
+      return data.perf_modpack !== undefined ? !!data.perf_modpack : true
+    }
+  } catch { /* ignore */ }
+  return true  // default ON
+}
+
 // Preload caches — populated on app boot
 let fabricLoaderCache: Map<string, any[]> = new Map() // version -> loaders
 let javaPathCache: Map<string, string> = new Map()    // component -> javaBin path
@@ -42,7 +58,7 @@ let persistentAgent: any = null // reuse across launches
 function getAgent() {
   if (!persistentAgent) {
     const { Agent } = require('undici')
-    persistentAgent = new Agent({ connections: 16 })
+    persistentAgent = new Agent({ connections: 32, pipelining: 1 })
   }
   return persistentAgent
 }
@@ -67,9 +83,17 @@ export async function preloadEssentials() {
     }
   }
 
-  // Step 1: Warm up HTTP agent (instant)
+  // Step 1: Warm up HTTP agent + DNS pre-resolution
   broadcastPreload('Initializing...', 5)
   getAgent()
+
+  // DNS pre-warming — resolve Mojang CDN hosts in parallel
+  const cdnHosts = [
+    'launchermeta.mojang.com', 'piston-meta.mojang.com',
+    'resources.download.minecraft.net', 'libraries.minecraft.net',
+    'piston-data.mojang.com', 'meta.fabricmc.net', 'maven.fabricmc.net'
+  ]
+  Promise.all(cdnHosts.map(h => dns.promises.resolve4(h).catch(() => {}))).catch(() => {})
 
   // Step 2: Fetch Mojang version manifest
   broadcastPreload('Fetching version manifest...', 15)
@@ -268,18 +292,18 @@ async function runWithRetries(fn: () => Promise<void>, maxRetries = 5) {
 // Incognito — RespectProxyOptions mod management
 // ============================================================
 
-const PROXY_MOD_FILENAME = 'cobble-proxy.jar'
-const PROXY_MOD_JAR = 'cobble-proxy-1.0.0.jar'
+const PROXY_MOD_FILENAME = 'loom-proxy.jar'
+const PROXY_MOD_JAR = 'loom-proxy-1.0.0.jar'
 
 // Path to our built mod JAR
 function getProxyModSource(): string {
   const candidates = [
     // Sibling project relative to this project's root
-    join(app.getAppPath(), '..', 'cobble-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
-    join(app.getAppPath(), '..', '..', 'cobble-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
-    join(app.getAppPath(), '..', '..', '..', 'cobble-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
+    join(app.getAppPath(), '..', 'loom-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
+    join(app.getAppPath(), '..', '..', 'loom-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
+    join(app.getAppPath(), '..', '..', '..', 'loom-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
     // Absolute fallback for dev
-    join('c:', 'Users', 'raysm', 'Minecraft Mod', 'cobble-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
+    join('c:', 'Users', 'raysm', 'Minecraft Mod', 'loom-proxy-mod', 'build', 'libs', PROXY_MOD_JAR),
     // Production: bundled in resources
     join(process.resourcesPath || app.getAppPath(), PROXY_MOD_JAR),
   ]
@@ -296,7 +320,7 @@ function getProxyModSource(): string {
 }
 
 /**
- * Ensure the Cobble Proxy mod is in the instance mods folder.
+ * Ensure the Loom Proxy mod is in the instance mods folder.
  * Copies from the bundled JAR.
  */
 async function ensureProxyMod(instancePath: string): Promise<void> {
@@ -308,12 +332,12 @@ async function ensureProxyMod(instancePath: string): Promise<void> {
 
   const sourcePath = getProxyModSource()
   if (!existsSync(sourcePath)) {
-    throw new Error(`Cobble Proxy mod not found at ${sourcePath}`)
+    throw new Error(`Loom Proxy mod not found at ${sourcePath}`)
   }
 
   const { copyFileSync } = require('fs')
   copyFileSync(sourcePath, modPath)
-  console.log(`[Launcher] Cobble Proxy mod installed: ${modPath}`)
+  console.log(`[Launcher] Loom Proxy mod installed: ${modPath}`)
 }
 
 /**
@@ -328,7 +352,7 @@ function removeProxyMod(instancePath: string): void {
     console.log(`[Launcher] Proxy mod removed: ${modPath}`)
   }
   // Also clean up old RespectProxyOptions if it was left behind
-  const oldMod = join(modsDir, 'cobble-respectproxyoptions.jar')
+  const oldMod = join(modsDir, 'loom-respectproxyoptions.jar')
   if (existsSync(oldMod)) {
     unlinkSync(oldMod)
     console.log(`[Launcher] Cleaned up old proxy mod: ${oldMod}`)
@@ -368,6 +392,13 @@ export async function launchInstance(id: string) {
   // Detect first-time download
   const isFirstDownload = !existsSync(versionsDir) || readdirSync(versionsDir).length === 0
 
+  // Read performance settings from store
+  const { storeGet } = require('./settings-store')
+  const perfJvmFlags = storeGet?.('perf_jvm_flags') ?? true
+  const perfHighPriority = storeGet?.('perf_high_priority') ?? true
+  const perfPowerPlan = storeGet?.('perf_power_plan') ?? false
+  const perfGameSettings = storeGet?.('perf_game_settings') ?? true
+
   // Use persistent preloaded agent
   const installOptions = { agent: { dispatcher: getAgent() } }
 
@@ -401,10 +432,41 @@ export async function launchInstance(id: string) {
     } else {
       broadcastStatus({ task: 'Downloading game files...', progress: 10 })
       broadcastLog('[Launcher] Downloading game files (version jar, assets, libraries)...\n')
+
+      // Start Java download in parallel with game files (different CDNs, no contention)
+      const resolvedForJava = await Version.parse(rootPath, instance.version).catch(() => null)
+      const javaComp = resolvedForJava?.javaVersion?.component || 'java-runtime-gamma'
+      const jreDirEarly = join(rootPath, 'java', javaComp)
+      const javaBinEarly = join(jreDirEarly, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
+      const needsJava = !existsSync(javaBinEarly) && !javaPathCache.has(javaComp)
+
+      const javaPromise = needsJava ? (async () => {
+        try {
+          broadcastLog('[Launcher] Downloading Java in parallel with game files...\n')
+          const { fetchJavaRuntimeManifest, installJavaRuntimeTask } = require('@xmcl/installer')
+          const javaManifest = await Promise.race([
+            fetchJavaRuntimeManifest({ target: javaComp }),
+            new Promise((_, rej) => setTimeout(() => rej(new Error('Java manifest timeout')), 30000))
+          ]) as any
+          await runWithRetries(async () => {
+            const jTask = installJavaRuntimeTask({ manifest: javaManifest, destination: jreDirEarly, ...installOptions })
+            await runTaskWithProgress(jTask, 'Installing Java', 85, 95)
+          }, 3)
+          javaPathCache.set(javaComp, javaBinEarly)
+          broadcastLog('[Launcher] Java installed (parallel).\n')
+        } catch (e: any) {
+          broadcastLog(`[Launcher] Parallel Java download failed, will retry later: ${e.message}\n`)
+        }
+      })() : Promise.resolve()
+
       await runWithRetries(async () => {
         const mcTask = installTask(versionMeta, rootPath, installOptions)
         await runTaskWithProgress(mcTask, 'Downloading game files', 10, 50)
       })
+
+      // Wait for parallel Java if it was started
+      await javaPromise
+
       broadcastStatus({ task: 'Download complete', progress: 50 })
       broadcastLog('[Launcher] All game files downloaded successfully.\n')
     }
@@ -475,16 +537,19 @@ export async function launchInstance(id: string) {
       }
       broadcastLog(`[Launcher] Resolved version: ${resolvedVersionId}\n`)
 
-      broadcastStatus({ task: 'Installing mod libraries...', progress: 68 })
-      broadcastLog('[Launcher] Downloading mod loader libraries...\n')
-      const resolvedVersion = await Version.parse(rootPath, resolvedVersionId)
-      await runWithRetries(async () => {
+      // Libraries and Java check in parallel
+      broadcastStatus({ task: 'Installing libraries & checking Java...', progress: 68 })
+      const libsPromise = runWithRetries(async () => {
+        broadcastLog('[Launcher] Downloading mod loader libraries...\n')
+        const resolvedVer = await Version.parse(rootPath, resolvedVersionId)
         const { installLibrariesTask } = require('@xmcl/installer')
-        const libsTask = installLibrariesTask(resolvedVersion, installOptions)
+        const libsTask = installLibrariesTask(resolvedVer, installOptions)
         await runTaskWithProgress(libsTask, 'Installing Libraries', 68, 80)
+        broadcastLog('[Launcher] All libraries installed.\n')
       })
+
+      await libsPromise
       broadcastStatus({ task: 'Libraries installed', progress: 80 })
-      broadcastLog('[Launcher] All libraries installed.\n')
     } else {
       broadcastStatus({ progress: 80 })
     }
@@ -495,9 +560,15 @@ export async function launchInstance(id: string) {
     const resolvedVersion = await Version.parse(rootPath, resolvedVersionId)
     const javaComponent = resolvedVersion.javaVersion?.component || 'java-runtime-gamma'
     const jreDir = join(rootPath, 'java', javaComponent)
-    const javaBin = join(jreDir, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
+    let javaBin = join(jreDir, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
 
-    if (!existsSync(javaBin)) {
+    // Use preloaded cache first (avoids filesystem check)
+    const cachedJava = javaPathCache.get(javaComponent)
+    if (cachedJava && existsSync(cachedJava)) {
+      javaBin = cachedJava
+      broadcastStatus({ task: 'Java ready', progress: 95 })
+      broadcastLog(`[Launcher] Java (${javaComponent}) found in cache.\n`)
+    } else if (!existsSync(javaBin)) {
       broadcastStatus({ task: 'Downloading Java...', progress: 83 })
       broadcastLog(`[Launcher] Java (${javaComponent}) not found, downloading...\n`)
       console.log('[Launcher] Fetching Java manifest for:', javaComponent)
@@ -520,11 +591,29 @@ export async function launchInstance(id: string) {
         })
         await runTaskWithProgress(javaTask, 'Installing Java', 85, 95)
       }, 3)
+      javaPathCache.set(javaComponent, javaBin)
       broadcastStatus({ task: 'Java installed', progress: 95 })
       broadcastLog('[Launcher] Java runtime installed successfully.\n')
     } else {
+      javaPathCache.set(javaComponent, javaBin)
       broadcastStatus({ task: 'Java ready', progress: 95 })
       broadcastLog(`[Launcher] Java (${javaComponent}) found locally.\n`)
+    }
+
+    if (cancelRequested) throw new Error('Launch cancelled')
+
+    // ── PHASE 5.5: Performance mods (auto-install if enabled) ───
+    if (instance.loader && instance.loader.toLowerCase() !== 'vanilla') {
+      try {
+        broadcastStatus({ task: 'Checking performance mods...', progress: 96 })
+        const perfEnabled = readPerfModpackSetting()
+        await installPerformanceMods(id, instance.version, instance.loader, perfEnabled)
+        if (perfEnabled) {
+          broadcastLog('[Launcher] Performance mods check complete.\n')
+        }
+      } catch (err: any) {
+        broadcastLog(`[Launcher] Performance mods warning: ${err.message}\n`)
+      }
     }
 
     if (cancelRequested) throw new Error('Launch cancelled')
@@ -558,6 +647,11 @@ export async function launchInstance(id: string) {
       '-XX:SurvivorRatio=32',
       '-XX:+PerfDisableSharedMem',
       '-XX:MaxTenuringThreshold=1',
+      // Additional performance flags
+      '-Dfile.encoding=UTF-8',
+      '-Djava.net.preferIPv4Stack=true',
+      '-XX:+UseStringDeduplication',
+      '-XX:+OptimizeStringConcat',
     )
 
     const isModded = instance.loader && instance.loader !== 'vanilla'
@@ -630,8 +724,13 @@ export async function launchInstance(id: string) {
       broadcastLog(`[Launcher] Custom JVM args: ${userArgs.join(' ')}\n`)
     }
 
-    const memMax = instance.memoryMax || 6144
-    const memMin = Math.min(1024, memMax)
+    // ── Write optimized game settings for new instances ─────
+    if (perfGameSettings) {
+      writeOptimizedGameSettings(instancePath)
+    }
+
+    const memMax = instance.memoryMax || 4096
+    const memMin = memMax  // Aikar: match -Xms to -Xmx to avoid heap growth pauses
 
     activeProcess = await launch({
       gamePath: instancePath,
@@ -662,12 +761,29 @@ export async function launchInstance(id: string) {
     activeProcess.on('spawn', () => {
       broadcastLog('[Launcher] Game process spawned!\n')
       broadcastStatus({ running: true, task: 'Game Running', progress: 100 })
+
+      // Set process priority to HIGH for better CPU scheduling
+      if (perfHighPriority) {
+        try {
+          if (activeProcess?.pid && process.platform === 'win32') {
+            const { execSync } = require('child_process')
+            execSync(`wmic process where ProcessId=${activeProcess.pid} CALL setpriority "high priority"`, { stdio: 'ignore' })
+            broadcastLog('[Launcher] Process priority set to HIGH.\n')
+          }
+        } catch { /* non-critical */ }
+      }
+
+      // Switch to High Performance power plan if enabled
+      if (perfPowerPlan) {
+        setHighPerformancePowerPlan()
+        broadcastLog('[Launcher] Power plan set to High Performance.\n')
+      }
+
       // Set Discord Rich Presence
       setPlayingMinecraft(instance.name, instance.version, instance.loader || 'Vanilla')
       // Start Dynamic Island overlay server (WebSocket for mod)
       startDynamicIslandServer()
       sendNotification(`Playing ${instance.name}`)
-
     })
 
     activeProcess.on('exit', (code) => {
@@ -678,7 +794,11 @@ export async function launchInstance(id: string) {
       clearPlayingMinecraft()
       // Stop Dynamic Island overlay server
       stopDynamicIslandServer()
-
+      // Restore power plan if it was changed
+      if (perfPowerPlan) {
+        restoreDefaultPowerPlan()
+        broadcastLog('[Launcher] Power plan restored.\n')
+      }
     })
 
   } catch (err: any) {

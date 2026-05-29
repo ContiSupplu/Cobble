@@ -9,10 +9,10 @@
   <div id="island-wrapper">
     <div id="island" class="idle" onclick="handleIslandClick()">
       <div id="content-idle" class="island-content active">
-        <div class="cobble-logo">
+        <div class="loom-logo">
           <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="2" y="2" width="20" height="20" rx="4"/></svg>
         </div>
-        <span class="island-label">Cobble</span>
+        <span class="island-label">Loom</span>
       </div>
 
       <div id="content-music" class="island-content">
@@ -77,8 +77,8 @@
         <span id="time-display" class="island-label"></span>
       </div>
 
-      <div id="content-pebble" class="island-content">
-        <div class="pebble-logo">
+      <div id="content-loomie" class="island-content">
+        <div class="loomie-logo">
           <svg width="14" height="14" viewBox="0 0 28 28" fill="none">
             <defs><linearGradient id="pbl-grad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
               <stop stop-color="#4285F4"/><stop offset="0.33" stop-color="#9B72CB"/><stop offset="0.66" stop-color="#D96570"/><stop offset="1" stop-color="#D96570"/>
@@ -86,15 +86,15 @@
             <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#pbl-grad)"/>
           </svg>
         </div>
-        <span class="island-label pebble-label">Ask Pebble...</span>
+        <span class="island-label loomie-label">Ask Loomie...</span>
       </div>
     </div>
   </div>
 
-  <!-- Pebble Chat Panel (shown when interactive) -->
-  <div id="pebble-panel" class="pebble-panel hidden">
-    <div class="pebble-header">
-      <div class="pebble-logo">
+  <!-- Loomie Chat Panel (shown when interactive) -->
+  <div id="loomie-panel" class="loomie-panel hidden">
+    <div class="loomie-header">
+      <div class="loomie-logo">
         <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
           <defs><linearGradient id="pbl-grad2" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
             <stop stop-color="#4285F4"/><stop offset="0.33" stop-color="#9B72CB"/><stop offset="0.66" stop-color="#D96570"/><stop offset="1" stop-color="#D96570"/>
@@ -102,14 +102,14 @@
           <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#pbl-grad2)"/>
         </svg>
       </div>
-      <span class="pebble-title">Pebble</span>
-      <span class="pebble-powered">Powered by Gemini</span>
-      <button class="pebble-close" onclick="closePebble()">✕</button>
+      <span class="loomie-title">Loomie</span>
+      <span class="loomie-powered">Powered by Gemini</span>
+      <button class="loomie-close" onclick="closeLoomie()">✕</button>
     </div>
-    <div id="pebble-messages" class="pebble-messages"></div>
-    <form id="pebble-form" class="pebble-input-wrap" onsubmit="sendPebble(event)">
-      <input id="pebble-input" class="pebble-input" placeholder="Ask Pebble anything..." autocomplete="off" />
-      <button type="submit" class="pebble-send">
+    <div id="loomie-messages" class="loomie-messages"></div>
+    <form id="loomie-form" class="loomie-input-wrap" onsubmit="sendLoomie(event)">
+      <input id="loomie-input" class="loomie-input" placeholder="Ask Loomie anything..." autocomplete="off" />
+      <button type="submit" class="loomie-send">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
         </svg>

@@ -10,19 +10,19 @@ import { join } from 'path'
 // inside the overlay HTML positions the Dynamic Island at top-center.
 //
 // The overlay is click-through by default. When the user activates
-// Pebble interaction, the overlay temporarily becomes interactive
+// Loomie interaction, the overlay temporarily becomes interactive
 // so it can capture mouse/keyboard input.
 // ============================================================
 
 let overlayWindow: BrowserWindow | null = null
 let stateInterval: NodeJS.Timeout | null = null
-let pebbleHandler: ((question: string) => Promise<string>) | null = null
+let loomieHandler: ((question: string) => Promise<string>) | null = null
 let stateProvider: (() => any) | null = null
 let spotifyControlHandler: ((action: string) => void) | null = null
 let ipcRegistered = false
 
 // ============================================================
-// Public API — State & Pebble
+// Public API — State & Loomie
 // ============================================================
 
 /**
@@ -35,12 +35,12 @@ export function setOverlayStateProvider(fn: () => any): void {
 }
 
 /**
- * Register a handler for Pebble AI questions from the overlay.
+ * Register a handler for Loomie AI questions from the overlay.
  * The handler receives a question string and returns a promise
  * resolving to the answer text.
  */
-export function setOverlayPebbleHandler(fn: (question: string) => Promise<string>): void {
-  pebbleHandler = fn
+export function setOverlayLoomieHandler(fn: (question: string) => Promise<string>): void {
+  loomieHandler = fn
 }
 
 /**
@@ -165,22 +165,22 @@ function registerOverlayIPC(): void {
   ipcRegistered = true
 
   // ----------------------------------------------------------
-  // Pebble AI — overlay asks a question, main process answers
+  // Loomie AI — overlay asks a question, main process answers
   // ----------------------------------------------------------
-  ipcMain.handle('overlay-pebble-ask', async (_event, question: string) => {
-    if (!pebbleHandler) {
-      return { error: 'Pebble handler not registered' }
+  ipcMain.handle('overlay-loomie-ask', async (_event, question: string) => {
+    if (!loomieHandler) {
+      return { error: 'Loomie handler not registered' }
     }
     try {
-      const answer = await pebbleHandler(question)
+      const answer = await loomieHandler(question)
       return { text: answer }
     } catch (err: any) {
-      return { error: err.message || 'Pebble error' }
+      return { error: err.message || 'Loomie error' }
     }
   })
 
   // ----------------------------------------------------------
-  // Interactive toggle — let overlay capture mouse for Pebble
+  // Interactive toggle — let overlay capture mouse for Loomie
   // ----------------------------------------------------------
   ipcMain.on('overlay-set-interactive', (_event, interactive: boolean) => {
     if (!overlayWindow || overlayWindow.isDestroyed()) return

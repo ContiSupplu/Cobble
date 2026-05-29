@@ -87,7 +87,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
     <div className={`splash ${fadeOut ? 'splash-fade-out' : ''}`}>
       <video
         className="splash-video"
-        src="/login-bg.mp4"
+        src="./login-bg.mp4"
         autoPlay
         loop
         muted
@@ -116,7 +116,7 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       {/* Center content */}
       <div className="splash-content">
         <div className="splash-logo-group">
-          <div className="splash-logo">Cobble</div>
+          <div className="splash-logo">Loom</div>
           <div className="splash-tagline">Minecraft Launcher</div>
         </div>
 

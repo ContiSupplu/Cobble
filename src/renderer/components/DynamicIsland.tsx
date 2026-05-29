@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { usePebble } from '../context/PebbleContext'
+import { useLoomie } from '../context/LoomieContext'
 import '../styles/dynamic-island.css'
-import cobbleIcon from '../assets/cobble-icon.png'
+import loomIcon from '../assets/loom-icon.png'
 
 interface SpotifyTrack {
   title: string
@@ -20,7 +20,7 @@ interface LaunchStatus {
   error?: string
 }
 
-type IslandState = 'idle' | 'music' | 'music-paused' | 'error' | 'launching' | 'running' | 'pebble' | 'pebble-standby'
+type IslandState = 'idle' | 'music' | 'music-paused' | 'error' | 'launching' | 'running' | 'loomie' | 'loomie-standby'
 
 interface DynamicIslandProps {
   onOpenLogs?: () => void
@@ -28,8 +28,8 @@ interface DynamicIslandProps {
 
 const api = (window as any).electronAPI
 
-/* ── Pebble Logo (inline) ── */
-function PebbleLogo({ size = 14 }: { size?: number }) {
+/* ── Loomie Logo (inline) ── */
+function LoomieLogo({ size = 14 }: { size?: number }) {
   const id = `pbl-di-${Math.random().toString(36).slice(2, 6)}`
   return (
     <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
@@ -80,36 +80,36 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
   const [minimized, setMinimized] = useState(false)
   const prevState = useRef<IslandState>('idle')
 
-  // Pebble integration
-  const pebble = usePebble()
+  // Loomie integration
+  const loomie = useLoomie()
   const location = useLocation()
   const navigate = useNavigate()
-  const [pebbleInput, setPebbleInput] = useState('')
-  const [showPebbleTransition, setShowPebbleTransition] = useState(false)
+  const [loomieInput, setLoomieInput] = useState('')
+  const [showLoomieTransition, setShowLoomieTransition] = useState(false)
   const wasOnGeminiPage = useRef(false)
 
   // Detect navigation away from Gemini page — trigger transition animation
   useEffect(() => {
     const onGemini = location.pathname === '/gemini'
-    if (wasOnGeminiPage.current && !onGemini && pebble.isOnTheGo) {
-      // User just left the Pebble page with On the Go active
-      setShowPebbleTransition(true)
-      setTimeout(() => setShowPebbleTransition(false), 600)
+    if (wasOnGeminiPage.current && !onGemini && loomie.isOnTheGo) {
+      // User just left the Loomie page with On the Go active
+      setShowLoomieTransition(true)
+      setTimeout(() => setShowLoomieTransition(false), 600)
     }
     wasOnGeminiPage.current = onGemini
-  }, [location.pathname, pebble.isOnTheGo])
+  }, [location.pathname, loomie.isOnTheGo])
 
-  // State priority: error > running > launching > pebble > music > pebble-standby > idle
+  // State priority: error > running > launching > loomie > music > loomie-standby > idle
   const getState = useCallback((): IslandState => {
     if (error) return 'error'
     if (isRunning && launchProgress >= 100) return 'running'
     if (isRunning && launchProgress < 100) return 'launching'
-    if (pebble.isOnTheGo && !pebble.onGeminiPage) return 'pebble'
+    if (loomie.isOnTheGo && !loomie.onGeminiPage) return 'loomie'
     if (spotifyPlaying && track) return 'music'
-    if (pebble.isOnTheGo && pebble.onGeminiPage) return 'pebble-standby'
+    if (loomie.isOnTheGo && loomie.onGeminiPage) return 'loomie-standby'
     if (spotifyConnected && track && !spotifyPlaying) return 'music-paused'
     return 'idle'
-  }, [error, isRunning, launchTask, launchProgress, spotifyPlaying, spotifyConnected, track, pebble.isOnTheGo, pebble.onGeminiPage])
+  }, [error, isRunning, launchTask, launchProgress, spotifyPlaying, spotifyConnected, track, loomie.isOnTheGo, loomie.onGeminiPage])
 
   const state = getState()
 
@@ -120,7 +120,7 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
       if (!(prev === 'launching' && state === 'launching')) {
         setContentKey(k => k + 1)
       }
-      if (state !== 'music' && state !== 'music-paused' && state !== 'pebble') setExpanded(false)
+      if (state !== 'music' && state !== 'music-paused' && state !== 'loomie') setExpanded(false)
       prevState.current = state
     }
   }, [state])
@@ -163,7 +163,7 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
   const handleClick = () => {
     if (state === 'error') {
       setError('')
-    } else if (state === 'pebble-standby') {
+    } else if (state === 'loomie-standby') {
       // Do nothing — just a status indicator
     } else {
       setExpanded(!expanded)
@@ -176,14 +176,14 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
   const handlePrev = (e: React.MouseEvent) => { e.stopPropagation(); api?.spotifyPrevious?.() }
   const handleNext = (e: React.MouseEvent) => { e.stopPropagation(); api?.spotifyNext?.() }
 
-  // Pebble island send
-  const handlePebbleSend = async (e: React.MouseEvent | React.FormEvent) => {
+  // Loomie island send
+  const handleLoomieSend = async (e: React.MouseEvent | React.FormEvent) => {
     e.stopPropagation()
     e.preventDefault()
-    if (!pebbleInput.trim() || pebble.isLoading) return
-    const text = pebbleInput
-    setPebbleInput('')
-    await pebble.sendFromIsland(text)
+    if (!loomieInput.trim() || loomie.isLoading) return
+    const text = loomieInput
+    setLoomieInput('')
+    await loomie.sendFromIsland(text)
   }
 
   const musicPct = track ? Math.min(100, (track.progress / Math.max(1, track.duration)) * 100) : 0
@@ -200,9 +200,9 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
     }))
   ), [])
 
-  // Get last 2 messages for pebble display
-  const pebbleMessages = pebble.lastMessages.slice(-2)
-  const lastResponse = pebble.lastMessages.filter(m => m.role === 'model').slice(-1)[0]
+  // Get last 2 messages for loomie display
+  const loomieMessages = loomie.lastMessages.slice(-2)
+  const lastResponse = loomie.lastMessages.filter(m => m.role === 'model').slice(-1)[0]
 
   // Shared music content
   const renderMusicContent = (playing: boolean) => {
@@ -304,69 +304,69 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
 
   const renderContent = () => {
     switch (state) {
-      /* ── Pebble Standby (still on Gemini page) ── */
-      case 'pebble-standby':
+      /* ── Loomie Standby (still on Gemini page) ── */
+      case 'loomie-standby':
         return (
-          <div className="di-content di-pebble-standby" key="pebble-standby">
-            <div className="di-pebble-logo"><PebbleLogo size={14} /></div>
-            <span className="di-label di-pebble-label">Pebble is on the go</span>
-            <div className="di-pebble-dot" />
+          <div className="di-content di-loomie-standby" key="loomie-standby">
+            <div className="di-loomie-logo"><LoomieLogo size={14} /></div>
+            <span className="di-label di-loomie-label">Loomie is on the go</span>
+            <div className="di-loomie-dot" />
           </div>
         )
 
-      /* ── Pebble Active (away from Gemini page) ── */
-      case 'pebble':
+      /* ── Loomie Active (away from Gemini page) ── */
+      case 'loomie':
         if (!expanded) {
           return (
-            <div className="di-content di-pebble-compact" key={contentKey}>
-              <div className="di-pebble-logo"><PebbleLogo size={14} /></div>
-              <span className="di-label di-pebble-last-msg">
-                {lastResponse ? (lastResponse.text.length > 40 ? lastResponse.text.slice(0, 40) + '...' : lastResponse.text) : 'Ask Pebble anything'}
+            <div className="di-content di-loomie-compact" key={contentKey}>
+              <div className="di-loomie-logo"><LoomieLogo size={14} /></div>
+              <span className="di-label di-loomie-last-msg">
+                {lastResponse ? (lastResponse.text.length > 40 ? lastResponse.text.slice(0, 40) + '...' : lastResponse.text) : 'Ask Loomie anything'}
               </span>
             </div>
           )
         }
         return (
-          <div className="di-content di-content-expanded di-pebble-expanded" key="pebble-expanded">
-            <div className="di-pebble-header">
-              <div className="di-pebble-logo"><PebbleLogo size={16} /></div>
-              <span className="di-pebble-title">Pebble</span>
-              <span className="di-pebble-powered">Powered by Gemini</span>
-              <button className="di-pebble-collapse" onClick={(e) => { e.stopPropagation(); setExpanded(false) }}>
+          <div className="di-content di-content-expanded di-loomie-expanded" key="loomie-expanded">
+            <div className="di-loomie-header">
+              <div className="di-loomie-logo"><LoomieLogo size={16} /></div>
+              <span className="di-loomie-title">Loomie</span>
+              <span className="di-loomie-powered">Powered by Gemini</span>
+              <button className="di-loomie-collapse" onClick={(e) => { e.stopPropagation(); setExpanded(false) }}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><polyline points="18 15 12 9 6 15" /></svg>
               </button>
             </div>
-            <div className="di-pebble-messages" onClick={e => e.stopPropagation()}>
-              {pebbleMessages.map((msg, i) => (
-                <div key={i} className={`di-pebble-msg di-pebble-msg--${msg.role}`}>
-                  {msg.role === 'model' && <div className="di-pebble-msg-avatar"><PebbleLogo size={12} /></div>}
-                  <div className="di-pebble-msg-text">
+            <div className="di-loomie-messages" onClick={e => e.stopPropagation()}>
+              {loomieMessages.map((msg, i) => (
+                <div key={i} className={`di-loomie-msg di-loomie-msg--${msg.role}`}>
+                  {msg.role === 'model' && <div className="di-loomie-msg-avatar"><LoomieLogo size={12} /></div>}
+                  <div className="di-loomie-msg-text">
                     {renderMiniInline(smartTruncate(msg.text, 200))}
                   </div>
                 </div>
               ))}
-              {pebble.isLoading && (
-                <div className="di-pebble-msg di-pebble-msg--model">
-                  <div className="di-pebble-msg-avatar"><PebbleLogo size={12} /></div>
-                  <div className="di-pebble-typing">
-                    <span className="di-pebble-dot-anim" /><span className="di-pebble-dot-anim" /><span className="di-pebble-dot-anim" />
+              {loomie.isLoading && (
+                <div className="di-loomie-msg di-loomie-msg--model">
+                  <div className="di-loomie-msg-avatar"><LoomieLogo size={12} /></div>
+                  <div className="di-loomie-typing">
+                    <span className="di-loomie-dot-anim" /><span className="di-loomie-dot-anim" /><span className="di-loomie-dot-anim" />
                   </div>
                 </div>
               )}
             </div>
-            <form className="di-pebble-input-wrap" onSubmit={handlePebbleSend} onClick={e => e.stopPropagation()}>
+            <form className="di-loomie-input-wrap" onSubmit={handleLoomieSend} onClick={e => e.stopPropagation()}>
               <input
-                className="di-pebble-input"
-                value={pebbleInput}
-                onChange={e => setPebbleInput(e.target.value)}
-                placeholder="Ask Pebble..."
-                disabled={pebble.isLoading}
+                className="di-loomie-input"
+                value={loomieInput}
+                onChange={e => setLoomieInput(e.target.value)}
+                placeholder="Ask Loomie..."
+                disabled={loomie.isLoading}
                 onClick={e => e.stopPropagation()}
               />
               <button
-                className={`di-pebble-send ${pebbleInput.trim() && !pebble.isLoading ? 'active' : ''}`}
-                onClick={handlePebbleSend}
-                disabled={!pebbleInput.trim() || pebble.isLoading}
+                className={`di-loomie-send ${loomieInput.trim() && !loomie.isLoading ? 'active' : ''}`}
+                onClick={handleLoomieSend}
+                disabled={!loomieInput.trim() || loomie.isLoading}
                 type="submit"
               >
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -374,14 +374,14 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
                 </svg>
               </button>
             </form>
-            <div className="di-pebble-footer">
+            <div className="di-loomie-footer">
               <button className="di-footer-btn" onClick={(e) => { e.stopPropagation(); navigate('/gemini') }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                 </svg>
                 Full chat
               </button>
-              <button className="di-footer-btn" onClick={(e) => { e.stopPropagation(); pebble.setOnTheGo(false); setExpanded(false) }}>
+              <button className="di-footer-btn" onClick={(e) => { e.stopPropagation(); loomie.setOnTheGo(false); setExpanded(false) }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
@@ -495,8 +495,8 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
           return (
             <div className="di-idle-expanded-content" key="idle-expanded">
               <div className="di-idle-header">
-                <img src={cobbleIcon} alt="" width="14" height="14" style={{ borderRadius: 3 }} />
-                <span className="di-idle-label">Cobble</span>
+                <img src={loomIcon} alt="" width="14" height="14" style={{ borderRadius: 3 }} />
+                <span className="di-idle-label">Loom</span>
               </div>
               <div className="di-expanded-footer">
                 <button className="di-footer-btn" onClick={(e) => { e.stopPropagation(); onOpenLogs?.(); setExpanded(false) }}>
@@ -524,9 +524,9 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
         return (
           <div className="di-idle-content" key={contentKey}>
             <div className="di-logo-mark">
-              <img src={cobbleIcon} alt="" width="12" height="12" style={{ borderRadius: 3 }} />
+              <img src={loomIcon} alt="" width="12" height="12" style={{ borderRadius: 3 }} />
             </div>
-            <span className="di-idle-label">Cobble</span>
+            <span className="di-idle-label">Loom</span>
           </div>
         )
     }
@@ -538,8 +538,8 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
     (state === 'music' || state === 'music-paused') && expanded ? 'di-music-expanded' : '',
     (state === 'launching' || state === 'running') && expanded ? 'di-launch-expanded' : '',
     state === 'idle' && expanded ? 'di-idle-expanded' : '',
-    state === 'pebble' && expanded ? 'di-pebble-full-expanded' : '',
-    showPebbleTransition ? 'di-pebble-arrive' : '',
+    state === 'loomie' && expanded ? 'di-loomie-full-expanded' : '',
+    showLoomieTransition ? 'di-loomie-arrive' : '',
   ].filter(Boolean).join(' ')
 
   if (minimized) {
@@ -551,8 +551,8 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
       >
         {state === 'music' && track?.albumArtSmall ? (
           <img className="di-mini-art" src={track.albumArtSmall} alt="" />
-        ) : state === 'pebble' || state === 'pebble-standby' ? (
-          <div className="di-mini-pebble"><PebbleLogo size={10} /></div>
+        ) : state === 'loomie' || state === 'loomie-standby' ? (
+          <div className="di-mini-loomie"><LoomieLogo size={10} /></div>
         ) : state === 'running' ? (
           <div className="di-mini-dot di-mini-dot-green" />
         ) : state === 'error' ? (

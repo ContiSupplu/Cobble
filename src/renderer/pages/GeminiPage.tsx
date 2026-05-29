@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useCustomization } from '../context/CustomizationContext'
 import { useAuth } from '../context/AuthContext'
-import { usePebble } from '../context/PebbleContext'
+import { useLoomie } from '../context/LoomieContext'
 import './GeminiPage.css'
 
 const api = (window as any).electronAPI
@@ -46,8 +46,8 @@ function renderInline(text: string): React.ReactNode[] {
   return parts
 }
 
-/* ── Pebble Logo ── */
-function PebbleLogo({ size = 32, className = '' }: { size?: number; className?: string }) {
+/* ── Loomie Logo ── */
+function LoomieLogo({ size = 32, className = '' }: { size?: number; className?: string }) {
   const id = `pbl-${size}-${Math.random().toString(36).slice(2, 6)}`
   return (
     <svg className={className} width={size} height={size} viewBox="0 0 28 28" fill="none">
@@ -69,7 +69,7 @@ function isScreenQ(t: string) { return SCREEN_KW.some(k => t.toLowerCase().inclu
 export default function GeminiPage() {
   const { settings } = useCustomization()
   const { user } = useAuth()
-  const pebble = usePebble()
+  const loomie = useLoomie()
   const hasKey = !!settings.geminiApiKey
 
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -88,29 +88,29 @@ export default function GeminiPage() {
   useEffect(() => { messagesRef.current = messages }, [messages])
   useEffect(() => { activeChatRef.current = activeChatId }, [activeChatId])
 
-  // Tell PebbleContext we're on the Gemini page
+  // Tell LoomieContext we're on the Gemini page
   useEffect(() => {
-    pebble.setOnGeminiPage(true)
-    return () => { pebble.setOnGeminiPage(false) }
+    loomie.setOnGeminiPage(true)
+    return () => { loomie.setOnGeminiPage(false) }
   }, [])
 
-  // Sync messages to PebbleContext so the island can show them
+  // Sync messages to LoomieContext so the island can show them
   useEffect(() => {
-    if (pebble.isOnTheGo) {
-      pebble.setLastMessages(messages)
-      pebble.setActiveChatId(activeChatId)
+    if (loomie.isOnTheGo) {
+      loomie.setLastMessages(messages)
+      loomie.setActiveChatId(activeChatId)
     }
-  }, [messages, activeChatId, pebble.isOnTheGo])
+  }, [messages, activeChatId, loomie.isOnTheGo])
 
   // If island sent a message while we were away, sync it back
   useEffect(() => {
-    if (pebble.isOnTheGo && pebble.lastMessages.length > messages.length) {
-      setMessages(pebble.lastMessages)
-      if (pebble.activeChatId && pebble.activeChatId !== activeChatId) {
-        setActiveChatId(pebble.activeChatId)
+    if (loomie.isOnTheGo && loomie.lastMessages.length > messages.length) {
+      setMessages(loomie.lastMessages)
+      if (loomie.activeChatId && loomie.activeChatId !== activeChatId) {
+        setActiveChatId(loomie.activeChatId)
       }
     }
-  }, [pebble.lastMessages])
+  }, [loomie.lastMessages])
 
   const hasMessages = messages.length > 0
   const firstName = user?.displayName?.split(' ')[0] || user?.username || 'there'
@@ -177,10 +177,10 @@ export default function GeminiPage() {
       setMessages(final)
       if (chatId) { await api.chatSave(chatId, final); await loadChatList() }
       if (response?.actionsPerformed?.length) {
-        window.dispatchEvent(new CustomEvent('pebble-action', { detail: response.actionsPerformed }))
+        window.dispatchEvent(new CustomEvent('loomie-action', { detail: response.actionsPerformed }))
       }
     } catch (err: any) {
-      const final = [...next, { role: 'model' as const, text: `Failed to reach Pebble: ${err?.message || 'Unknown error'}` }]
+      const final = [...next, { role: 'model' as const, text: `Failed to reach Loomie: ${err?.message || 'Unknown error'}` }]
       setMessages(final)
       if (chatId) await api.chatSave(chatId, final)
     } finally {
@@ -193,11 +193,11 @@ export default function GeminiPage() {
   }
 
   const toggleOnTheGo = () => {
-    pebble.setOnTheGo(!pebble.isOnTheGo)
-    if (!pebble.isOnTheGo) {
+    loomie.setOnTheGo(!loomie.isOnTheGo)
+    if (!loomie.isOnTheGo) {
       // Turning ON — sync current state
-      pebble.setLastMessages(messages)
-      pebble.setActiveChatId(activeChatId)
+      loomie.setLastMessages(messages)
+      loomie.setActiveChatId(activeChatId)
     }
   }
 
@@ -214,8 +214,8 @@ export default function GeminiPage() {
     return (
       <div className="gem-page page-enter">
         <div className="gem-empty-center">
-          <PebbleLogo size={48} className="gem-logo-pulse" />
-          <h2 className="gem-greeting">Set up Pebble</h2>
+          <LoomieLogo size={48} className="gem-logo-pulse" />
+          <h2 className="gem-greeting">Set up Loomie</h2>
           <p className="gem-subtitle">Add your Gemini API key in<br /><strong>Settings - Connected Apps - Gemini</strong></p>
           <p className="gem-powered">Powered by Gemini</p>
         </div>
@@ -262,16 +262,16 @@ export default function GeminiPage() {
         {hasMessages && (
           <div className="gem-header">
             <div className="gem-header-left">
-              <PebbleLogo size={20} />
-              <span className="gem-header-title">Pebble</span>
+              <LoomieLogo size={20} />
+              <span className="gem-header-title">Loomie</span>
               <span className="gem-header-powered">Powered by Gemini</span>
             </div>
             <div className="gem-header-right">
-              <button className={`gem-otg-btn ${pebble.isOnTheGo ? 'active' : ''}`} onClick={toggleOnTheGo}>
+              <button className={`gem-otg-btn ${loomie.isOnTheGo ? 'active' : ''}`} onClick={toggleOnTheGo}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
                 </svg>
-                {pebble.isOnTheGo ? 'On the Go' : 'On the Go'}
+                {loomie.isOnTheGo ? 'On the Go' : 'On the Go'}
               </button>
               <button className="gem-clear" onClick={createNewChat}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
@@ -285,18 +285,18 @@ export default function GeminiPage() {
           {!hasMessages && !loading ? (
             <div className="gem-empty-center">
               <div className="gem-glow" />
-              <PebbleLogo size={40} className="gem-logo-pulse" />
+              <LoomieLogo size={40} className="gem-logo-pulse" />
               <h1 className="gem-greeting">What's next, {firstName}?</h1>
               <p className="gem-powered" style={{ marginTop: 4 }}>Powered by Gemini</p>
-              <button className={`gem-otg-btn gem-otg-center ${pebble.isOnTheGo ? 'active' : ''}`} onClick={toggleOnTheGo}>
+              <button className={`gem-otg-btn gem-otg-center ${loomie.isOnTheGo ? 'active' : ''}`} onClick={toggleOnTheGo}>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
                 </svg>
-                {pebble.isOnTheGo ? 'On the Go' : 'On the Go'}
+                {loomie.isOnTheGo ? 'On the Go' : 'On the Go'}
               </button>
               <div className="gem-input-center">
                 <div className="gem-input-wrap">
-                  <textarea ref={inputRef} className="gem-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask Pebble anything about Minecraft..." rows={1} />
+                  <textarea ref={inputRef} className="gem-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask Loomie anything about Minecraft..." rows={1} />
                   <button className={`gem-send ${input.trim() ? 'active' : ''}`} onClick={() => sendMessage()} disabled={!input.trim()}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
                   </button>
@@ -312,12 +312,12 @@ export default function GeminiPage() {
             <div className="gem-messages">
               {messages.map((msg, i) => (
                 <div className={`gem-msg gem-msg--${msg.role}`} key={i}>
-                  {msg.role === 'model' && <div className="gem-msg-avatar"><PebbleLogo size={18} /></div>}
+                  {msg.role === 'model' && <div className="gem-msg-avatar"><LoomieLogo size={18} /></div>}
                   <div className="gem-msg-body">{renderFormattedText(msg.text)}</div>
                 </div>
               ))}
               {loading && (
-                <div className="gem-typing"><div className="gem-typing-avatar"><PebbleLogo size={18} /></div><div className="gem-typing-dots"><span className="gem-dot" /><span className="gem-dot" /><span className="gem-dot" /></div></div>
+                <div className="gem-typing"><div className="gem-typing-avatar"><LoomieLogo size={18} /></div><div className="gem-typing-dots"><span className="gem-dot" /><span className="gem-dot" /><span className="gem-dot" /></div></div>
               )}
               <div ref={bottomRef} />
             </div>
@@ -327,7 +327,7 @@ export default function GeminiPage() {
         {hasMessages && (
           <div className="gem-bottom">
             <div className="gem-input-wrap">
-              <textarea ref={inputRef} className="gem-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask Pebble anything about Minecraft..." rows={1} disabled={loading} />
+              <textarea ref={inputRef} className="gem-input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} placeholder="Ask Loomie anything about Minecraft..." rows={1} disabled={loading} />
               <button className={`gem-send ${input.trim() && !loading ? 'active' : ''}`} onClick={() => sendMessage()} disabled={!input.trim() || loading}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" /></svg>
               </button>

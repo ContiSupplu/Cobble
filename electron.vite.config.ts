@@ -9,6 +9,7 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin()]
   },
   renderer: {
-    plugins: [react()]
+    plugins: [react()],
+    base: './'
   }
 })

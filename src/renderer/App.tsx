@@ -3,7 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/globals.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CustomizationProvider } from './context/CustomizationContext'
-import { PebbleProvider } from './context/PebbleContext'
+import { LoomieProvider } from './context/LoomieContext'
 import Titlebar from './components/Titlebar'
 import Sidebar from './components/Sidebar'
 import ProfileScreen from './components/ProfileScreen'
@@ -35,7 +35,7 @@ function AppShell() {
   const [logsOpen, setLogsOpen] = useState(false)
 
   // First-launch wizard
-  const [setupDone, setSetupDone] = useState(() => localStorage.getItem('cobble_setup_done') === 'true')
+  const [setupDone, setSetupDone] = useState(() => localStorage.getItem('loom_setup_done') === 'true')
 
   // Profile screen — shown on every launch after auth
   const [profileDone, setProfileDone] = useState(false)
@@ -50,17 +50,17 @@ function AppShell() {
   const closeLogs = useCallback(() => setLogsOpen(false), [])
 
   const handleWizardComplete = useCallback((settings: WizardSettings) => {
-    localStorage.setItem('cobble_setup_done', 'true')
+    localStorage.setItem('loom_setup_done', 'true')
     // Apply settings via electron API if available
     const api = (window as any).electronAPI
     if (api?.applyWizardSettings) {
       api.applyWizardSettings(settings)
     }
     // Also save to localStorage as fallback
-    localStorage.setItem('cobble_ram', String(settings.ram))
-    localStorage.setItem('cobble_dynamic_island', String(settings.dynamicIsland))
-    localStorage.setItem('cobble_close_on_launch', String(settings.closeOnLaunch))
-    localStorage.setItem('cobble_discord_rpc', String(settings.discordRPC))
+    localStorage.setItem('loom_ram', String(settings.ram))
+    localStorage.setItem('loom_dynamic_island', String(settings.dynamicIsland))
+    localStorage.setItem('loom_close_on_launch', String(settings.closeOnLaunch))
+    localStorage.setItem('loom_discord_rpc', String(settings.discordRPC))
     setSetupDone(true)
   }, [])
 
@@ -152,9 +152,9 @@ export default function App() {
   return (
     <AuthProvider>
       <CustomizationProvider>
-        <PebbleProvider>
+        <LoomieProvider>
           <AppShell />
-        </PebbleProvider>
+        </LoomieProvider>
       </CustomizationProvider>
     </AuthProvider>
   )

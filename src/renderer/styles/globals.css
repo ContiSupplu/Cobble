@@ -3,28 +3,32 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg-0: #131311;
-  --bg-1: #1a1a17;
-  --bg-2: rgba(255, 255, 255, 0.04);
-  --bg-3: rgba(255, 255, 255, 0.07);
-  --border: rgba(255, 255, 255, 0.08);
-  --text-0: #e8e6e1;
-  --text-1: #b0aea6;
-  --text-2: #78766f;
-  --text-3: #4a4843;
-  --accent: #d4915a;
-  --accent-hover: #c4813f;
-  --accent-muted: rgba(212, 145, 90, 0.1);
-  --green: #6bc97e;
-  --red: #e87272;
-  --yellow: #d4a95a;
-  --font-sans: 'Inter', -apple-system, system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
+  --bg-0: #0d0d0d;
+  --bg-1: #161616;
+  --bg-2: rgba(255, 255, 255, 0.05);
+  --bg-3: rgba(255, 255, 255, 0.08);
+  --border: rgba(255, 255, 255, 0.1);
+  --text-0: #f5f5f7;
+  --text-1: #a1a1a6;
+  --text-2: #6e6e73;
+  --text-3: #3a3a3c;
+  --accent: #0A84FF;
+  --accent-hover: #409CFF;
+  --accent-muted: rgba(10, 132, 255, 0.12);
+  --green: #30D158;
+  --red: #FF453A;
+  --yellow: #FFD60A;
+  --font-sans: -apple-system, 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
 
   --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.12);
+  --glass-border: rgba(255, 255, 255, 0.1);
   --glass-blur: 40px;
-  --glass-shadow: 0 8px 40px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.06);
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.05);
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --transition: 200ms ease;
 }
 
 html { font-size: 16px; }

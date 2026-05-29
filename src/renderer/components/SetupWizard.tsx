@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { useAuth } from '../context/AuthContext'
 import './SetupWizard.css'
 
 interface SetupWizardProps {
@@ -12,13 +13,13 @@ export interface WizardSettings {
   discordRPC: boolean
 }
 
-const STEPS = 4
+const TOTAL_SCREENS = 6
 
 export default function SetupWizard({ onComplete }: SetupWizardProps) {
-  const [step, setStep] = useState(0)
+  const [screen, setScreen] = useState(0)
+  const [prevScreen, setPrevScreen] = useState(-1)
   const [exiting, setExiting] = useState(false)
 
-  // Settings
   const [ram, setRam] = useState(4)
   const [dynamicIsland, setDynamicIsland] = useState(true)
   const [closeOnLaunch, setCloseOnLaunch] = useState(false)
@@ -26,219 +27,446 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const finish = useCallback((settings: WizardSettings) => {
     setExiting(true)
-    setTimeout(() => onComplete(settings), 600)
+    setTimeout(() => onComplete(settings), 800)
   }, [onComplete])
 
+  const goTo = useCallback((target: number) => {
+    setPrevScreen(screen)
+    setScreen(target)
+  }, [screen])
+
   const next = useCallback(() => {
-    if (step >= STEPS - 1) {
+    if (screen >= TOTAL_SCREENS - 1) {
       finish({ ram, dynamicIsland, closeOnLaunch, discordRPC })
     } else {
-      setStep(s => s + 1)
+      goTo(screen + 1)
     }
-  }, [step, ram, dynamicIsland, closeOnLaunch, discordRPC, finish])
+  }, [screen, ram, dynamicIsland, closeOnLaunch, discordRPC, finish, goTo])
 
   const back = useCallback(() => {
-    if (step > 0) setStep(s => s - 1)
-  }, [step])
+    if (screen > 0) goTo(screen - 1)
+  }, [screen, goTo])
 
-  const skip = useCallback(() => {
-    finish({ ram: 4, dynamicIsland: true, closeOnLaunch: false, discordRPC: true })
-  }, [finish])
-
-  const pageClass = (i: number) =>
-    i === step ? 'wizard-page active' : i < step ? 'wizard-page exit' : 'wizard-page'
+  // Show footer on screens 1-4 (not hello or allset)
+  const showFooter = screen > 0 && screen < TOTAL_SCREENS - 1
 
   return (
     <div className={`wizard ${exiting ? 'wizard-exit' : ''}`}>
-      {/* Ambient orbs */}
-      <div className="wizard-bg">
-        <div className="wizard-orb wizard-orb-1" />
-        <div className="wizard-orb wizard-orb-2" />
-        <div className="wizard-orb wizard-orb-3" />
+      <div className="wizard-stage">
+        {/* Screen 0: Hello */}
+        <WizardScreen index={0} current={screen} prev={prevScreen}>
+          <HelloScreen onContinue={next} isActive={screen === 0} />
+        </WizardScreen>
+
+        {/* Screen 1: What's New */}
+        <WizardScreen index={1} current={screen} prev={prevScreen}>
+          <WhatsNewScreen />
+        </WizardScreen>
+
+        {/* Screen 2: Meet Loomie */}
+        <WizardScreen index={2} current={screen} prev={prevScreen}>
+          <MeetLoomieScreen />
+        </WizardScreen>
+
+        {/* Screen 3: Sign In */}
+        <WizardScreen index={3} current={screen} prev={prevScreen}>
+          <SignInScreen onNext={next} isActive={screen === 3} />
+        </WizardScreen>
+
+        {/* Screen 4: Preferences */}
+        <WizardScreen index={4} current={screen} prev={prevScreen}>
+          <PreferencesScreen
+            ram={ram} onRamChange={setRam}
+            dynamicIsland={dynamicIsland} onDynamicIslandChange={setDynamicIsland}
+            discordRPC={discordRPC} onDiscordRPCChange={setDiscordRPC}
+            closeOnLaunch={closeOnLaunch} onCloseOnLaunchChange={setCloseOnLaunch}
+          />
+        </WizardScreen>
+
+        {/* Screen 5: All Set */}
+        <WizardScreen index={5} current={screen} prev={prevScreen}>
+          <AllSetScreen onFinish={() => finish({ ram, dynamicIsland, closeOnLaunch, discordRPC })} />
+        </WizardScreen>
       </div>
 
-      {/* Content */}
-      <div className="wizard-body">
-        {/* Step 0: Hello */}
-        <div className={pageClass(0)}>
-          <div className="wizard-hello">Hello.</div>
-          <div className="wizard-subtitle">
-            Welcome to Cobble — your Minecraft launcher, reimagined.
-            Let's get a few things set up.
+      {/* Footer */}
+      {showFooter && (
+        <div className="wizard-footer">
+          <div className="wizard-dots">
+            {Array.from({ length: TOTAL_SCREENS }).map((_, i) => (
+              <div key={i} className={`wizard-dot${i === screen ? ' active' : i < screen ? ' done' : ''}`} />
+            ))}
+          </div>
+          <div className="wizard-nav">
+            <button className="wizard-nav-back" onClick={back}>Back</button>
+            <button className="wizard-nav-continue" onClick={next}>Continue</button>
           </div>
         </div>
+      )}
+    </div>
+  )
+}
 
-        {/* Step 1: Performance */}
-        <div className={pageClass(1)}>
-          <div className="wizard-section-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-          </div>
-          <div className="wizard-heading">Performance</div>
-          <div className="wizard-caption">
-            Choose how much memory to give Minecraft. More RAM helps with
-            mods and longer render distances.
-          </div>
+/* ── Screen wrapper with directional transitions ── */
+function WizardScreen({ index, current, prev, children }: {
+  index: number; current: number; prev: number; children: React.ReactNode
+}) {
+  const isActive = index === current
+  const wasActive = index === prev
+  const goingForward = current > prev
 
-          <RamSlider value={ram} onChange={setRam} />
+  let className = 'wz-screen'
+  if (isActive) className += ' wz-screen-enter' + (goingForward ? '-right' : '-left')
+  else if (wasActive) className += ' wz-screen-exit' + (goingForward ? '-left' : '-right')
+  else className += ' wz-screen-hidden'
 
-          <div className="wizard-options">
-            <div className="wizard-option" onClick={() => setCloseOnLaunch(!closeOnLaunch)}>
-              <div className="wizard-option-left">
-                <div className="wizard-option-title">Close launcher when game starts</div>
-                <div className="wizard-option-desc">Frees up system resources while you play</div>
-              </div>
-              <div className={`wizard-toggle ${closeOnLaunch ? 'on' : ''}`} />
-            </div>
-          </div>
+  return <div className={className}>{children}</div>
+}
+
+
+/* ═══════════════════════════════════════════════════
+   Screen 0: Hello
+   ═══════════════════════════════════════════════════ */
+
+function HelloScreen({ onContinue, isActive }: { onContinue: () => void; isActive: boolean }) {
+  const [phase, setPhase] = useState<'hello' | 'welcome'>('hello')
+
+  useEffect(() => {
+    if (!isActive) { setPhase('hello'); return }
+    const t = setTimeout(() => setPhase('welcome'), 2400)
+    return () => clearTimeout(t)
+  }, [isActive])
+
+  return (
+    <div className="hello">
+      {/* Organic gradient blobs */}
+      <div className="hello-blob hello-blob-1" />
+      <div className="hello-blob hello-blob-2" />
+      <div className="hello-blob hello-blob-3" />
+
+      <div className="hello-center">
+        <div className={`hello-script ${phase === 'welcome' ? 'hello-script-out' : ''}`}>
+          hello
         </div>
 
-        {/* Step 2: Features */}
-        <div className={pageClass(2)}>
-          <div className="wizard-section-icon">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="4" />
-              <path d="M12 8v8M8 12h8" />
-            </svg>
-          </div>
-          <div className="wizard-heading">Features</div>
-          <div className="wizard-caption">
-            Turn on the extras you'd like. You can always change these later in Settings.
-          </div>
-
-          <div className="wizard-options">
-            <div className="wizard-option" onClick={() => setDynamicIsland(!dynamicIsland)}>
-              <div className="wizard-option-left">
-                <div className="wizard-option-title">Dynamic Island</div>
-                <div className="wizard-option-desc">In-game HUD with alerts, music, and notifications</div>
-              </div>
-              <div className={`wizard-toggle ${dynamicIsland ? 'on' : ''}`} />
-            </div>
-
-            <div className="wizard-option" onClick={() => setDiscordRPC(!discordRPC)}>
-              <div className="wizard-option-left">
-                <div className="wizard-option-title">Discord Rich Presence</div>
-                <div className="wizard-option-desc">Show what you're playing on your Discord profile</div>
-              </div>
-              <div className={`wizard-toggle ${discordRPC ? 'on' : ''}`} />
-            </div>
-          </div>
-        </div>
-
-        {/* Step 3: Done */}
-        <div className={pageClass(3)}>
-          <div className="wizard-finish-icon">
-            <svg viewBox="0 0 24 24">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          </div>
-          <div className="wizard-heading">You're all set.</div>
-          <div className="wizard-caption">
-            Everything's configured. You can adjust any of these in Settings at any time.
-          </div>
-
-          <div className="wizard-summary">
-            <div className="wizard-summary-row">
-              <span className="wizard-summary-key">Memory</span>
-              <span className="wizard-summary-val">{ram} GB</span>
-            </div>
-            <div className="wizard-summary-row">
-              <span className="wizard-summary-key">Dynamic Island</span>
-              <span className="wizard-summary-val">{dynamicIsland ? 'On' : 'Off'}</span>
-            </div>
-            <div className="wizard-summary-row">
-              <span className="wizard-summary-key">Discord RPC</span>
-              <span className="wizard-summary-val">{discordRPC ? 'On' : 'Off'}</span>
-            </div>
-            <div className="wizard-summary-row">
-              <span className="wizard-summary-key">Auto-close launcher</span>
-              <span className="wizard-summary-val">{closeOnLaunch ? 'On' : 'Off'}</span>
-            </div>
-          </div>
+        <div className={`hello-title ${phase === 'welcome' ? 'hello-title-in' : ''}`}>
+          <span className="hello-title-text">Welcome to</span>
+          <span className="hello-title-brand">Loom</span>
         </div>
       </div>
 
-      {/* Footer: dots + buttons */}
-      <div className="wizard-footer">
-        <div className="wizard-dots">
-          {Array.from({ length: STEPS }).map((_, i) => (
-            <div key={i} className={`wizard-dot ${i === step ? 'active' : i < step ? 'done' : ''}`} />
-          ))}
-        </div>
+      <div className={`hello-action ${phase === 'welcome' ? 'hello-action-in' : ''}`}>
+        <button className="wz-btn-hero" onClick={onContinue}>Get Started</button>
+      </div>
+    </div>
+  )
+}
 
-        <div className="wizard-footer-btns">
-          {step === 0 && (
-            <button className="wizard-btn wizard-btn-ghost" onClick={skip}>
-              Skip
-            </button>
-          )}
-          {step > 0 && (
-            <button className="wizard-btn wizard-btn-secondary" onClick={back}>
-              Back
-            </button>
-          )}
-          <button className="wizard-btn wizard-btn-primary" onClick={next}>
-            {step === 0 ? 'Get Started' : step === STEPS - 1 ? 'Done' : 'Continue'}
-          </button>
+
+/* ═══════════════════════════════════════════════════
+   Screen 1: What's New
+   ═══════════════════════════════════════════════════ */
+
+function WhatsNewScreen() {
+  return (
+    <div className="wz-content">
+      <div className="wz-content-inner">
+        <div className="wz-icon-wrap">
+          <svg viewBox="0 0 56 56" className="wz-icon-svg">
+            <defs>
+              <linearGradient id="iconGrad1" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#5e5ce6" />
+                <stop offset="100%" stopColor="#bf5af2" />
+              </linearGradient>
+            </defs>
+            <rect width="56" height="56" rx="14" fill="url(#iconGrad1)" />
+            <path d="M18 38V24l10-8 10 8v14H18z" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M24 38v-8h8v8" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <h1 className="wz-heading">What's New</h1>
+        <p className="wz-subheading">A Minecraft launcher, reimagined.</p>
+
+        <div className="wz-features">
+          <div className="wz-feature">
+            <div className="wz-feature-icon">
+              <svg viewBox="0 0 32 32"><defs><linearGradient id="f1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#0a84ff" /><stop offset="100%" stopColor="#5e5ce6" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f1)" /><rect x="9" y="12" width="14" height="8" rx="4" fill="white" /></svg>
+            </div>
+            <div className="wz-feature-text">
+              <div className="wz-feature-name">Dynamic Island</div>
+              <div className="wz-feature-desc">A living HUD that follows your game — health, coordinates, music, and more.</div>
+            </div>
+          </div>
+
+          <div className="wz-feature">
+            <div className="wz-feature-icon">
+              <svg viewBox="0 0 32 32"><defs><linearGradient id="f2" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#bf5af2" /><stop offset="100%" stopColor="#ff375f" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f2)" /><circle cx="16" cy="16" r="5" fill="white" /><circle cx="16" cy="16" r="8" fill="none" stroke="white" strokeWidth="1.5" opacity="0.6" /></svg>
+            </div>
+            <div className="wz-feature-text">
+              <div className="wz-feature-name">Loomie AI</div>
+              <div className="wz-feature-desc">Your Minecraft companion — knows every recipe, every mob, every trick.</div>
+            </div>
+          </div>
+
+          <div className="wz-feature">
+            <div className="wz-feature-icon">
+              <svg viewBox="0 0 32 32"><defs><linearGradient id="f3" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#30d158" /><stop offset="100%" stopColor="#0a84ff" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f3)" /><rect x="10" y="11" width="12" height="10" rx="2" fill="white" /><rect x="12" y="14" width="8" height="1.5" rx="0.75" fill="url(#f3)" /><rect x="12" y="17" width="5" height="1.5" rx="0.75" fill="url(#f3)" /></svg>
+            </div>
+            <div className="wz-feature-text">
+              <div className="wz-feature-name">Smart Library</div>
+              <div className="wz-feature-desc">Create instances, browse mods, and manage everything in one place.</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
 }
 
-/* ── Custom RAM Slider ── */
+
+/* ═══════════════════════════════════════════════════
+   Screen 2: Meet Loomie
+   ═══════════════════════════════════════════════════ */
+
+function MeetLoomieScreen() {
+  return (
+    <div className="wz-content">
+      <div className="wz-content-inner wz-loomie">
+        <div className="loomie-glow">
+          <div className="loomie-orb" />
+        </div>
+        <h1 className="wz-heading">Meet Loomie</h1>
+        <p className="wz-subheading">Your personal Minecraft companion,<br />powered by Gemini.</p>
+
+        <div className="loomie-caps">
+          <div className="loomie-cap">
+            <div className="loomie-cap-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" /></svg>
+            </div>
+            <div>
+              <div className="loomie-cap-title">Encyclopedic knowledge</div>
+              <div className="loomie-cap-desc">Every recipe, every mob stat, every redstone mechanic — instant answers.</div>
+            </div>
+          </div>
+          <div className="loomie-cap">
+            <div className="loomie-cap-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+            </div>
+            <div>
+              <div className="loomie-cap-title">Natural conversation</div>
+              <div className="loomie-cap-desc">Ask anything the way you'd ask a friend. Loomie responds naturally.</div>
+            </div>
+          </div>
+          <div className="loomie-cap">
+            <div className="loomie-cap-icon">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" /></svg>
+            </div>
+            <div>
+              <div className="loomie-cap-title">Launcher actions</div>
+              <div className="loomie-cap-desc">Install mods, create instances, adjust settings — all by asking.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+/* ═══════════════════════════════════════════════════
+   Screen 3: Sign In
+   ═══════════════════════════════════════════════════ */
+
+function SignInScreen({ onNext, isActive }: { onNext: () => void; isActive: boolean }) {
+  const { addAccount, isAuthenticated, user } = useAuth()
+  const [loading, setLoading] = useState(false)
+  const [signedIn, setSignedIn] = useState(false)
+  const autoAdvanced = useRef(false)
+
+  const handleSignIn = useCallback(async () => {
+    setLoading(true)
+    try { await addAccount() } catch { /* */ }
+    finally { setLoading(false) }
+  }, [addAccount])
+
+  useEffect(() => {
+    if (isActive && isAuthenticated && !autoAdvanced.current) {
+      setSignedIn(true)
+      autoAdvanced.current = true
+      const t = setTimeout(onNext, 1500)
+      return () => clearTimeout(t)
+    }
+  }, [isActive, isAuthenticated, onNext])
+
+  useEffect(() => {
+    if (!isActive) { autoAdvanced.current = false; setSignedIn(false) }
+  }, [isActive])
+
+  return (
+    <div className="wz-content">
+      <div className="wz-content-inner">
+        <div className="wz-icon-wrap">
+          <svg viewBox="0 0 56 56" className="wz-icon-svg">
+            <rect width="56" height="56" rx="14" fill="#1a1a1e" />
+            <g transform="translate(15, 15)">
+              <rect x="0" y="0" width="12" height="12" fill="#F25022" rx="1.5" />
+              <rect x="14" y="0" width="12" height="12" fill="#7FBA00" rx="1.5" />
+              <rect x="0" y="14" width="12" height="12" fill="#00A4EF" rx="1.5" />
+              <rect x="14" y="14" width="12" height="12" fill="#FFB900" rx="1.5" />
+            </g>
+          </svg>
+        </div>
+        <h1 className="wz-heading">Sign in with Microsoft</h1>
+        <p className="wz-subheading">Connect your Minecraft account to get started.</p>
+
+        {signedIn ? (
+          <div className="signin-done">
+            <div className="signin-check">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+            </div>
+            <div className="signin-done-name">{user?.displayName || user?.username}</div>
+          </div>
+        ) : (
+          <div className="signin-actions">
+            <button className={`wz-btn-primary signin-main ${loading ? 'loading' : ''}`} onClick={handleSignIn} disabled={loading}>
+              {loading ? <><span className="wz-spinner" />Signing in…</> : 'Sign In'}
+            </button>
+            <button className="wz-btn-text" onClick={onNext}>Set Up Later</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+
+/* ═══════════════════════════════════════════════════
+   Screen 4: Preferences
+   ═══════════════════════════════════════════════════ */
+
+interface PrefsProps {
+  ram: number; onRamChange: (v: number) => void
+  dynamicIsland: boolean; onDynamicIslandChange: (v: boolean) => void
+  discordRPC: boolean; onDiscordRPCChange: (v: boolean) => void
+  closeOnLaunch: boolean; onCloseOnLaunchChange: (v: boolean) => void
+}
+
+function PreferencesScreen({ ram, onRamChange, dynamicIsland, onDynamicIslandChange, discordRPC, onDiscordRPCChange, closeOnLaunch, onCloseOnLaunchChange }: PrefsProps) {
+  return (
+    <div className="wz-content">
+      <div className="wz-content-inner">
+        <div className="wz-icon-wrap">
+          <svg viewBox="0 0 56 56" className="wz-icon-svg">
+            <defs>
+              <linearGradient id="prefsGrad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#636366" />
+                <stop offset="100%" stopColor="#48484a" />
+              </linearGradient>
+            </defs>
+            <rect width="56" height="56" rx="14" fill="url(#prefsGrad)" />
+            <circle cx="28" cy="28" r="10" fill="none" stroke="white" strokeWidth="2" />
+            <circle cx="28" cy="28" r="4" fill="white" />
+            <line x1="28" y1="12" x2="28" y2="18" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <line x1="28" y1="38" x2="28" y2="44" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <line x1="12" y1="28" x2="18" y2="28" stroke="white" strokeWidth="2" strokeLinecap="round" />
+            <line x1="38" y1="28" x2="44" y2="28" stroke="white" strokeWidth="2" strokeLinecap="round" />
+          </svg>
+        </div>
+        <h1 className="wz-heading">Make It Yours</h1>
+        <p className="wz-subheading">You can always change these later in Settings.</p>
+
+        <div className="prefs-group">
+          <RamSlider value={ram} onChange={onRamChange} />
+
+          <div className="prefs-sep" />
+
+          <label className="prefs-row" onClick={() => onDynamicIslandChange(!dynamicIsland)}>
+            <div className="prefs-row-info">
+              <span className="prefs-row-name">Dynamic Island</span>
+              <span className="prefs-row-desc">Apple‑style HUD overlay in Minecraft</span>
+            </div>
+            <div className={`prefs-toggle ${dynamicIsland ? 'on' : ''}`}><div className="prefs-toggle-knob" /></div>
+          </label>
+
+          <label className="prefs-row" onClick={() => onDiscordRPCChange(!discordRPC)}>
+            <div className="prefs-row-info">
+              <span className="prefs-row-name">Discord Rich Presence</span>
+              <span className="prefs-row-desc">Show what you're playing on Discord</span>
+            </div>
+            <div className={`prefs-toggle ${discordRPC ? 'on' : ''}`}><div className="prefs-toggle-knob" /></div>
+          </label>
+
+          <label className="prefs-row" onClick={() => onCloseOnLaunchChange(!closeOnLaunch)}>
+            <div className="prefs-row-info">
+              <span className="prefs-row-name">Close on Game Start</span>
+              <span className="prefs-row-desc">Free up resources while you play</span>
+            </div>
+            <div className={`prefs-toggle ${closeOnLaunch ? 'on' : ''}`}><div className="prefs-toggle-knob" /></div>
+          </label>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+/* ═══════════════════════════════════════════════════
+   Screen 5: All Set
+   ═══════════════════════════════════════════════════ */
+
+function AllSetScreen({ onFinish }: { onFinish: () => void }) {
+  return (
+    <div className="allset">
+      <div className="allset-blob allset-blob-1" />
+      <div className="allset-blob allset-blob-2" />
+      <div className="allset-blob allset-blob-3" />
+      <div className="allset-center">
+        <h1 className="allset-heading">You're all set.</h1>
+        <p className="allset-sub">Loom is ready. Let's play.</p>
+        <button className="wz-btn-hero" onClick={onFinish}>Get Started</button>
+      </div>
+    </div>
+  )
+}
+
+
+/* ═══════════════════════════════════════════════════
+   RAM Slider
+   ═══════════════════════════════════════════════════ */
+
 function RamSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const trackRef = useRef<HTMLDivElement>(null)
   const dragging = useRef(false)
   const min = 2, max = 16
-
   const pct = ((value - min) / (max - min)) * 100
 
-  const updateFromEvent = (clientX: number) => {
-    const track = trackRef.current
-    if (!track) return
-    const rect = track.getBoundingClientRect()
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    const snapped = Math.round(ratio * (max - min) + min)
-    onChange(snapped)
-  }
-
-  const onDown = (e: React.MouseEvent) => {
-    dragging.current = true
-    updateFromEvent(e.clientX)
-    e.preventDefault()
+  const update = (x: number) => {
+    const r = trackRef.current?.getBoundingClientRect()
+    if (!r) return
+    const ratio = Math.max(0, Math.min(1, (x - r.left) / r.width))
+    onChange(Math.round(ratio * (max - min) + min))
   }
 
   useEffect(() => {
-    const onMove = (e: MouseEvent) => {
-      if (dragging.current) updateFromEvent(e.clientX)
-    }
-    const onUp = () => { dragging.current = false }
-    window.addEventListener('mousemove', onMove)
-    window.addEventListener('mouseup', onUp)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onUp)
-    }
+    const move = (e: MouseEvent) => { if (dragging.current) update(e.clientX) }
+    const up = () => { dragging.current = false }
+    window.addEventListener('mousemove', move)
+    window.addEventListener('mouseup', up)
+    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up) }
   }, []) // eslint-disable-line
 
   return (
-    <div className="wizard-slider-group">
-      <div className="wizard-slider-header">
-        <span className="wizard-slider-label">Allocated RAM</span>
-        <span className="wizard-slider-value">{value} GB</span>
+    <div className="ram-slider">
+      <div className="ram-header">
+        <span className="ram-label">Allocated Memory</span>
+        <span className="ram-value">{value} GB</span>
       </div>
-      <div className="wizard-slider-track" ref={trackRef} onMouseDown={onDown}>
-        <div className="wizard-slider-fill" style={{ width: `${pct}%` }} />
-        <div className="wizard-slider-thumb" style={{ left: `${pct}%` }} />
+      <div className="ram-track" ref={trackRef} onMouseDown={e => { dragging.current = true; update(e.clientX); e.preventDefault() }}>
+        <div className="ram-fill" style={{ width: `${pct}%` }} />
+        <div className="ram-thumb" style={{ left: `${pct}%` }} />
       </div>
-      <div className="wizard-slider-ticks">
-        <span className="wizard-slider-tick">2</span>
-        <span className="wizard-slider-tick">4</span>
-        <span className="wizard-slider-tick">8</span>
-        <span className="wizard-slider-tick">12</span>
-        <span className="wizard-slider-tick">16</span>
+      <div className="ram-ticks">
+        <span>2 GB</span><span>4</span><span>8</span><span>12</span><span>16 GB</span>
       </div>
     </div>
   )

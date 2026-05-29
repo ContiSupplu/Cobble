@@ -92,7 +92,7 @@ export default function IncognitoCard({
       {/* Disclaimer — only when enabled */}
       {enabled && (
         <div className="incognito-fine">
-          Using incognito to bypass server bans may lead to permanent bans. Cobble is not responsible for your actions.
+          Using incognito to bypass server bans may lead to permanent bans. Loom is not responsible for your actions.
         </div>
       )}
     </div>

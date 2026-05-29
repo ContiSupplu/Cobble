@@ -155,6 +155,29 @@ export default function SettingsPage() {
 
   const clearBg = () => update('homeBackground', null)
 
+  // ── Advanced Performance ──
+  const [perfModpack, setPerfModpack] = useState(true)
+  const [perfJvmFlags, setPerfJvmFlags] = useState(true)
+  const [perfHighPriority, setPerfHighPriority] = useState(true)
+  const [perfGameSettings, setPerfGameSettings] = useState(true)
+  const [perfDefenderExclusion, setPerfDefenderExclusion] = useState(false)
+  const [perfPowerPlan, setPerfPowerPlan] = useState(false)
+
+  useEffect(() => {
+    api?.storeGet('perf_modpack').then((v: any) => setPerfModpack(v ?? true))
+    api?.storeGet('perf_jvm_flags').then((v: any) => setPerfJvmFlags(v ?? true))
+    api?.storeGet('perf_high_priority').then((v: any) => setPerfHighPriority(v ?? true))
+    api?.storeGet('perf_game_settings').then((v: any) => setPerfGameSettings(v ?? true))
+    api?.storeGet('perf_defender_exclusion').then((v: any) => setPerfDefenderExclusion(v ?? false))
+    api?.storeGet('perf_power_plan').then((v: any) => setPerfPowerPlan(v ?? false))
+  }, [])
+
+  const togglePerf = (key: string, current: boolean, setter: (v: boolean) => void) => {
+    const next = !current
+    setter(next)
+    api?.storeSet(key, next)
+  }
+
   return (
     <div className="settings page-enter">
       <h1 className="settings-title">Settings</h1>
@@ -272,7 +295,7 @@ export default function SettingsPage() {
             <TutorialDropdown title="How to set up Spotify">
               <ol className="settings-tutorial-steps">
                 <li>Go to the <strong>Spotify Developer Dashboard</strong> at <em>developer.spotify.com</em></li>
-                <li>Click <strong>"Create App"</strong> and name it anything (e.g. "Cobble")</li>
+                <li>Click <strong>"Create App"</strong> and name it anything (e.g. "Loom")</li>
                 <li>Set the <strong>Redirect URI</strong> to: <code>http://localhost:8888/callback</code></li>
                 <li>Copy your <strong>Client ID</strong> and paste it into the Spotify widget setup</li>
                 <li>Click <strong>"Connect"</strong> below and sign into your Spotify account</li>
@@ -420,7 +443,7 @@ export default function SettingsPage() {
             <TutorialDropdown title="How to set up Discord Rich Presence">
               <ol className="settings-tutorial-steps">
                 <li>Go to the <strong>Discord Developer Portal</strong> at <em>discord.com/developers/applications</em></li>
-                <li>Click <strong>"New Application"</strong> and name it (e.g. "Cobble" or "Minecraft")</li>
+                <li>Click <strong>"New Application"</strong> and name it (e.g. "Loom" or "Minecraft")</li>
                 <li>Under <strong>Rich Presence → Art Assets</strong>, upload a logo (optional)</li>
                 <li>Copy the <strong>Application ID</strong> from the General Information page</li>
                 <li>Paste it below and click <strong>Connect</strong> — Discord must be running!</li>
@@ -496,13 +519,99 @@ export default function SettingsPage() {
             <div className="settings-row-desc">Re-run the first-launch setup experience</div>
           </div>
           <button className="settings-btn-sm settings-btn-accent" onClick={() => {
-            localStorage.removeItem('cobble_setup_done')
+            localStorage.removeItem('loom_setup_done')
             window.location.reload()
           }}>Replay</button>
         </div>
         <div className="settings-row last">
           <div className="settings-row-title">Reset Customization</div>
           <button className="settings-btn-sm" onClick={reset}>Reset All</button>
+        </div>
+      </div>
+
+      {/* ── Advanced ── */}
+      <div className="settings-section">
+        <div className="settings-label">Advanced</div>
+
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">Performance Mod Pack</div>
+            <div className="settings-row-desc">Auto-install Sodium, Lithium, and other performance mods on new Fabric instances</div>
+          </div>
+          <button
+            className={`settings-toggle${perfModpack ? ' on' : ''}`}
+            onClick={() => togglePerf('perf_modpack', perfModpack, setPerfModpack)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">Optimized JVM Flags</div>
+            <div className="settings-row-desc">Use Aikar's G1GC flags and additional optimizations for better FPS</div>
+          </div>
+          <button
+            className={`settings-toggle${perfJvmFlags ? ' on' : ''}`}
+            onClick={() => togglePerf('perf_jvm_flags', perfJvmFlags, setPerfJvmFlags)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">High Process Priority</div>
+            <div className="settings-row-desc">Set Minecraft to high CPU priority for better performance</div>
+          </div>
+          <button
+            className={`settings-toggle${perfHighPriority ? ' on' : ''}`}
+            onClick={() => togglePerf('perf_high_priority', perfHighPriority, setPerfHighPriority)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">Optimized Game Settings</div>
+            <div className="settings-row-desc">Apply performance-optimized video settings on new instances</div>
+          </div>
+          <button
+            className={`settings-toggle${perfGameSettings ? ' on' : ''}`}
+            onClick={() => togglePerf('perf_game_settings', perfGameSettings, setPerfGameSettings)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">Windows Defender Exclusion</div>
+            <div className="settings-row-desc">Add game folder to Windows Defender exclusions for faster launches (requires admin)</div>
+          </div>
+          <div className="settings-bg-actions">
+            <button className="settings-btn-sm settings-btn-accent" onClick={() => api?.applyDefenderExclusion?.()}>Apply</button>
+            <button
+              className={`settings-toggle${perfDefenderExclusion ? ' on' : ''}`}
+              onClick={() => togglePerf('perf_defender_exclusion', perfDefenderExclusion, setPerfDefenderExclusion)}
+            >
+              <div className="settings-toggle-dot" />
+            </button>
+          </div>
+        </div>
+
+        <div className="settings-row last">
+          <div>
+            <div className="settings-row-title">Power Plan Optimization</div>
+            <div className="settings-row-desc">Switch to High Performance power plan while Minecraft is running</div>
+          </div>
+          <button
+            className={`settings-toggle${perfPowerPlan ? ' on' : ''}`}
+            onClick={() => togglePerf('perf_power_plan', perfPowerPlan, setPerfPowerPlan)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
         </div>
       </div>
 

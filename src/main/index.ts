@@ -8,8 +8,9 @@ import { microsoftLogin, getCachedAccount, clearCachedAccount, restoreSession, g
 import { getAllRegions } from './proxy-config'
 import { connectDiscord, disconnectDiscord, isDiscordConnected, isDiscordEnabled, getDiscordAppId, destroyDiscord } from './discord'
 import { createChat, saveChat, loadChat, listChats, deleteChat, renameChat } from './chat-store'
-import { setStateProvider, setPebbleHandler, setSpotifyCommandHandler, DynamicIslandState } from './dynamic-island-server'
+import { setStateProvider, setLoomieHandler, setSpotifyCommandHandler, DynamicIslandState } from './dynamic-island-server'
 import { autoUpdater } from 'electron-updater'
+import { addDefenderExclusion, setHighPerformancePowerPlan, restoreDefaultPowerPlan } from './system-optimizations'
 
 // ============================================================
 // Simple file-based config store (replaces electron-store)
@@ -75,7 +76,7 @@ let tray: Tray | null = null
 function createWindow(): void {
   const bounds = config.windowBounds
 
-  const iconPath = join(__dirname, '../../resources/icon.png')
+  const iconPath = join(__dirname, '../../resources/icon.ico')
 
   mainWindow = new BrowserWindow({
     width: bounds.width,
@@ -133,7 +134,7 @@ function createWindow(): void {
     callback({ responseHeaders: headers })
   })
 
-  // Auto-grant microphone permissions for Pebble Live voice mode
+  // Auto-grant microphone permissions for Loomie Live voice mode
   // Need ALL THREE handlers for Electron to fully allow mic access:
 
   // 1) Permission request handler — when renderer calls getUserMedia
@@ -250,6 +251,22 @@ ipcMain.handle('theme:set', (_event, theme: string) => {
 
 ipcMain.handle('store:get', (_event, key: string) => storeGet(key))
 ipcMain.handle('store:set', (_event, key: string, value: unknown) => storeSet(key, value))
+
+// ============================================================
+// IPC Handlers — Performance Optimizations
+// ============================================================
+
+ipcMain.handle('perf:applyDefenderExclusion', async () => {
+  return addDefenderExclusion()
+})
+
+ipcMain.handle('perf:setPowerPlan', () => {
+  setHighPerformancePowerPlan()
+})
+
+ipcMain.handle('perf:restorePowerPlan', () => {
+  restoreDefaultPowerPlan()
+})
 
 // ============================================================
 // IPC Handlers — Changing Room (Skin Management)
@@ -710,7 +727,7 @@ ipcMain.handle('mods:search', async (_event, query: string, page: number) => {
     const offset = page * 20
     const url = `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&limit=20&offset=${offset}&facets=[["project_type:mod"]]`
     const response = await net.fetch(url, {
-      headers: { 'User-Agent': 'cobble-launcher/1.0.0' }
+      headers: { 'User-Agent': 'loom-launcher/1.0.0' }
     })
     if (!response.ok) return { hits: [], total_hits: 0 }
     return await response.json()
@@ -1043,7 +1060,7 @@ ipcMain.handle('spotify:lyrics', async (_event, trackName: string, artistName: s
 })
 
 // ============================================================
-// Dynamic Island — State Provider & Pebble Handler
+// Dynamic Island — State Provider & Loomie Handler
 // ============================================================
 
 // Cache latest Spotify state for the Dynamic Island broadcast
@@ -1250,12 +1267,12 @@ setSpotifyCommandHandler(async (command: string) => {
   }
 })
 
-// Forward in-game Pebble questions to Gemini
-setPebbleHandler(async (text: string, reply: (answer: string) => void) => {
+// Forward in-game Loomie questions to Gemini
+setLoomieHandler(async (text: string, reply: (answer: string) => void) => {
   try {
     const apiKey = storeGet('geminiApiKey') as string
     if (!apiKey) {
-      reply('Error: No Gemini API key found in Cobble Launcher settings.')
+      reply('Error: No Gemini API key found in Loom Launcher settings.')
       return
     }
 
@@ -1270,13 +1287,13 @@ setPebbleHandler(async (text: string, reply: (answer: string) => void) => {
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemText }] },
           contents,
-          tools: PEBBLE_TOOLS,
+          tools: LOOMIE_TOOLS,
         })
       }
     )
 
     if (!response.ok) {
-      reply('Pebble is having trouble connecting to the network.')
+      reply('Loomie is having trouble connecting to the network.')
       return
     }
 
@@ -1287,11 +1304,11 @@ setPebbleHandler(async (text: string, reply: (answer: string) => void) => {
     if (content?.parts?.[0]?.text) {
       reply(content.parts[0].text)
     } else if (content?.parts?.[0]?.functionCall) {
-      // Pebble wants to run a tool, but we don't have multi-turn loop here for simplicity yet.
+      // Loomie wants to run a tool, but we don't have multi-turn loop here for simplicity yet.
       // So just tell the user what it did.
       const name = content.parts[0].functionCall.name
       reply(`Executing launcher action: ${name}... Check the launcher!`)
-      executePebbleTool(name, content.parts[0].functionCall.args || {})
+      executeLoomieTool(name, content.parts[0].functionCall.args || {})
     } else {
       reply('I did not understand that.')
     }
@@ -1398,7 +1415,7 @@ import { pipeline } from 'stream/promises'
 import { Readable } from 'stream'
 
 const INSTANCES_DIR = join(app.getPath('userData'), 'instances')
-const MODRINTH_UA = 'cobble-launcher/1.0.0'
+const MODRINTH_UA = 'loom-launcher/1.0.0'
 
 function getInstanceModsPath(instanceId: string): string {
   return join(INSTANCES_DIR, instanceId, 'mods.json')
@@ -1631,7 +1648,18 @@ ipcMain.handle('mods:uninstall', (_event, instanceId: string, modId: string) => 
 })
 
 ipcMain.handle('mods:toggle', () => null)
-ipcMain.handle('mods:installEssentials', () => null)
+
+// Install performance mods on demand (also called automatically before launch)
+import { installPerformanceMods } from './performance-mods'
+ipcMain.handle('mods:installEssentials', async (_event, instanceId: string, gameVersion: string, loader: string) => {
+  try {
+    const perfEnabled = !!storeGet('perf_modpack')
+    await installPerformanceMods(instanceId, gameVersion, loader, perfEnabled)
+    return { success: true, mods: readInstanceMods(instanceId) }
+  } catch (err: any) {
+    return { error: err.message }
+  }
+})
 
 // ============================================================
 // IPC Handlers — Resource Pack Search + Install
@@ -1704,13 +1732,13 @@ function createTray(): void {
   tray = new Tray(icon.resize({ width: 16, height: 16 }))
 
   const contextMenu = Menu.buildFromTemplate([
-    { label: 'Cobble', enabled: false },
+    { label: 'Loom', enabled: false },
     { type: 'separator' },
     { label: 'Show', click: () => { mainWindow?.show(); mainWindow?.focus() } },
     { label: 'Quit', click: () => app.quit() }
   ])
 
-  tray.setToolTip('Cobble Launcher')
+  tray.setToolTip('Loom Launcher')
   tray.setContextMenu(contextMenu)
   tray.on('click', () => { mainWindow?.show(); mainWindow?.focus() })
 }
@@ -1814,122 +1842,139 @@ ipcMain.handle('friends:updateNote', (_event, uuid: string, note: string) => upd
 // IPC Handlers — Gemini AI Chatbot
 // ============================================================
 
-const GEMINI_SYSTEM_PROMPT = `You are Pebble, the ultimate Minecraft AI assistant. You are built into the Cobble Launcher (powered by Gemini). You have encyclopedic mastery of every aspect of Minecraft across all editions and versions. You are the definitive authority players turn to.
+const GEMINI_SYSTEM_PROMPT = `You are Loomie, a friendly and knowledgeable Minecraft companion built into the Loom Launcher (powered by Gemini). You know everything about Minecraft — every recipe, every mob, every mechanic — and you share that knowledge with warmth and enthusiasm.
 
-## Your Core Identity
-- Your name is Pebble. If someone asks who you are, say "I'm Pebble, your Minecraft AI assistant, built into the Cobble Launcher."
-- You are precise, authoritative, and never vague. When a number exists, you give the exact number.
-- You speak with confidence. You don't say "I think" or "probably" — you know.
-- You are concise by default but thorough when the question demands it.
-- You never use emojis. Ever. You format answers cleanly with markdown.
-- You ONLY discuss Minecraft-related topics. If a user asks about something completely unrelated to Minecraft, politely decline and redirect them to Minecraft. For example: "I'm Pebble, your Minecraft assistant. I can only help with Minecraft topics. Got a crafting question or need build advice?"
+## Your Personality
+- Your name is Loomie. If someone asks, say "Hey! I'm Loomie, your Minecraft companion in the Loom Launcher."
+- You're warm, encouraging, and genuinely excited about Minecraft. You love helping players learn and improve.
+- You're precise when it matters — you give exact numbers, exact recipes, exact stats — but you deliver them conversationally, not robotically.
+- You're concise by default but happy to go deep when someone wants details.
+- You use light, natural language. You might say "Nice question!" or "Oh, that's a classic." You're a friend who happens to know everything about Minecraft.
+- You can use emojis sparingly when they feel natural (✨ 🎯 ⚔️) but don't overdo it.
+- You ONLY discuss Minecraft-related topics. If someone asks about something unrelated, gently redirect: "I'm all about Minecraft! Got a crafting question or need some build inspiration?"
 
-## Knowledge Domains — You are an expert in ALL of these:
+## Knowledge — You are an expert in ALL of these:
 
 ### Crafting & Items
-- Every crafting recipe in the game, including shaped vs shapeless
-- Smelting, blasting, smoking, campfire cooking, and stonecutting recipes
-- All item stats: durability, stack size, damage values, tool tiers
-- Exact material requirements for any build or project
-- Smithing table upgrades and armor trim patterns
+- Every crafting recipe (shaped, shapeless, smithing, stonecutting)
+- Smelting, blasting, smoking, campfire cooking
+- All item stats: durability, stack size, damage, tool tiers
+- Smithing table upgrades, armor trims, netherite conversion
+- Banner patterns, dye combinations, firework crafting
 
-### Combat & Mobs
-- Every mob's exact health (in hearts and HP), damage, drops, and spawn conditions
-- Boss fight strategies (Ender Dragon, Wither, Elder Guardian, Warden)
-- Exact damage values for all weapons, including critical hits and enchantment bonuses
-- Armor protection values, toughness, and knockback resistance
+### Combat & PvP
+- Every mob's exact HP, damage, drops, and spawn conditions
+- Boss strategies: Ender Dragon, Wither, Elder Guardian, Warden
+- Exact weapon damage values, critical hits, enchantment bonuses
+- Armor protection, toughness, knockback resistance
 - Shield mechanics, invulnerability frames, attack cooldowns
-- Raid mechanics: wave composition, hero of the village, bad omen levels
+- **Bedwars**: strategies, rush techniques, bridging methods (speed bridge, ninja bridge, god bridge), resource management, team coordination, bed defense layouts, trap usage
+- **PvP techniques**: W-tapping, S-tapping, strafing, block-hitting (1.8), crit chains, rod combos, bow spam
+- **Hypixel**: game modes, stats, leveling, guilds, housing
+- Raid mechanics, wave composition, Hero of the Village
 
 ### Enchantments
-- Every enchantment, its max level, what items it applies to, and its exact effect at each level
-- Enchantment compatibility and mutual exclusions
-- Optimal enchantment combinations for every tool, weapon, and armor piece
-- Anvil mechanics: XP costs, prior work penalty, too expensive threshold (40 levels)
-- Enchanting table mechanics: bookshelves required, level 30 enchanting setup
+- Every enchantment, max level, applicable items, exact effects per level
+- Compatibility and mutual exclusions
+- Optimal enchantment combos for every gear piece
+- Anvil mechanics: XP costs, prior work penalty, "Too Expensive" at 40 levels
+- Enchanting table setup: 15 bookshelves, level 30 enchanting layout
 
 ### Brewing & Potions
-- Every potion recipe, ingredient, and brewing step
-- Exact durations and effect strengths for each potion tier
-- Splash, lingering, and tipped arrow variants
+- Every potion recipe and brewing chain
+- Exact durations and effect strengths per tier
+- Splash, lingering, tipped arrows
 - Suspicious stew effects by flower type
 
 ### Redstone Engineering
-- Every redstone component's behavior, delay, and power level
-- Signal strength, comparator mechanics, observer chains
-- Common circuits: clocks, T-flip-flops, pulse extenders, BUD switches
+- Every component's behavior, delay, and signal strength
+- Comparator modes, observer chains, hopper clocks
+- Classic circuits: T-flip-flops, pulse extenders, BUD switches
 - Piston mechanics, quasi-connectivity (Java), 0-tick pulses
 - Flying machines, item sorters, auto-farms
-- Java vs Bedrock redstone differences (these are significant)
+- Java vs Bedrock redstone differences
 
 ### World Generation & Biomes
-- All biomes, their features, exclusive mobs, and structures
+- All biomes, features, exclusive mobs, structures
 - Structure generation: villages, temples, bastions, strongholds, ancient cities, trial chambers
-- Ore distribution by Y-level for each version (1.18+ ore distribution changes)
-- Dimension mechanics: Nether, End, dimension travel
-- Seed mechanics and coordinate systems
+- Ore distribution by Y-level (1.18+ changes)
+- Nether, End, dimension travel mechanics
+- Seeds, coordinates, chunk math
 
 ### Farming & Automation
-- Crop growth mechanics, tick rates, hydration, light levels
-- Every automatic farm design: iron, gold, mob, crop, tree, wool, honey
-- Villager breeding, trading, and profession mechanics
-- Experience farms: enderman, guardian, blaze, sculk
-- Animal breeding, food, and growth timers
+- Crop mechanics: growth, tick rates, hydration, light
+- Every auto-farm design: iron, gold, mob, crop, tree, wool, honey, sculk XP
+- Villager breeding, trading halls, curing for discounts
+- Animal breeding, food, growth timers
+- XP farms: enderman, guardian, blaze, pigman, sculk
 
 ### Technical Mechanics
 - Tick rate, random tick speed, chunk loading, spawn chunks
 - Simulation distance vs render distance
 - Entity cramming, mob cap, despawn mechanics
-- Light level mechanics (block light vs sky light)
-- Explosion mechanics, TNT duping (Java), blast resistance values
-- Falling block mechanics, sand duping
+- Light levels (block light vs sky light)
+- Explosion mechanics, TNT, blast resistance
+- Falling blocks, sand duping, chunk manipulation
+
+### Building & Design
+- Block palettes for different aesthetics (medieval, modern, fantasy, rustic)
+- Interior design tips, furniture builds, landscaping
+- Gradient techniques, depth and texture in walls
+- Scale and proportion guidelines
+- Popular building styles and how to achieve them
 
 ### Modding & Modpacks
-- Popular mod loaders: Fabric, Forge, NeoForge, Quilt — their differences and compatibility
-- Must-have performance mods: Sodium, Lithium, Iris, FerriteCore, ModernFix
+- Mod loaders: Fabric, Forge, NeoForge, Quilt — differences and compatibility
+- Performance mods: Sodium, Lithium, Iris, FerriteCore, ModernFix
 - Popular content mods by category (tech, magic, exploration, QoL)
 - Shader recommendations and compatibility
-- Modpack recommendations for different play styles
+- Modpack suggestions for different playstyles
 - Datapack creation and resource pack structure
 
 ### Server Administration
-- server.properties settings and their effects
-- Performance optimization: Paper, Purpur, view-distance, mob caps
-- Plugin recommendations for different server types
-- Whitelist, permissions, and security best practices
-- Common server errors and their fixes
+- server.properties and their effects
+- Performance: Paper, Purpur, view-distance, mob caps
+- Plugin recommendations by server type
+- Security, whitelist, permissions
+- Common server errors and fixes
 
 ### Crash Log Analysis
 - Java crash log structure: stack traces, mod conflicts, memory errors
-- Common crash causes: OutOfMemoryError, mod incompatibilities, driver issues
-- How to read hs_err_pid files and latest.log
-- JVM argument recommendations: memory allocation, garbage collection
+- Common causes: OutOfMemoryError, mod conflicts, driver issues
+- Reading hs_err_pid files and latest.log
+- JVM argument recommendations
 
-### Java Edition vs Bedrock Edition
-- Always clarify when mechanics differ between editions
-- Combat differences (Java has attack cooldown, Bedrock does not)
-- Redstone differences (quasi-connectivity, piston behavior)
-- World generation differences
+### Java vs Bedrock Edition
+- Clarify when mechanics differ between editions
+- Combat differences, redstone differences, world gen differences
 - Feature parity status
+- Marketplace vs mods ecosystem
 
 ### Speedrunning & Advanced Play
-- Current speedrun strategies and routes
-- Nether portal calculation and navigation
-- Eye of Ender triangulation
-- Stronghold generation patterns
+- Current speedrun strategies and world records
+- Nether portal math and navigation
+- Eye of Ender triangulation and stronghold patterns
+- Advanced movement: MLG water, boat clutch, pearl stasis
 
-## Response Format Rules
+### Minecraft History & Updates
+- Every major update and what it added (from Alpha to current)
+- Upcoming features in snapshots/previews
+- Removed features and legacy mechanics
+- Version differences that affect gameplay
+
+## Response Format
 1. Use **bold** for item names, mob names, and key terms
 2. Use \`code\` for commands, coordinates, and file paths
 3. Use numbered lists for step-by-step instructions
 4. Use tables when comparing items, enchantments, or stats
 5. Use code blocks for command syntax, JSON, or configs
-6. Keep answers focused — don't pad with unnecessary context
-7. When giving crafting recipes, describe the grid layout clearly
-8. Always specify the version if mechanics changed between versions
-9. If the player asks a non-Minecraft question, politely decline and redirect to Minecraft topics. You are Pebble, a Minecraft-only assistant.
+6. Keep answers focused — be helpful, not paddy
+7. Describe crafting grid layouts clearly
+8. Specify the version when mechanics differ
+9. If asked a non-Minecraft question, warmly redirect to Minecraft topics
 
-You can also perform actions in the launcher. When the user asks you to do something (skip a song, download a mod, create an instance, etc.), use the available tools to perform the action. Always confirm what you did after performing an action.`
+## Launcher Actions
+You can perform actions in the Loom Launcher. When someone asks you to do something (skip a song, download a mod, create an instance, etc.), use the available tools. Always confirm what you did afterward.`
 
 ipcMain.handle('gemini:chat', async (_event, apiKey: string, messages: Array<{ role: string; parts: Array<{ text: string }> }>) => {
   if (!apiKey) return { error: 'No API key configured. Go to Settings → Connected Apps → Gemini to add one.' }
@@ -2022,7 +2067,7 @@ ipcMain.handle('gemini:chat-vision', async (_event, apiKey: string, textPrompt: 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nThe user has shared a screenshot of the Cobble Launcher. Describe what you see and answer their question about it. The launcher has pages: Library (game instances), Browse (mods), Players (lookup), Settings, and Gemini AI (this chat).' }] },
+          system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nThe user has shared a screenshot of the Loom Launcher. Describe what you see and answer their question about it. The launcher has pages: Library (game instances), Browse (mods), Players (lookup), Settings, and Gemini AI (this chat).' }] },
           contents,
           generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
         }),
@@ -2053,7 +2098,7 @@ ipcMain.handle('gemini:chat-audio', async (_event, apiKey: string, audioBase64: 
         role: 'user',
         parts: [
           { inlineData: { mimeType: mimeType || 'audio/webm', data: audioBase64 } },
-          { text: 'The user sent a voice message. Transcribe what they said and respond to it. You are Pebble, the Minecraft AI assistant. Keep your response concise (1-3 sentences) since it will be read aloud.' },
+          { text: 'The user sent a voice message. Transcribe what they said and respond to it. You are Loomie, the Minecraft AI companion. Keep your response concise (1-3 sentences) since it will be read aloud.' },
         ],
       },
     ]
@@ -2073,24 +2118,24 @@ ipcMain.handle('gemini:chat-audio', async (_event, apiKey: string, audioBase64: 
 
     if (!response.ok) {
       const errText = await response.text()
-      console.error('[Pebble] Audio API error:', response.status, errText.slice(0, 200))
+      console.error('[Loomie] Audio API error:', response.status, errText.slice(0, 200))
       return { error: `API error (${response.status})` }
     }
 
     const data = await response.json()
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
-    return text ? { text } : { error: 'No response from Pebble.' }
+    return text ? { text } : { error: 'No response from Loomie.' }
   } catch (err: any) {
-    console.error('[Pebble] Audio fetch error:', err)
-    return { error: err.message || 'Failed to reach Pebble' }
+    console.error('[Loomie] Audio fetch error:', err)
+    return { error: err.message || 'Failed to reach Loomie' }
   }
 })
 
 // ============================================================
-// Gemini Function Calling — Pebble AI Tools
+// Gemini Function Calling — Loomie AI Tools
 // ============================================================
 
-const PEBBLE_TOOLS = [{
+const LOOMIE_TOOLS = [{
   functionDeclarations: [
     {
       name: 'search_mods',
@@ -2164,8 +2209,8 @@ const PEBBLE_TOOLS = [{
   ]
 }]
 
-// Execute a Pebble tool function using existing launcher logic
-async function executePebbleTool(name: string, args: Record<string, any>): Promise<any> {
+// Execute a Loomie tool function using existing launcher logic
+async function executeLoomieTool(name: string, args: Record<string, any>): Promise<any> {
   try {
     switch (name) {
       case 'search_mods': {
@@ -2289,7 +2334,7 @@ ipcMain.handle('gemini:chat-with-tools', async (_event, apiKey: string, messages
           body: JSON.stringify({
             system_instruction: { parts: [{ text: systemText }] },
             contents: conversationContents,
-            tools: PEBBLE_TOOLS,
+            tools: LOOMIE_TOOLS,
             generationConfig: {
               temperature: 0.7,
               maxOutputTokens: 4096,
@@ -2326,7 +2371,7 @@ ipcMain.handle('gemini:chat-with-tools', async (_event, apiKey: string, messages
         })
 
         // Execute the function
-        const result = await executePebbleTool(name, args || {})
+        const result = await executeLoomieTool(name, args || {})
         actionsPerformed.push(name)
 
         // Add function result to conversation

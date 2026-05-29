@@ -97,6 +97,7 @@ const electronAPI = {
   getInstalledMods: (instanceId: string) => ipcRenderer.invoke('mods:getInstalled', instanceId),
   getProject: (slugOrId: string) => ipcRenderer.invoke('mods:getProject', slugOrId),
   checkModVersion: (projectId: string, gameVersion: string, loader: string) => ipcRenderer.invoke('mods:checkVersion', projectId, gameVersion, loader),
+  installPerformanceMods: (instanceId: string, gameVersion: string, loader: string) => ipcRenderer.invoke('mods:installEssentials', instanceId, gameVersion, loader),
 
   // Resource Packs
   searchResourcePacks: (query: string, page: number) => ipcRenderer.invoke('resourcepacks:search', query, page),
@@ -168,6 +169,11 @@ const electronAPI = {
 
   // Screen Capture
   screenCapture: () => ipcRenderer.invoke('screen:capture'),
+
+  // Performance Optimizations
+  applyDefenderExclusion: () => ipcRenderer.invoke('perf:applyDefenderExclusion'),
+  setPowerPlan: () => ipcRenderer.invoke('perf:setPowerPlan'),
+  restorePowerPlan: () => ipcRenderer.invoke('perf:restorePowerPlan'),
 
   // Auto-Updater
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),

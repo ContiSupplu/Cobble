@@ -487,9 +487,9 @@ public class DynamicIslandHud implements HudRenderCallback {
             WaypointManager.Waypoint wp = WaypointManager.activeWaypoint;
             String header = "NAVIGATING";
             String wpCoords = wp.x + " " + wp.y + " " + wp.z;
-            ctx.drawTextWithShadow(font, header, screenW / 2 - font.getWidth(header) / 2, y + 5, 0x777777);
-            ctx.drawTextWithShadow(font, center, screenW / 2 - font.getWidth(center) / 2, y + 16, 0xFFFFFF);
-            ctx.drawTextWithShadow(font, wpCoords, screenW / 2 - font.getWidth(wpCoords) / 2, y + 28, 0x555555);
+            ctx.drawTextWithShadow(font, header, screenW / 2 - font.getWidth(header) / 2, y + 5, 0xFF777777);
+            ctx.drawTextWithShadow(font, center, screenW / 2 - font.getWidth(center) / 2, y + 16, 0xFFFFFFFF);
+            ctx.drawTextWithShadow(font, wpCoords, screenW / 2 - font.getWidth(wpCoords) / 2, y + 28, 0xFF555555);
 
             // Coord feedback overlay
             if (coordFeedback != null) {
@@ -501,9 +501,9 @@ public class DynamicIslandHud implements HudRenderCallback {
             String header = "TIMER";
             String finishText = "⏱ " + TimerManager.finishedTimerName + " finished!";
             String hint = "auto-dismiss in " + Math.max(0, (int)((TimerManager.finishedTimerEndTime + 10000 - System.currentTimeMillis()) / 1000)) + "s";
-            ctx.drawTextWithShadow(font, header, screenW / 2 - font.getWidth(header) / 2, y + 5, 0x777777);
+            ctx.drawTextWithShadow(font, header, screenW / 2 - font.getWidth(header) / 2, y + 5, 0xFF777777);
             ctx.drawTextWithShadow(font, finishText, screenW / 2 - font.getWidth(finishText) / 2, y + 16, 0xFF00AAFF);
-            ctx.drawTextWithShadow(font, hint, screenW / 2 - font.getWidth(hint) / 2, y + 28, 0x555555);
+            ctx.drawTextWithShadow(font, hint, screenW / 2 - font.getWidth(hint) / 2, y + 28, 0xFF555555);
 
         } else if (TimerManager.isInCountdown()) {
             // ── TIMER COUNTDOWN (last 10 seconds) ──
@@ -512,7 +512,7 @@ public class DynamicIslandHud implements HudRenderCallback {
             String timerName = "⏱ " + TimerManager.countdownTimer.name;
 
             // Large countdown number
-            ctx.drawTextWithShadow(font, timerName, screenW / 2 - font.getWidth(timerName) / 2, y + 5, 0x888888);
+            ctx.drawTextWithShadow(font, timerName, screenW / 2 - font.getWidth(timerName) / 2, y + 5, 0xFF888888);
             // Big countdown
             String bigCount = countStr + "s";
             ctx.drawTextWithShadow(font, bigCount, screenW / 2 - font.getWidth(bigCount) / 2, y + 17, 0xFF00AAFF);
@@ -520,9 +520,9 @@ public class DynamicIslandHud implements HudRenderCallback {
         } else if (showDeath) {
             String header = "FINDING";
             String coords = GameAlerts.getDeathCoords();
-            ctx.drawTextWithShadow(font, header, screenW / 2 - font.getWidth(header) / 2, y + 5, 0x777777);
-            ctx.drawTextWithShadow(font, center, screenW / 2 - font.getWidth(center) / 2, y + 16, 0xFFFFFF);
-            ctx.drawTextWithShadow(font, coords, screenW / 2 - font.getWidth(coords) / 2, y + 28, 0x555555);
+            ctx.drawTextWithShadow(font, header, screenW / 2 - font.getWidth(header) / 2, y + 5, 0xFF777777);
+            ctx.drawTextWithShadow(font, center, screenW / 2 - font.getWidth(center) / 2, y + 16, 0xFFFFFFFF);
+            ctx.drawTextWithShadow(font, coords, screenW / 2 - font.getWidth(coords) / 2, y + 28, 0xFF555555);
 
         } else if (!center.isEmpty() && !showMusic) {
             int textY = y + ((h - (showBiome ? 12 : 0)) - 7) / 2;
@@ -548,8 +548,8 @@ public class DynamicIslandHud implements HudRenderCallback {
             }
 
             int textX = artX + artSize + 6;
-            ctx.drawTextWithShadow(font, line1, textX, y + 7, 0xDDDDDD);
-            ctx.drawTextWithShadow(font, line2, textX, y + 18, 0x888888);
+            ctx.drawTextWithShadow(font, line1, textX, y + 7, 0xFFDDDDDD);
+            ctx.drawTextWithShadow(font, line2, textX, y + 18, 0xFF888888);
 
             int eqX = x + w - 18;
             int eqY = y + 8;
@@ -685,7 +685,7 @@ public class DynamicIslandHud implements HudRenderCallback {
         // Biome footnote
         if (showBiome && !hasNotif && pebbleProgress < 0.1f && notifCenterProgress < 0.1f && settingsProgress < 0.1f && GameAlerts.biomeSubtitle != null) {
             String biome = GameAlerts.biomeSubtitle;
-            ctx.drawTextWithShadow(font, biome, screenW / 2 - font.getWidth(biome) / 2, y + h - 10, 0x666666);
+            ctx.drawTextWithShadow(font, biome, screenW / 2 - font.getWidth(biome) / 2, y + h - 10, 0xFF666666);
         }
 
         // ════════════════════════════════════════════════
@@ -1379,7 +1379,7 @@ public class DynamicIslandHud implements HudRenderCallback {
                 int barW = Math.max(w, 160);
                 int barX = screenW / 2 - barW / 2;
 
-                ctx.drawTextWithShadow(font, bar.name, screenW / 2 - font.getWidth(bar.name) / 2, bossY, 0xFFFFFF);
+                ctx.drawTextWithShadow(font, bar.name, screenW / 2 - font.getWidth(bar.name) / 2, bossY, 0xFFFFFFFF);
                 bossY += 10;
 
                 drawRoundedRect(ctx, barX, bossY, barW, 5, 2, 0xCC000000);

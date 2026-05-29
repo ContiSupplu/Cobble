@@ -19,26 +19,26 @@ export interface DynamicIslandState {
   notification: string | null
 }
 
-export interface PebbleQuestion {
-  type: 'pebble_question'
+export interface LoomieQuestion {
+  type: 'loomie_question'
   text: string
 }
 
-export interface PebbleAnswer {
-  type: 'pebble_answer'
+export interface LoomieAnswer {
+  type: 'loomie_answer'
   text: string
 }
 
 // Message handler for incoming messages from the mod
-let onPebbleQuestion: ((text: string, reply: (answer: string) => void) => void) | null = null
+let onLoomieQuestion: ((text: string, reply: (answer: string) => void) => void) | null = null
 let onSpotifyCommand: ((command: string) => void) | null = null
 
 export function setStateProvider(provider: () => DynamicIslandState): void {
   stateProvider = provider
 }
 
-export function setPebbleHandler(handler: (text: string, reply: (answer: string) => void) => void): void {
-  onPebbleQuestion = handler
+export function setLoomieHandler(handler: (text: string, reply: (answer: string) => void) => void): void {
+  onLoomieQuestion = handler
 }
 
 export function setSpotifyCommandHandler(handler: (command: string) => void): void {
@@ -58,10 +58,10 @@ export function startDynamicIslandServer(): void {
       ws.on('message', (raw) => {
         try {
           const msg = JSON.parse(raw.toString())
-          if (msg.type === 'pebble_question' && onPebbleQuestion) {
-            onPebbleQuestion(msg.text, (answer: string) => {
+          if (msg.type === 'loomie_question' && onLoomieQuestion) {
+            onLoomieQuestion(msg.text, (answer: string) => {
               if (ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'pebble_answer', text: answer }))
+                ws.send(JSON.stringify({ type: 'loomie_answer', text: answer }))
               }
             })
           } else if (msg.type === 'spotify_toggle' || msg.type === 'spotify_next' || msg.type === 'spotify_previous' || msg.type === 'spotify_duck' || msg.type === 'spotify_unduck') {

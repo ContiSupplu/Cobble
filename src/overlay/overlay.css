@@ -119,7 +119,7 @@ html, body {
   height: 38px;
 }
 
-#island.pebble-mode {
+#island.loomie-mode {
   min-width: 180px;
   height: 38px;
 }
@@ -150,7 +150,7 @@ html, body {
    Idle State
    ═══════════════════════════════════════════════════ */
 
-.cobble-logo {
+.loom-logo {
   width: 20px;
   height: 20px;
   display: flex;
@@ -346,26 +346,26 @@ html, body {
 }
 
 /* ═══════════════════════════════════════════════════
-   Pebble States
+   Loomie States
    ═══════════════════════════════════════════════════ */
 
-.pebble-logo {
+.loomie-logo {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-.pebble-label {
+.loomie-label {
   color: rgba(255, 255, 255, 0.5);
   font-style: italic;
 }
 
 /* ═══════════════════════════════════════════════════
-   Pebble Chat Panel
+   Loomie Chat Panel
    ═══════════════════════════════════════════════════ */
 
-.pebble-panel {
+.loomie-panel {
   position: fixed;
   top: 60px;
   left: 50%;
@@ -385,7 +385,7 @@ html, body {
   animation: panelSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.pebble-panel.hidden {
+.loomie-panel.hidden {
   display: none;
 }
 
@@ -394,7 +394,7 @@ html, body {
   to   { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); }
 }
 
-.pebble-header {
+.loomie-header {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -402,19 +402,19 @@ html, body {
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.pebble-title {
+.loomie-title {
   font-size: 13px;
   font-weight: 600;
   color: #fff;
 }
 
-.pebble-powered {
+.loomie-powered {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.3);
   margin-left: auto;
 }
 
-.pebble-close {
+.loomie-close {
   background: none;
   border: none;
   color: rgba(255, 255, 255, 0.4);
@@ -425,12 +425,12 @@ html, body {
   transition: all 0.15s;
 }
 
-.pebble-close:hover {
+.loomie-close:hover {
   color: #fff;
   background: rgba(255, 255, 255, 0.1);
 }
 
-.pebble-messages {
+.loomie-messages {
   flex: 1;
   overflow-y: auto;
   padding: 12px 16px;
@@ -441,22 +441,22 @@ html, body {
   min-height: 60px;
 }
 
-.pebble-msg {
+.loomie-msg {
   display: flex;
   gap: 8px;
   align-items: flex-start;
 }
 
-.pebble-msg--user {
+.loomie-msg--user {
   justify-content: flex-end;
 }
 
-.pebble-msg--user .msg-bubble {
+.loomie-msg--user .msg-bubble {
   background: rgba(255, 255, 255, 0.1);
   border-radius: 14px 14px 4px 14px;
 }
 
-.pebble-msg--model .msg-bubble {
+.loomie-msg--model .msg-bubble {
   background: rgba(255, 255, 255, 0.05);
   border-radius: 14px 14px 14px 4px;
 }
@@ -479,7 +479,7 @@ html, body {
   flex-shrink: 0;
 }
 
-.pebble-typing {
+.loomie-typing {
   display: flex;
   gap: 4px;
   padding: 10px 14px;
@@ -501,7 +501,7 @@ html, body {
   30% { opacity: 1; transform: scale(1); }
 }
 
-.pebble-input-wrap {
+.loomie-input-wrap {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -509,7 +509,7 @@ html, body {
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-.pebble-input {
+.loomie-input {
   flex: 1;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -522,15 +522,15 @@ html, body {
   transition: border-color 0.2s;
 }
 
-.pebble-input:focus {
+.loomie-input:focus {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
-.pebble-input::placeholder {
+.loomie-input::placeholder {
   color: rgba(255, 255, 255, 0.25);
 }
 
-.pebble-send {
+.loomie-send {
   width: 30px;
   height: 30px;
   border-radius: 50%;
@@ -544,7 +544,7 @@ html, body {
   transition: all 0.2s;
 }
 
-.pebble-send:hover {
+.loomie-send:hover {
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
 }
@@ -564,6 +564,6 @@ html, body {
    Scrollbar
    ═══════════════════════════════════════════════════ */
 
-.pebble-messages::-webkit-scrollbar { width: 4px; }
-.pebble-messages::-webkit-scrollbar-track { background: transparent; }
-.pebble-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+.loomie-messages::-webkit-scrollbar { width: 4px; }
+.loomie-messages::-webkit-scrollbar-track { background: transparent; }
+.loomie-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }

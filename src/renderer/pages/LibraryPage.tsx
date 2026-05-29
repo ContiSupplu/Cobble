@@ -8,6 +8,13 @@ import FileExplorer from '../components/FileExplorer'
 import defaultInstanceIcon from '../assets/default-instance-icon.png'
 import './LibraryPage.css'
 
+interface ChangelogEntry {
+  version: string
+  date: string
+  body: string
+  url: string
+}
+
 interface Instance {
   id: string
   name: string
@@ -31,6 +38,11 @@ const LOADERS = ['Vanilla', 'Fabric', 'Forge']
 
 // ─── Version Picker ────────────────────────────────────────────────────────────
 
+/** Versions with Dynamic Island + Loom HUD support (Fabric only) */
+function isDynamicIslandSupported(version: string): boolean {
+  return version.startsWith('1.21.1') || version === '1.21'
+}
+
 function groupVersionsByMajor(versions: string[]): Record<string, string[]> {
   const groups: Record<string, string[]> = {}
   for (const v of versions) {
@@ -40,6 +52,19 @@ function groupVersionsByMajor(versions: string[]): Record<string, string[]> {
     groups[major].push(v)
   }
   return groups
+}
+
+/** DI badge pill — shown on supported versions */
+function DIBadge({ compact }: { compact?: boolean }) {
+  return (
+    <span className={`library-di-badge${compact ? ' compact' : ''}`}>
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="5" y="2" width="14" height="20" rx="4" />
+        <path d="M9 6h6" />
+      </svg>
+      Dynamic Island
+    </span>
+  )
 }
 
 interface VersionPickerProps {
@@ -80,38 +105,100 @@ function VersionPicker({ versions, selected, onSelect, loading }: VersionPickerP
   const groups = groupVersionsByMajor(filtered)
   const latest = versions[0] ?? null
 
+  // Recommended: DI-supported versions from the full list
+  const recommended = versions.filter(isDynamicIslandSupported)
+
+  const handleSelect = (v: string) => {
+    onSelect(v)
+    setOpen(false)
+    setSearch('')
+  }
+
+  const selectedIsDI = selected && isDynamicIslandSupported(selected)
+
   return (
     <div className="library-version-container" ref={containerRef}>
       <button
         type="button"
-        className="library-version-trigger"
+        className={`library-version-trigger${selectedIsDI ? ' di-supported' : ''}`}
         onClick={() => {
           setOpen(!open)
           setSearch('')
         }}
         disabled={loading}
       >
-        {loading ? 'Loading versions…' : selected || 'Select version'}
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points={open ? '18 15 12 9 6 15' : '6 9 12 15 18 9'} />
+        <span className="library-version-trigger-label">
+          {loading ? 'Loading versions…' : selected || 'Select version'}
+          {selectedIsDI && !loading && <DIBadge compact />}
+        </span>
+        <svg className="library-version-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: open ? 'rotate(180deg)' : 'none' }}>
+          <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
 
       {open && !loading && (
         <div className="library-version-picker">
-          <input
-            ref={searchRef}
-            className="library-version-search"
-            type="text"
-            placeholder="Search versions…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+          {/* Search bar */}
+          <div className="library-version-search-wrap">
+            <svg className="library-version-search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              ref={searchRef}
+              className="library-version-search"
+              type="text"
+              placeholder="Search versions…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
 
           {filtered.length === 0 && (
-            <div className="library-version-empty">No versions found</div>
+            <div className="library-version-empty">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.4, marginBottom: 6 }}>
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              No versions found
+            </div>
           )}
 
+          {/* ── Recommended for Loom section ── */}
+          {!search && recommended.length > 0 && (
+            <div className="library-version-recommended">
+              <div className="library-version-rec-label">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                </svg>
+                Recommended for Loom
+              </div>
+              <div className="library-version-rec-grid">
+                {recommended.map((v) => (
+                  <button
+                    key={`rec-${v}`}
+                    type="button"
+                    className={`library-version-rec-card${v === selected ? ' selected' : ''}`}
+                    onClick={() => handleSelect(v)}
+                  >
+                    <div className="library-version-rec-top">
+                      <span className="library-version-rec-number">{v}</span>
+                      {v === latest && <span className="library-version-latest-dot" title="Latest" />}
+                    </div>
+                    <DIBadge />
+                    <div className="library-version-rec-sub">Fabric · Full HUD support</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Divider ── */}
+          {!search && recommended.length > 0 && filtered.length > 0 && (
+            <div className="library-version-divider">
+              <span>All Versions</span>
+            </div>
+          )}
+
+          {/* ── All version groups ── */}
           {Object.entries(groups).map(([group, versionList]) => (
             <div className="library-version-group" key={group}>
               <div className="library-version-group-label">{group}</div>
@@ -123,16 +210,16 @@ function VersionPicker({ versions, selected, onSelect, loading }: VersionPickerP
                     className={
                       'library-version-chip' +
                       (v === selected ? ' selected' : '') +
-                      (v === latest ? ' latest' : '')
+                      (v === latest ? ' latest' : '') +
+                      (isDynamicIslandSupported(v) ? ' di' : '')
                     }
-                    onClick={() => {
-                      onSelect(v)
-                      setOpen(false)
-                      setSearch('')
-                    }}
+                    onClick={() => handleSelect(v)}
                   >
-                    {v}
+                    <span>{v}</span>
                     {v === latest && <span className="library-version-badge">latest</span>}
+                    {isDynamicIslandSupported(v) && (
+                      <span className="library-version-di-dot" title="Dynamic Island supported" />
+                    )}
                   </button>
                 ))}
               </div>
@@ -568,6 +655,15 @@ export default function LibraryPage() {
   const [trashedInstances, setTrashedInstances] = useState<(Instance & { deletedAt: number; expiresAt: number })[]>([])
   const [showTrash, setShowTrash] = useState(false)
 
+  // Update status
+  const [updateStatus, setUpdateStatus] = useState<string>('')
+  const [updateProgress, setUpdateProgress] = useState<number>(0)
+
+  // Changelog
+  const [changelog, setChangelog] = useState<ChangelogEntry[]>([])
+  const [changelogLoading, setChangelogLoading] = useState(false)
+  const [showChangelog, setShowChangelog] = useState(false)
+
   // ── Load Instances ──
 
   const loadInstances = useCallback(async () => {
@@ -614,13 +710,40 @@ export default function LibraryPage() {
     // Load initial status
     window.electronAPI?.getLaunchStatus?.().then(setLaunchStatus)
 
-    // Refresh when Pebble performs actions (e.g. creates instance, installs mod)
-    const handlePebbleAction = () => loadInstances()
-    window.addEventListener('pebble-action', handlePebbleAction)
+    // Refresh when Loomie performs actions (e.g. creates instance, installs mod)
+    const handleLoomieAction = () => loadInstances()
+    window.addEventListener('loomie-action', handleLoomieAction)
+
+    // Listen for update status
+    const cleanupUpdate = window.electronAPI?.onUpdateStatus?.((status: any) => {
+      setUpdateStatus(status.status)
+      if (status.progress) setUpdateProgress(status.progress)
+    })
+
+    // Check current update status
+    window.electronAPI?.checkForUpdates?.()
+
+    // Fetch changelog from GitHub
+    setChangelogLoading(true)
+    fetch('https://api.github.com/repos/ContiSupplu/Cobble/releases?per_page=10') // repo name is Cobble on GitHub
+      .then(res => res.json())
+      .then((releases: any[]) => {
+        if (Array.isArray(releases)) {
+          setChangelog(releases.map(r => ({
+            version: r.tag_name?.replace(/^v/, '') || r.name,
+            date: new Date(r.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            body: r.body || 'No release notes.',
+            url: r.html_url
+          })))
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChangelogLoading(false))
 
     return () => {
       if (cleanupStatus) cleanupStatus()
-      window.removeEventListener('pebble-action', handlePebbleAction)
+      if (cleanupUpdate) cleanupUpdate()
+      window.removeEventListener('loomie-action', handleLoomieAction)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -714,6 +837,23 @@ export default function LibraryPage() {
         />
       )}
       <div className="library-center">
+        {/* ── Update Banner ── */}
+        {updateStatus === 'ready' && (
+          <button
+            className="library-update-banner"
+            onClick={() => window.electronAPI?.installUpdate?.()}
+          >
+            <span className="library-update-dot" />
+            Restart to Update →
+          </button>
+        )}
+        {updateStatus === 'downloading' && (
+          <div className="library-update-banner library-update-downloading">
+            <span className="library-update-spinner" />
+            Downloading update… {Math.round(updateProgress)}%
+          </div>
+        )}
+
         {settings.showGreeting && (
           <h1 className="library-greeting">Welcome back, {user?.username}</h1>
         )}
@@ -918,6 +1058,56 @@ export default function LibraryPage() {
             )}
           </div>
         )}
+
+        {/* ── Changelog Section ── */}
+        <div className="library-changelog-section">
+          <button
+            className="library-changelog-toggle"
+            onClick={() => setShowChangelog(!showChangelog)}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+            </svg>
+            Changelog
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ marginLeft: 'auto' }}>
+              <polyline points={showChangelog ? '18 15 12 9 6 15' : '6 9 12 15 18 9'} />
+            </svg>
+          </button>
+          {showChangelog && (
+            <div className="library-changelog-list">
+              {changelogLoading && (
+                <div className="library-changelog-loading">Loading changelog…</div>
+              )}
+              {!changelogLoading && changelog.length === 0 && (
+                <div className="library-changelog-empty">No releases found</div>
+              )}
+              {changelog.map((entry) => (
+                <div key={entry.version} className="library-changelog-entry">
+                  <div className="library-changelog-header">
+                    <span className="library-changelog-version">v{entry.version}</span>
+                    <span className="library-changelog-date">{entry.date}</span>
+                  </div>
+                  <div className="library-changelog-body">
+                    {entry.body.split('\n').map((line, i) => {
+                      const trimmed = line.trim()
+                      if (!trimmed) return null
+                      if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+                        return <div key={i} className="library-changelog-bullet">• {trimmed.slice(2)}</div>
+                      }
+                      if (trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
+                        return <div key={i} className="library-changelog-subheading">{trimmed.replace(/^#+\s*/, '')}</div>
+                      }
+                      return <div key={i}>{trimmed}</div>
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* ── Incognito Card ── */}
         <IncognitoCard

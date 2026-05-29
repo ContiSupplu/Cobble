@@ -49,7 +49,7 @@ export default function LoginPage() {
     <div className="login">
       <video
         className="login-video"
-        src="/login-bg.mp4"
+        src="./login-bg.mp4"
         autoPlay
         loop
         muted
@@ -58,7 +58,7 @@ export default function LoginPage() {
       <div className="login-overlay" />
 
       <div className="login-card">
-        <div className="login-brand">Cobble</div>
+        <div className="login-brand">Loom</div>
         <h1 className="login-title">Sign in</h1>
         <p className="login-desc">Sign in with your Microsoft account to access your Minecraft profile.</p>
 

@@ -6,7 +6,7 @@ const api = (window as any).electronAPI
 /* ── Types ── */
 interface ChatMessage { role: 'user' | 'model'; text: string }
 
-interface PebbleContextType {
+interface LoomieContextType {
   isOnTheGo: boolean
   setOnTheGo: (val: boolean) => void
   lastMessages: ChatMessage[]
@@ -19,7 +19,7 @@ interface PebbleContextType {
   setOnGeminiPage: (val: boolean) => void
 }
 
-const PebbleContext = createContext<PebbleContextType>({
+const LoomieContext = createContext<LoomieContextType>({
   isOnTheGo: false,
   setOnTheGo: () => {},
   lastMessages: [],
@@ -36,7 +36,7 @@ const PebbleContext = createContext<PebbleContextType>({
 const SCREEN_KW = ['looking at', 'on my screen', 'what is this', 'what am i', 'see on screen', 'this page', 'what page', "what's this", 'current screen']
 function isScreenQ(t: string) { return SCREEN_KW.some(k => t.toLowerCase().includes(k)) }
 
-export function PebbleProvider({ children }: { children: ReactNode }) {
+export function LoomieProvider({ children }: { children: ReactNode }) {
   const { settings } = useCustomization()
   const [isOnTheGo, setOnTheGo] = useState(false)
   const [lastMessages, setLastMessages] = useState<ChatMessage[]>([])
@@ -83,9 +83,9 @@ export function PebbleProvider({ children }: { children: ReactNode }) {
       const final = [...allMsgs, { role: 'model' as const, text: aiText }]
       setLastMessages(final)
       if (chatId) await api.chatSave(chatId, final)
-      // Notify other pages that Pebble performed actions (so they refresh data)
+      // Notify other pages that Loomie performed actions (so they refresh data)
       if (response?.actionsPerformed?.length) {
-        window.dispatchEvent(new CustomEvent('pebble-action', { detail: response.actionsPerformed }))
+        window.dispatchEvent(new CustomEvent('loomie-action', { detail: response.actionsPerformed }))
       }
     } catch (err: any) {
       const final = [...allMsgs, { role: 'model' as const, text: `Error: ${err?.message || 'Unknown'}` }]
@@ -97,7 +97,7 @@ export function PebbleProvider({ children }: { children: ReactNode }) {
   }, [isLoading, settings.geminiApiKey])
 
   return (
-    <PebbleContext.Provider value={{
+    <LoomieContext.Provider value={{
       isOnTheGo, setOnTheGo,
       lastMessages, setLastMessages,
       activeChatId, setActiveChatId,
@@ -105,8 +105,8 @@ export function PebbleProvider({ children }: { children: ReactNode }) {
       onGeminiPage, setOnGeminiPage,
     }}>
       {children}
-    </PebbleContext.Provider>
+    </LoomieContext.Provider>
   )
 }
 
-export function usePebble() { return useContext(PebbleContext) }
+export function useLoomie() { return useContext(LoomieContext) }

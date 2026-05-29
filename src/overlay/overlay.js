@@ -8,10 +8,10 @@ const api = window.overlayAPI
 // ── State ──────────────────────────────────────────
 let currentState = null    // { spotify, time }
 let isExpanded = false
-let isPebbleOpen = false
+let isLoomieOpen = false
 let isPlaying = false
-let pebbleLoading = false
-const pebbleMessages = []
+let loomieLoading = false
+const loomieMessages = []
 
 // ── DOM refs ───────────────────────────────────────
 const island = document.getElementById('island')
@@ -19,10 +19,10 @@ const contentIdle = document.getElementById('content-idle')
 const contentMusic = document.getElementById('content-music')
 const contentMusicExpanded = document.getElementById('content-music-expanded')
 const contentTime = document.getElementById('content-time')
-const contentPebble = document.getElementById('content-pebble')
-const pebblePanel = document.getElementById('pebble-panel')
-const pebbleMessagesEl = document.getElementById('pebble-messages')
-const pebbleInput = document.getElementById('pebble-input')
+const contentLoomie = document.getElementById('content-loomie')
+const loomiePanel = document.getElementById('loomie-panel')
+const loomieMessagesEl = document.getElementById('loomie-messages')
+const loomieInput = document.getElementById('loomie-input')
 const playPauseBtn = document.getElementById('play-pause-btn')
 
 // ── State Provider ─────────────────────────────────
@@ -49,14 +49,14 @@ function updateIsland() {
   contentMusic.classList.remove('active')
   contentMusicExpanded.classList.remove('active')
   contentTime.classList.remove('active')
-  contentPebble.classList.remove('active')
+  contentLoomie.classList.remove('active')
 
   const spotify = currentState.spotify
 
-  if (isPebbleOpen) {
-    // Pebble panel is open, show pebble indicator
-    contentPebble.classList.add('active')
-    island.className = 'pebble-mode'
+  if (isLoomieOpen) {
+    // Loomie panel is open, show loomie indicator
+    contentLoomie.classList.add('active')
+    island.className = 'loomie-mode'
     return
   }
 
@@ -171,78 +171,78 @@ function updatePlayPauseIcon(playing) {
   }
 }
 
-// ── Pebble ─────────────────────────────────────────
-function openPebble() {
-  isPebbleOpen = true
-  pebblePanel.classList.remove('hidden')
+// ── Loomie ─────────────────────────────────────────
+function openLoomie() {
+  isLoomieOpen = true
+  loomiePanel.classList.remove('hidden')
   api.setInteractive(true)
-  pebbleInput.focus()
+  loomieInput.focus()
   updateIsland()
 }
 
-function closePebble() {
-  isPebbleOpen = false
-  pebblePanel.classList.add('hidden')
+function closeLoomie() {
+  isLoomieOpen = false
+  loomiePanel.classList.add('hidden')
   api.setInteractive(false)
   isExpanded = false
   updateIsland()
 }
 
-async function sendPebble(e) {
+async function sendLoomie(e) {
   e.preventDefault()
-  const text = pebbleInput.value.trim()
-  if (!text || pebbleLoading) return
+  const text = loomieInput.value.trim()
+  if (!text || loomieLoading) return
 
-  pebbleInput.value = ''
-  addPebbleMessage('user', text)
-  pebbleLoading = true
+  loomieInput.value = ''
+  addLoomieMessage('user', text)
+  loomieLoading = true
   showTypingIndicator()
 
   try {
-    const result = await api.askPebble(text)
+    const result = await api.askLoomie(text)
     hideTypingIndicator()
     if (result.error) {
-      addPebbleMessage('model', 'Error: ' + result.error)
+      addLoomieMessage('model', 'Error: ' + result.error)
     } else {
-      addPebbleMessage('model', result.text || 'No response')
+      addLoomieMessage('model', result.text || 'No response')
     }
   } catch (err) {
     hideTypingIndicator()
-    addPebbleMessage('model', 'Error: ' + (err.message || 'Failed to reach Pebble'))
+    addLoomieMessage('model', 'Error: ' + (err.message || 'Failed to reach Loomie'))
   }
 
-  pebbleLoading = false
+  loomieLoading = false
 }
 
-function addPebbleMessage(role, text) {
-  pebbleMessages.push({ role, text })
-  renderPebbleMessages()
+function addLoomieMessage(role, text) {
+  loomieMessages.push({ role, text })
+  renderLoomieMessages()
 }
 
-function renderPebbleMessages() {
-  const msgs = pebbleMessages.slice(-6)  // Show last 6
-  pebbleMessagesEl.innerHTML = msgs.map(m => {
+function renderLoomieMessages() {
+  const msgs = loomieMessages.slice(-6)  // Show last 6
+  loomieMessagesEl.innerHTML = msgs.map(m => {
     const isUser = m.role === 'user'
     return `
-      <div class="pebble-msg pebble-msg--${m.role}">
+      <div class="loomie-msg loomie-msg--${m.role}">
         ${!isUser ? '<div class="msg-avatar"><svg width="12" height="12" viewBox="0 0 28 28" fill="none"><path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#pbl-grad)"/></svg></div>' : ''}
         <div class="msg-bubble">${escapeHtml(m.text)}</div>
       </div>
     `
   }).join('')
-  pebbleMessagesEl.scrollTop = pebbleMessagesEl.scrollHeight
+  loomieMessagesEl.scrollTop = loomieMessagesEl.scrollHeight
 }
 
 function showTypingIndicator() {
   const indicator = document.createElement('div')
   indicator.id = 'typing-indicator'
-  indicator.className = 'pebble-msg pebble-msg--model'
+  indicator.className = 'loomie-msg loomie-msg--model'
   indicator.innerHTML = `
     <div class="msg-avatar"><svg width="12" height="12" viewBox="0 0 28 28" fill="none"><path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#pbl-grad)"/></svg></div>
-    <div class="pebble-typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>
+    <div class="loomie-typing"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>
   `
-  pebbleMessagesEl.appendChild(indicator)
-  pebbleMessagesEl.scrollTop = pebbleMessagesEl.scrollHeight
+  loomieMessagesEl.appendChild(indicator)
+  loomieMessagesEl.scrollTop = loomieMessagesEl.scrollHeight
 }
 
 function hideTypingIndicator() {
@@ -250,10 +250,10 @@ function hideTypingIndicator() {
   if (el) el.remove()
 }
 
-// ── Hotkey: P to toggle Pebble ─────────────────────
+// ── Hotkey: P to toggle Loomie ─────────────────────
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') {
-    if (isPebbleOpen) closePebble()
+    if (isLoomieOpen) closeLoomie()
     else if (isExpanded) {
       isExpanded = false
       api.setInteractive(false)
