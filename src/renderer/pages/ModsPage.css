@@ -1,0 +1,297 @@
+.mods { max-width: 720px; }
+
+.mods-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  gap: 16px;
+}
+
+.mods-title { font-size: 20px; font-weight: 600; color: var(--text-0); letter-spacing: -0.02em; margin: 0; }
+
+.mods-instance-select {
+  padding: 6px 12px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(80%);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-1);
+  outline: none;
+  cursor: pointer;
+  max-width: 240px;
+}
+
+.mods-search {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 14px;
+  font-size: 13px;
+  color: var(--text-0);
+  outline: none;
+  box-shadow: var(--glass-shadow);
+  transition: all 200ms;
+  margin-bottom: 16px;
+}
+.mods-search::placeholder { color: var(--text-3); }
+.mods-search:focus { border-color: rgba(255,255,255,0.25); }
+
+.mods-tabs { display: flex; gap: 6px; margin-bottom: 16px; flex-wrap: wrap; }
+
+.mods-tab {
+  padding: 7px 16px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: transparent;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 150ms;
+}
+.mods-tab:hover { color: var(--text-1); background: var(--glass-bg); }
+.mods-tab.active {
+  color: var(--text-0);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(80%);
+  border-color: var(--glass-border);
+}
+
+.mods-list { display: flex; flex-direction: column; gap: 6px; position: relative; }
+
+.mods-item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(80%);
+  border: 1.5px solid var(--glass-border);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  transition: all 200ms;
+}
+.mods-item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(170deg, rgba(255,255,255,0.06) 0%, transparent 40%);
+  pointer-events: none;
+}
+.mods-item:hover { transform: translateY(-1px); }
+
+/* Unavailable items */
+.mods-item-unavailable { opacity: 0.45; }
+
+.mods-item-icon { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; flex-shrink: 0; position: relative; z-index: 1; border: 1px solid var(--glass-border); }
+.mods-item-info { position: relative; z-index: 1; flex: 1; min-width: 0; }
+.mods-item-clickable { cursor: pointer; }
+.mods-item-clickable:hover .mods-item-name { color: var(--accent); }
+.mods-item-name { font-size: 13px; font-weight: 500; color: var(--text-0); display: block; transition: color 150ms; }
+.mods-item-desc { font-size: 12px; color: var(--text-2); margin-top: 2px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.mods-item-dep-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-3);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--glass-border);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.mods-item-actions { position: relative; z-index: 1; display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.mods-item-version { font-size: 11px; font-weight: 600; color: var(--text-2); background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); padding: 2px 10px; border-radius: 999px; white-space: nowrap; }
+.mods-item-downloads { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+
+.mods-item-install { font-size: 12px; font-weight: 600; padding: 5px 16px; border-radius: 10px; background: var(--accent-muted); color: var(--accent); border: 1.5px solid transparent; cursor: pointer; transition: all 150ms; white-space: nowrap; }
+.mods-item-install:hover:not(:disabled) { background: var(--accent); color: #fff; }
+.mods-item-install:disabled { opacity: 0.5; cursor: wait; }
+
+.mods-item-installed-badge { font-size: 11px; font-weight: 600; color: var(--green); padding: 4px 12px; border-radius: 999px; background: rgba(77,158,95,0.08); white-space: nowrap; }
+
+.mods-item-unavailable-badge { font-size: 11px; font-weight: 600; color: var(--red); padding: 4px 12px; border-radius: 999px; background: rgba(201,80,80,0.06); white-space: nowrap; }
+
+.mods-item-remove { font-size: 11px; font-weight: 500; padding: 4px 12px; border-radius: 8px; color: var(--text-3); background: transparent; border: 1px solid transparent; cursor: pointer; transition: all 150ms; white-space: nowrap; }
+.mods-item-remove:hover { color: var(--red); background: rgba(201,80,80,0.06); border-color: rgba(201,80,80,0.12); }
+
+.mods-empty { text-align: center; padding: 32px 16px; color: var(--text-3); font-size: 13px; }
+
+.mods-install-error {
+  padding: 10px 16px;
+  border-radius: 12px;
+  background: rgba(201, 80, 80, 0.1);
+  border: 1px solid rgba(201, 80, 80, 0.2);
+  color: #ff6b6b;
+  font-size: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: opacity 150ms;
+}
+.mods-install-error:hover { opacity: 0.7; }
+
+/* ── Back Button ── */
+.mods-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  cursor: pointer;
+  margin-bottom: 20px;
+  transition: all 150ms;
+}
+.mods-back:hover { color: var(--text-0); border-color: rgba(255,255,255,0.2); }
+
+/* ── Detail View ── */
+.mods-detail {
+  background: var(--glass-bg);
+  backdrop-filter: blur(30px) saturate(80%);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 20px;
+  padding: 28px;
+  box-shadow: var(--glass-shadow);
+}
+
+.mods-detail-header { display: flex; gap: 18px; align-items: flex-start; margin-bottom: 20px; }
+.mods-detail-icon { width: 64px; height: 64px; border-radius: 14px; object-fit: cover; border: 1px solid var(--glass-border); flex-shrink: 0; }
+.mods-detail-meta { flex: 1; min-width: 0; }
+.mods-detail-title { font-size: 20px; font-weight: 600; color: var(--text-0); margin: 0 0 4px; }
+.mods-detail-desc { font-size: 13px; color: var(--text-2); margin: 0 0 10px; line-height: 1.5; }
+
+.mods-detail-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.mods-detail-tag { font-size: 11px; padding: 2px 10px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid var(--glass-border); color: var(--text-2); }
+
+.mods-detail-stats { display: flex; gap: 16px; font-size: 12px; color: var(--text-3); }
+
+.mods-detail-actions { display: flex; gap: 10px; margin-bottom: 24px; }
+.mods-detail-install {
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  transition: all 150ms;
+}
+.mods-detail-install:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+.mods-detail-install:disabled { opacity: 0.5; cursor: wait; }
+
+.mods-detail-remove {
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(201,80,80,0.1);
+  color: var(--red);
+  border: 1.5px solid rgba(201,80,80,0.2);
+  cursor: pointer;
+  transition: all 150ms;
+}
+.mods-detail-remove:hover { background: rgba(201,80,80,0.2); }
+
+.mods-detail-unavailable {
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(201,80,80,0.08);
+  color: var(--red);
+  border: 1.5px solid rgba(201,80,80,0.15);
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.mods-detail-info { margin-bottom: 24px; }
+.mods-detail-info h3 { font-size: 14px; font-weight: 600; color: var(--text-0); margin: 0 0 10px; }
+
+.mods-detail-versions { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.mods-detail-version {
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--glass-border);
+  color: var(--text-2);
+}
+.mods-detail-version.current {
+  background: var(--accent-muted);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.mods-detail-link { margin: 0; }
+.mods-detail-link a { color: var(--accent); cursor: pointer; font-size: 13px; }
+.mods-detail-link a:hover { text-decoration: underline; }
+
+.mods-detail-body {
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.7;
+  word-break: break-word;
+}
+.mods-detail-body img { max-width: 100%; border-radius: 8px; margin: 8px 0; }
+
+/* ── Drag-and-drop ── */
+.mods-list.mods-drag-over {
+  border: 2px dashed rgba(99, 179, 237, 0.5);
+  border-radius: 16px;
+  background: rgba(99, 179, 237, 0.03);
+  min-height: 120px;
+}
+
+.mods-drop-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(22, 22, 28, 0.85);
+  backdrop-filter: blur(4px);
+  z-index: 10;
+  border-radius: 16px;
+  color: rgba(99, 179, 237, 0.9);
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+  animation: mods-drop-in 0.15s ease;
+}
+
+@keyframes mods-drop-in {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.mods-drop-status {
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: rgba(99, 179, 237, 0.08);
+  border: 1px solid rgba(99, 179, 237, 0.15);
+  color: rgba(99, 179, 237, 0.9);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  text-align: center;
+  animation: mods-drop-in 0.15s ease;
+}

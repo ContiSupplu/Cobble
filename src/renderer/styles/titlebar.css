@@ -1,0 +1,76 @@
+.titlebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  border-bottom: 1.5px solid var(--glass-border);
+  user-select: none;
+}
+
+.titlebar-brand {
+  min-width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+.titlebar-incognito-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-3);
+  padding: 0 8px;
+  white-space: nowrap;
+  -webkit-app-region: no-drag;
+  letter-spacing: 0.02em;
+}
+
+.titlebar-drag {
+  flex: 1;
+  height: 100%;
+  -webkit-app-region: drag;
+}
+
+.titlebar-controls {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.titlebar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  color: var(--text-2);
+  transition: all 100ms;
+}
+
+.titlebar-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-0);
+}
+
+.titlebar-btn--close:hover {
+  background: rgba(201, 80, 80, 0.15);
+  color: var(--red);
+}
+
+.titlebar-btn svg {
+  width: 14px;
+  height: 14px;
+  pointer-events: none;
+}

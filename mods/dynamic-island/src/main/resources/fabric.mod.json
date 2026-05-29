@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "dynamic-island",
+  "version": "${version}",
+  "name": "Dynamic Island",
+  "description": "Dynamic Island HUD overlay connected to Cobble Launcher.",
+  "authors": ["Cobble Launcher"],
+  "contact": {},
+  "license": "All Rights Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.cobble.dynamicisland.DynamicIslandMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.5",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "mixins": [
+    "dynamic-island.mixins.json"
+  ]
+}

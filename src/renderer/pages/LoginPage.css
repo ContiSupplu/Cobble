@@ -1,0 +1,179 @@
+.login {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.login-video {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  min-width: 100%;
+  min-height: 100%;
+  transform: translate(-50%, -50%);
+  object-fit: cover;
+  z-index: 0;
+}
+
+.login-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 1;
+}
+
+/* ═══════════════════════════════════════════
+   LOGIN CARD — frosted dark glass, highly legible
+   ═══════════════════════════════════════════ */
+.login-card {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 48px 40px 40px;
+  border-radius: 24px;
+
+  /* Dark frosted glass — high contrast for legibility */
+  backdrop-filter: blur(40px) saturate(120%) brightness(0.7);
+  -webkit-backdrop-filter: blur(40px) saturate(120%) brightness(0.7);
+
+  /* Semi-opaque dark background so text is always readable */
+  background: rgba(20, 20, 20, 0.65);
+
+  /* Subtle luminous border */
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+
+  /* Depth shadow */
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 0.5px rgba(255, 255, 255, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+/* Subtle specular highlight at top */
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.3) 30%,
+    rgba(255, 255, 255, 0.4) 50%,
+    rgba(255, 255, 255, 0.3) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.login-brand {
+  position: relative;
+  z-index: 1;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 28px;
+  letter-spacing: 0.02em;
+}
+
+.login-title {
+  position: relative;
+  z-index: 1;
+  font-size: 26px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.03em;
+  margin-bottom: 8px;
+}
+
+.login-desc {
+  position: relative;
+  z-index: 1;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  text-align: center;
+  margin-bottom: 32px;
+  line-height: 1.6;
+  max-width: 300px;
+}
+
+/* ── Error Message ── */
+.login-error {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  color: #ff7b7b;
+  margin-bottom: 16px;
+  text-align: center;
+  line-height: 1.4;
+  padding: 10px 16px;
+  background: rgba(255, 80, 80, 0.1);
+  border-radius: 12px;
+  border: 1px solid rgba(255, 80, 80, 0.2);
+  width: 100%;
+}
+
+/* ── Microsoft Sign-in Button ── */
+.login-btn {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  padding: 14px 20px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 14px;
+  cursor: pointer;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  transition: all 180ms ease;
+}
+
+.login-btn-ms {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.login-ms-icon {
+  flex-shrink: 0;
+}
+
+.login-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.login-btn:disabled {
+  opacity: 0.5;
+  cursor: wait;
+}
+
+.login-btn:active:not(:disabled) {
+  transform: translateY(0px);
+}
+
+/* ── Credit ── */
+.login-credit {
+  position: absolute;
+  bottom: 16px;
+  left: 20px;
+  z-index: 2;
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+  font-weight: 400;
+}

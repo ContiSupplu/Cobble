@@ -1,0 +1,561 @@
+.settings { max-width: 720px; }
+
+.settings-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-0);
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+}
+
+/* ── Sections ── */
+.settings-section {
+  margin-bottom: 28px;
+}
+
+.settings-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-3);
+  margin-bottom: 8px;
+}
+
+/* ── Rows (glass-border dividers) ── */
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--glass-border);
+  gap: 16px;
+}
+
+.settings-row.last {
+  border-bottom: none;
+}
+
+.settings-row-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-0);
+}
+
+.settings-row-desc {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+.settings-row-val {
+  font-size: 13px;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.settings-row-val.mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* ── Color Swatches (glass border) ── */
+.settings-colors {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.settings-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: 2px solid var(--glass-border);
+  transition: border-color 150ms, box-shadow 150ms;
+}
+
+.settings-swatch:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.06);
+}
+
+.settings-swatch.active {
+  border-color: var(--text-0);
+  box-shadow: 0 0 0 2px var(--accent-muted);
+}
+
+/* ── Action Buttons (glass) ── */
+.settings-bg-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.settings-btn-sm {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(80%);
+  border: 1.5px solid var(--glass-border);
+  color: var(--text-1);
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+}
+
+.settings-btn-sm:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-0);
+}
+
+.settings-btn-accent {
+  background: var(--accent-muted);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--accent);
+}
+
+.settings-btn-accent:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 16px var(--accent-muted);
+}
+
+/* ── Slider (glass track + accent thumb) ── */
+.settings-scale {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.settings-slider {
+  width: 120px;
+  height: 4px;
+  appearance: none;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 2px;
+  outline: none;
+}
+
+.settings-slider::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--accent);
+  cursor: pointer;
+  box-shadow: 0 0 8px var(--accent-muted), 0 2px 6px rgba(0, 0, 0, 0.3);
+  transition: box-shadow 0.2s ease;
+}
+
+.settings-slider::-webkit-slider-thumb:hover {
+  box-shadow: 0 0 14px var(--accent-muted), 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.settings-slider:focus {
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.settings-scale-val {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text-2);
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Toggle Switch (glass) ── */
+.settings-toggle {
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  cursor: pointer;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 200ms, border-color 200ms, box-shadow 200ms;
+}
+
+.settings-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.settings-toggle.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 12px var(--accent-muted);
+}
+
+.settings-toggle-dot {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 150ms;
+}
+
+.settings-toggle.on .settings-toggle-dot {
+  transform: translateX(18px);
+}
+
+/* ═══════════════════════════════════════════════════
+   Connected Apps — Card Grid
+   ═══════════════════════════════════════════════════ */
+
+.settings-apps-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.settings-app-card {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(80%);
+  -webkit-backdrop-filter: blur(20px) saturate(80%);
+  border: 1.5px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.settings-app-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.settings-app-card.coming-soon {
+  opacity: 0.5;
+}
+
+.settings-app-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-app-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.settings-app-icon-spotify {
+  background: rgba(30, 215, 96, 0.12);
+  color: #1ed760;
+}
+
+.settings-app-icon-gemini {
+  background: linear-gradient(135deg, rgba(66, 133, 244, 0.12), rgba(217, 101, 112, 0.12));
+  color: #9B72CB;
+}
+
+.settings-app-icon-discord {
+  background: rgba(88, 101, 242, 0.12);
+  color: #5865f2;
+}
+
+.settings-app-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-app-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.settings-app-status {
+  font-size: 11px;
+  margin-top: 1px;
+}
+
+.settings-app-connected {
+  color: #4ade80;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.settings-app-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.settings-app-dot.connected {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+.settings-app-disconnected {
+  color: var(--text-3);
+}
+
+.settings-app-checking {
+  color: var(--text-3);
+  font-style: italic;
+}
+
+.settings-app-coming {
+  color: var(--text-3);
+  font-style: italic;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.settings-app-desc {
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+.settings-app-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.settings-app-btn {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1.5px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-sans);
+}
+
+.settings-app-btn:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  color: var(--text-0);
+}
+
+.settings-app-btn.accent {
+  background: var(--accent-muted);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.settings-app-btn.accent:hover {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 12px var(--accent-muted);
+}
+
+.settings-app-btn.accent:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: var(--accent-muted);
+  color: var(--accent);
+  box-shadow: none;
+}
+
+.settings-app-btn.danger {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.15);
+}
+
+.settings-app-btn.danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.settings-app-error {
+  font-size: 11px;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+  padding: 6px 10px;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+/* Gemini API Key input */
+.settings-app-key-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.settings-app-key-input-wrap {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1.5px solid var(--glass-border);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: border-color 0.15s;
+}
+
+.settings-app-key-input-wrap:focus-within {
+  border-color: var(--accent);
+}
+
+.settings-app-key-input {
+  flex: 1;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-0);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  outline: none;
+}
+
+.settings-app-key-input::placeholder {
+  color: var(--text-3);
+  font-family: var(--font-sans);
+}
+
+.settings-app-key-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.settings-app-key-toggle:hover {
+  color: var(--text-1);
+}
+
+/* ── Tutorial Dropdown ── */
+.settings-tutorial {
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.settings-tutorial-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 6px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s;
+  text-align: left;
+}
+
+.settings-tutorial-toggle:hover {
+  color: var(--text-1);
+}
+
+.settings-tutorial-chevron {
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.settings-tutorial.open .settings-tutorial-chevron {
+  transform: rotate(180deg);
+}
+
+.settings-tutorial-body {
+  padding: 8px 12px 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  margin-top: 2px;
+  animation: tutorial-open 0.2s ease;
+}
+
+@keyframes tutorial-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.settings-tutorial-steps {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-tutorial-steps li {
+  font-size: 11px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+.settings-tutorial-steps strong {
+  color: var(--text-0);
+  font-weight: 600;
+}
+
+.settings-tutorial-steps em {
+  color: var(--accent);
+  font-style: normal;
+  font-weight: 500;
+}
+
+.settings-tutorial-steps code {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  padding: 1px 5px;
+  border-radius: 4px;
+  color: var(--text-1);
+}
+
+/* ── Discord feature list ── */
+.settings-app-features {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.settings-app-feature {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--text-2);
+}
+
+.settings-app-feature svg {
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+/* Single column on narrow */
+@media (max-width: 600px) {
+  .settings-apps-grid {
+    grid-template-columns: 1fr;
+  }
+}

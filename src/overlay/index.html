@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Dynamic Island Overlay</title>
+  <link rel="stylesheet" href="overlay.css" />
+</head>
+<body>
+  <div id="island-wrapper">
+    <div id="island" class="idle" onclick="handleIslandClick()">
+      <div id="content-idle" class="island-content active">
+        <div class="cobble-logo">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><rect x="2" y="2" width="20" height="20" rx="4"/></svg>
+        </div>
+        <span class="island-label">Cobble</span>
+      </div>
+
+      <div id="content-music" class="island-content">
+        <div class="art-wrap">
+          <img id="album-art" class="album-art" src="" alt="" />
+          <div id="art-glow" class="art-glow"></div>
+        </div>
+        <div class="track-info">
+          <span id="track-title" class="track-title"></span>
+          <span id="track-artist" class="track-artist"></span>
+        </div>
+        <div id="eq" class="eq">
+          <div class="eq-bar" style="--h:50%;--delay:0s;--dur:0.45s"></div>
+          <div class="eq-bar" style="--h:85%;--delay:0.09s;--dur:0.55s"></div>
+          <div class="eq-bar" style="--h:35%;--delay:0.18s;--dur:0.65s"></div>
+          <div class="eq-bar" style="--h:70%;--delay:0.27s;--dur:0.75s"></div>
+          <div class="eq-bar" style="--h:45%;--delay:0.36s;--dur:0.85s"></div>
+        </div>
+      </div>
+
+      <div id="content-music-expanded" class="island-content">
+        <div class="expanded-top">
+          <div class="art-wrap art-wrap-lg">
+            <img id="album-art-lg" class="album-art" src="" alt="" />
+            <div id="art-glow-lg" class="art-glow"></div>
+          </div>
+          <div class="track-info">
+            <span id="track-title-lg" class="track-title"></span>
+            <span id="track-artist-lg" class="track-artist"></span>
+          </div>
+          <div id="eq-lg" class="eq">
+            <div class="eq-bar" style="--h:50%;--delay:0s;--dur:0.45s"></div>
+            <div class="eq-bar" style="--h:85%;--delay:0.09s;--dur:0.55s"></div>
+            <div class="eq-bar" style="--h:35%;--delay:0.18s;--dur:0.65s"></div>
+            <div class="eq-bar" style="--h:70%;--delay:0.27s;--dur:0.75s"></div>
+            <div class="eq-bar" style="--h:45%;--delay:0.36s;--dur:0.85s"></div>
+          </div>
+        </div>
+        <div class="music-extra">
+          <div class="progress-track">
+            <div id="progress-fill" class="progress-fill"></div>
+          </div>
+          <div class="music-times">
+            <span id="time-current">0:00</span>
+            <span id="time-total">0:00</span>
+          </div>
+          <div class="music-actions">
+            <button class="ctrl-btn" onclick="spotifyControl('previous')">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6V6zm3.5 6 8.5 6V6l-8.5 6z"/></svg>
+            </button>
+            <button id="play-pause-btn" class="ctrl-btn ctrl-play" onclick="togglePlayPause()">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z"/></svg>
+            </button>
+            <button class="ctrl-btn" onclick="spotifyControl('next')">
+              <svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 18h2V6h-2v12zM6 18l8.5-6L6 6v12z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="content-time" class="island-content">
+        <span id="time-display" class="island-label"></span>
+      </div>
+
+      <div id="content-pebble" class="island-content">
+        <div class="pebble-logo">
+          <svg width="14" height="14" viewBox="0 0 28 28" fill="none">
+            <defs><linearGradient id="pbl-grad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#4285F4"/><stop offset="0.33" stop-color="#9B72CB"/><stop offset="0.66" stop-color="#D96570"/><stop offset="1" stop-color="#D96570"/>
+            </linearGradient></defs>
+            <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#pbl-grad)"/>
+          </svg>
+        </div>
+        <span class="island-label pebble-label">Ask Pebble...</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pebble Chat Panel (shown when interactive) -->
+  <div id="pebble-panel" class="pebble-panel hidden">
+    <div class="pebble-header">
+      <div class="pebble-logo">
+        <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
+          <defs><linearGradient id="pbl-grad2" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#4285F4"/><stop offset="0.33" stop-color="#9B72CB"/><stop offset="0.66" stop-color="#D96570"/><stop offset="1" stop-color="#D96570"/>
+          </linearGradient></defs>
+          <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#pbl-grad2)"/>
+        </svg>
+      </div>
+      <span class="pebble-title">Pebble</span>
+      <span class="pebble-powered">Powered by Gemini</span>
+      <button class="pebble-close" onclick="closePebble()">✕</button>
+    </div>
+    <div id="pebble-messages" class="pebble-messages"></div>
+    <form id="pebble-form" class="pebble-input-wrap" onsubmit="sendPebble(event)">
+      <input id="pebble-input" class="pebble-input" placeholder="Ask Pebble anything..." autocomplete="off" />
+      <button type="submit" class="pebble-send">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+
+  <script src="overlay.js"></script>
+</body>
+</html>

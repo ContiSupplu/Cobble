@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cobble</title>
+    <style>
+      /* Prevent flash of unstyled content */
+      html, body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #191919;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Liquid Glass SVG Filters -->
+    <svg width="0" height="0" style="position: absolute; pointer-events: none;">
+      <defs>
+        <!-- Main liquid glass: specular highlight for cards/panels -->
+        <filter id="liquid-glass" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="8" result="blur" />
+          <feSpecularLighting in="blur" surfaceScale="3" specularConstant="0.6" specularExponent="30" lighting-color="white" result="spec">
+            <fePointLight x="200" y="-50" z="180" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="SourceAlpha" operator="in" result="highlight" />
+          <feComposite in="SourceGraphic" in2="highlight" operator="over" />
+        </filter>
+
+        <!-- Subtle variant for smaller elements (buttons, pills) -->
+        <filter id="liquid-glass-sm" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur in="SourceAlpha" stdDeviation="4" result="blur" />
+          <feSpecularLighting in="blur" surfaceScale="2" specularConstant="0.4" specularExponent="40" lighting-color="white" result="spec">
+            <fePointLight x="150" y="-30" z="120" />
+          </feSpecularLighting>
+          <feComposite in="spec" in2="SourceAlpha" operator="in" result="highlight" />
+          <feComposite in="SourceGraphic" in2="highlight" operator="over" />
+        </filter>
+      </defs>
+    </svg>
+
+    <div id="root"></div>
+    <script type="module" src="./main.tsx"></script>
+  </body>
+</html>
