@@ -1,6 +1,6 @@
 {
   "name": "jackoboy-launcher",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Personal Bedwars-focused Minecraft launcher",
   "main": "./out/main/index.js",
   "author": "_jackoboy",
