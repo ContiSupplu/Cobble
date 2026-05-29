@@ -4,7 +4,7 @@
 
 const { execSync } = require('child_process')
 const { join } = require('path')
-const { existsSync } = require('fs')
+const { existsSync, writeFileSync } = require('fs')
 
 const rcedit = join(process.env.LOCALAPPDATA, 'electron-builder', 'Cache', 'winCodeSign', 'winCodeSign-2.6.0', 'rcedit-x64.exe')
 const exe = join(__dirname, 'dist', 'win-unpacked', 'Loom.exe')
@@ -41,6 +41,12 @@ async function tryRcedit(attempt) {
 }
 
 async function main() {
+  // Generate app-update.yml — electron-updater needs this to find updates
+  const appUpdateYml = join(__dirname, 'dist', 'win-unpacked', 'resources', 'app-update.yml')
+  const updateConfig = `provider: github\nowner: ContiSupplu\nrepo: Cobble\nupdaterCacheDirName: loom-updater\n`
+  writeFileSync(appUpdateYml, updateConfig, 'utf8')
+  console.log(`[post-build] Generated app-update.yml`)
+
   // Try with increasing delays — the exe may be locked by Defender or lingering handles
   const delays = [5000, 8000, 12000, 15000]
 
