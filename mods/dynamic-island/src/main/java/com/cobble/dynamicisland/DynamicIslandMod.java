@@ -26,6 +26,7 @@ public class DynamicIslandMod implements ClientModInitializer {
     private static KeyBinding prevKeyBinding;
     private static KeyBinding nextKeyBinding;
     private static KeyBinding lyricsKeyBinding;
+    private static KeyBinding networkStatsKeyBinding;
     public static boolean isExpanded = false;
     public static boolean isLyricsMode = false;
     private static long volumeRestoreTime = 0;
@@ -140,6 +141,7 @@ public class DynamicIslandMod implements ClientModInitializer {
             WaypointManager.cancelNavigation();
             CombatTracker.endCombat();
             TimerManager.dismissFinishedTimer();
+            NetworkStats.reset();
             currentNotification = null;
             notificationEndTime = 0;
             System.out.println("[DynamicIsland] World state cleared on disconnect");
@@ -212,6 +214,14 @@ public class DynamicIslandMod implements ClientModInitializer {
             "Dynamic Island"
         ));
 
+        // Press F7 to show network stats (ping + TPS)
+        networkStatsKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Network Stats",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_F7,
+            "Dynamic Island"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (pebbleKeyBinding.wasPressed()) {
                 if (isPebbleOpen) {
@@ -269,6 +279,12 @@ public class DynamicIslandMod implements ClientModInitializer {
                     client.setScreen(new SettingsScreen());
                 }
             }
+            while (networkStatsKeyBinding.wasPressed()) {
+                NetworkStats.sendNetworkStats();
+            }
+
+            // Tick TPS tracker
+            NetworkStats.tick();
 
             // Restore Spotify volume after ducking
             if (volumeRestoreTime > 0 && System.currentTimeMillis() >= volumeRestoreTime) {

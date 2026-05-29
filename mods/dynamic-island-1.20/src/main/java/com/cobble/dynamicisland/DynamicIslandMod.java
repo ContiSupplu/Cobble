@@ -3,6 +3,7 @@ package com.cobble.dynamicisland;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -15,6 +16,7 @@ public class DynamicIslandMod implements ClientModInitializer {
     private static long notificationEndTime = 0;
     private static KeyBinding pebbleKeyBinding;
     private static KeyBinding expandKeyBinding;
+    private static KeyBinding networkStatsKeyBinding;
     public static boolean isExpanded = false;
 
     @Override
@@ -40,6 +42,21 @@ public class DynamicIslandMod implements ClientModInitializer {
             "Dynamic Island"
         ));
 
+        // Press F7 to show network stats (ping + TPS)
+        networkStatsKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Network Stats",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_F7,
+            "Dynamic Island"
+        ));
+
+        // Clear TPS state on disconnect
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            NetworkStats.reset();
+            currentNotification = null;
+            notificationEndTime = 0;
+        });
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             while (pebbleKeyBinding.wasPressed()) {
                 if (client.currentScreen == null) {
@@ -51,6 +68,12 @@ public class DynamicIslandMod implements ClientModInitializer {
                     isExpanded = !isExpanded;
                 }
             }
+            while (networkStatsKeyBinding.wasPressed()) {
+                NetworkStats.sendNetworkStats();
+            }
+
+            // Tick TPS tracker
+            NetworkStats.tick();
         });
     }
 

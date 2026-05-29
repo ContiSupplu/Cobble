@@ -68,6 +68,16 @@ export function startDynamicIslandServer(): void {
             if (onSpotifyCommand) {
               onSpotifyCommand(msg.type)
             }
+          } else if (msg.type === 'network_stats') {
+            // Player pressed F7 — show ping/TPS as a notification
+            const ping = msg.ping ?? '?'
+            const tps = msg.tps != null ? Number(msg.tps).toFixed(1) : '?'
+            const notifText = `📡 Ping: ${ping}ms  |  TPS: ${tps}`
+            // Send notification back to the mod for display
+            if (ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: 'notification', text: notifText }))
+            }
+            console.log(`[DynamicIsland] Network stats: ping=${ping}ms, tps=${tps}`)
           }
         } catch { /* ignore malformed messages */ }
       })

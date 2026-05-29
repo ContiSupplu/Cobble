@@ -25,20 +25,53 @@ interface PerfModEntry {
   name: string
   description: string
   maxVersion?: string  // Only install if gameVersion < this (semver-like compare)
+  minVersion?: string  // Only install if gameVersion >= this
 }
 
 const PERFORMANCE_MODS: PerfModEntry[] = [
+  // ── Core ──
   { slug: 'fabric-api', name: 'Fabric API', description: 'Core library required by most Fabric mods' },
+
+  // ── Rendering (FPS) ──
   { slug: 'sodium', name: 'Sodium', description: 'Rendering engine replacement (MASSIVE FPS boost)' },
+  { slug: 'immediatelyfast', name: 'ImmediatelyFast', description: 'UI/text rendering optimization' },
+  { slug: 'entityculling', name: 'Entity Culling', description: 'Skip rendering hidden entities' },
+  { slug: 'enhanced-block-entities', name: 'Enhanced Block Entities', description: 'Block entity rendering optimization (chests, signs, beds)' },
+  { slug: 'moreculling', name: 'More Culling', description: 'Additional culling for entities, tiles, and sky' },
+  { slug: 'cull-less-leaves', name: 'Cull Less Leaves', description: 'Configurable leaf rendering optimization' },
+  { slug: 'sodium-extra', name: 'Sodium Extra', description: 'Extra optimization toggles for Sodium' },
+  { slug: 'badoptimizations', name: 'BadOptimizations', description: 'Non-rendering logic optimizations' },
+
+  // ── Game Logic ──
   { slug: 'lithium', name: 'Lithium', description: 'Game logic optimizer' },
+
+  // ── Chunk Loading & World Gen ──
+  { slug: 'c2me-fabric', name: 'C2ME', description: 'Multi-threaded chunk generation and loading' },
+  { slug: 'noisium', name: 'Noisium', description: 'World generation speed optimization' },
+
+  // ── Lighting ──
   { slug: 'starlight', name: 'Starlight', description: 'Light engine rewrite', maxVersion: '1.20' },
-  { slug: 'lazydfu', name: 'LazyDFU', description: 'Faster game startup', maxVersion: '1.20' },
+  { slug: 'scalablelux', name: 'ScalableLux', description: 'Optimized lighting engine (Starlight successor)', minVersion: '1.21' },
+
+  // ── Memory ──
   { slug: 'ferritecore', name: 'FerriteCore', description: 'Memory optimization' },
   { slug: 'modernfix', name: 'ModernFix', description: 'Various performance fixes' },
-  { slug: 'entityculling', name: 'Entity Culling', description: 'Skip rendering hidden entities' },
-  { slug: 'immediatelyfast', name: 'ImmediatelyFast', description: 'UI/text rendering optimization' },
+
+  // ── Network ──
   { slug: 'krypton', name: 'Krypton', description: 'Network stack optimization' },
+
+  // ── Startup ──
+  { slug: 'lazydfu', name: 'LazyDFU', description: 'Faster game startup', maxVersion: '1.20' },
+
+  // ── Quality of Life ──
+  { slug: 'dynamic-fps', name: 'Dynamic FPS', description: 'Reduces FPS when game is in background' },
+  { slug: 'notenoughcrashes', name: 'Not Enough Crashes', description: 'Crash recovery — returns to title instead of closing' },
+  { slug: 'clumps', name: 'Clumps', description: 'Merges XP orbs to reduce entity lag' },
+  { slug: 'debugify', name: 'Debugify', description: 'Fixes 70+ MC bugs including performance-affecting ones' },
 ]
+
+// Iris is handled separately via the 'perf_iris_shaders' setting
+const IRIS_MOD: PerfModEntry = { slug: 'iris', name: 'Iris Shaders', description: 'Shader support built on Sodium (2x faster than OptiFine)' }
 
 // ============================================================
 // Helpers
@@ -143,10 +176,18 @@ export async function installPerformanceMods(
   const modsDir = getInstanceModsDir(instanceId)
   const existingMods = readInstanceMods(instanceId)
 
-  // Filter mods to those applicable for this version
-  const applicableMods = PERFORMANCE_MODS.filter(mod => {
+  // Build the mod list — include Iris if its separate toggle is on
+  const { storeGet } = require('./settings-store')
+  const irisEnabled = storeGet?.('perf_iris_shaders') ?? false
+  const allMods = irisEnabled ? [...PERFORMANCE_MODS, IRIS_MOD] : PERFORMANCE_MODS
+
+  const applicableMods = allMods.filter(mod => {
     if (mod.maxVersion && !isVersionBelow(gameVersion, mod.maxVersion)) {
       console.log(`[PerfMods] Skipping ${mod.slug} — included in vanilla since ${mod.maxVersion}`)
+      return false
+    }
+    if (mod.minVersion && isVersionBelow(gameVersion, mod.minVersion)) {
+      console.log(`[PerfMods] Skipping ${mod.slug} — requires MC ${mod.minVersion}+`)
       return false
     }
     return true

@@ -10,7 +10,8 @@ import { connectDiscord, disconnectDiscord, isDiscordConnected, isDiscordEnabled
 import { createChat, saveChat, loadChat, listChats, deleteChat, renameChat } from './chat-store'
 import { setStateProvider, setLoomieHandler, setSpotifyCommandHandler, DynamicIslandState } from './dynamic-island-server'
 import { autoUpdater } from 'electron-updater'
-import { addDefenderExclusion, setHighPerformancePowerPlan, restoreDefaultPowerPlan } from './system-optimizations'
+import { addDefenderExclusion, setHighPerformancePowerPlan, restoreDefaultPowerPlan, applyNetworkOptimizations, restoreNetworkSettings } from './system-optimizations'
+import { pingMinecraftServer } from './server-ping'
 
 // ============================================================
 // Simple file-based config store (replaces electron-store)
@@ -266,6 +267,22 @@ ipcMain.handle('perf:setPowerPlan', () => {
 
 ipcMain.handle('perf:restorePowerPlan', () => {
   restoreDefaultPowerPlan()
+})
+
+ipcMain.handle('perf:applyNetworkOpt', async () => {
+  return applyNetworkOptimizations()
+})
+
+ipcMain.handle('perf:restoreNetwork', async () => {
+  return restoreNetworkSettings()
+})
+
+ipcMain.handle('net:pingServer', async (_e, host: string, port?: number) => {
+  try {
+    return await pingMinecraftServer(host, port ?? 25565)
+  } catch (err: any) {
+    return { error: err.message }
+  }
 })
 
 // ============================================================

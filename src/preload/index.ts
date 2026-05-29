@@ -174,6 +174,11 @@ const electronAPI = {
   applyDefenderExclusion: () => ipcRenderer.invoke('perf:applyDefenderExclusion'),
   setPowerPlan: () => ipcRenderer.invoke('perf:setPowerPlan'),
   restorePowerPlan: () => ipcRenderer.invoke('perf:restorePowerPlan'),
+  applyNetworkOptimization: () => ipcRenderer.invoke('perf:applyNetworkOpt'),
+  restoreNetworkSettings: () => ipcRenderer.invoke('perf:restoreNetwork'),
+
+  // Network
+  pingServer: (host: string, port?: number) => ipcRenderer.invoke('net:pingServer', host, port),
 
   // Auto-Updater
   checkForUpdates: () => ipcRenderer.invoke('updater:check'),

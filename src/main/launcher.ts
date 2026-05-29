@@ -654,6 +654,16 @@ export async function launchInstance(id: string) {
       '-XX:+OptimizeStringConcat',
     )
 
+    // ── Network JVM flags (Netty optimization) ──
+    const perfNetwork = storeGet?.('perf_network') ?? false
+    if (perfNetwork) {
+      extraJVMArgs.push(
+        '-Dio.netty.buffer.checkAccessible=false',
+        '-Dio.netty.buffer.checkBounds=false',
+      )
+      console.log('[Launcher] Network JVM flags enabled')
+    }
+
     const isModded = instance.loader && instance.loader !== 'vanilla'
 
     if (account.incognitoEnabled && account.incognitoRegion && isModded) {

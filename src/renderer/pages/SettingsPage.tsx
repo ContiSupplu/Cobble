@@ -162,6 +162,8 @@ export default function SettingsPage() {
   const [perfGameSettings, setPerfGameSettings] = useState(true)
   const [perfDefenderExclusion, setPerfDefenderExclusion] = useState(false)
   const [perfPowerPlan, setPerfPowerPlan] = useState(false)
+  const [perfNetwork, setPerfNetwork] = useState(false)
+  const [perfIris, setPerfIris] = useState(false)
 
   useEffect(() => {
     api?.storeGet('perf_modpack').then((v: any) => setPerfModpack(v ?? true))
@@ -170,6 +172,8 @@ export default function SettingsPage() {
     api?.storeGet('perf_game_settings').then((v: any) => setPerfGameSettings(v ?? true))
     api?.storeGet('perf_defender_exclusion').then((v: any) => setPerfDefenderExclusion(v ?? false))
     api?.storeGet('perf_power_plan').then((v: any) => setPerfPowerPlan(v ?? false))
+    api?.storeGet('perf_network').then((v: any) => setPerfNetwork(v ?? false))
+    api?.storeGet('perf_iris_shaders').then((v: any) => setPerfIris(v ?? false))
   }, [])
 
   const togglePerf = (key: string, current: boolean, setter: (v: boolean) => void) => {
@@ -601,7 +605,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="settings-row last">
+        <div className="settings-row">
           <div>
             <div className="settings-row-title">Power Plan Optimization</div>
             <div className="settings-row-desc">Switch to High Performance power plan while Minecraft is running</div>
@@ -609,6 +613,35 @@ export default function SettingsPage() {
           <button
             className={`settings-toggle${perfPowerPlan ? ' on' : ''}`}
             onClick={() => togglePerf('perf_power_plan', perfPowerPlan, setPerfPowerPlan)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
+        </div>
+
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">Network Optimization</div>
+            <div className="settings-row-desc">Optimize TCP settings and DNS for lower ping (requires admin, reboot recommended)</div>
+          </div>
+          <div className="settings-bg-actions">
+            <button className="settings-btn-sm settings-btn-accent" onClick={() => api?.applyNetworkOptimization?.()}>Apply</button>
+            <button
+              className={`settings-toggle${perfNetwork ? ' on' : ''}`}
+              onClick={() => togglePerf('perf_network', perfNetwork, setPerfNetwork)}
+            >
+              <div className="settings-toggle-dot" />
+            </button>
+          </div>
+        </div>
+
+        <div className="settings-row last">
+          <div>
+            <div className="settings-row-title">Iris Shaders</div>
+            <div className="settings-row-desc">Auto-install Iris shader support (2x faster than OptiFine shaders)</div>
+          </div>
+          <button
+            className={`settings-toggle${perfIris ? ' on' : ''}`}
+            onClick={() => togglePerf('perf_iris_shaders', perfIris, setPerfIris)}
           >
             <div className="settings-toggle-dot" />
           </button>

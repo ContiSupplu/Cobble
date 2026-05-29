@@ -115,3 +115,106 @@ export function writeOptimizedGameSettings(instancePath: string): void {
     console.warn('[Perf] Failed to write options.txt:', err.message)
   }
 }
+
+// ============================================================
+// Network Optimization (TCP + DNS)
+// ============================================================
+
+/**
+ * Apply TCP and DNS optimizations for lower latency gaming.
+ * Requires UAC elevation for registry changes.
+ * 
+ * Tweaks applied:
+ * - TcpAckFrequency=1  (disable delayed ACKs — biggest impact)
+ * - TcpNoDelay=1       (disable Nagle's algorithm at OS level)
+ * - TcpDelAckTicks=0   (reinforces TcpAckFrequency)
+ * - NetworkThrottlingIndex=0xFFFFFFFF (removes packet throttling)
+ * - SystemResponsiveness=0 (max CPU to foreground)
+ * - DNS → Cloudflare 1.1.1.1 (faster initial connections)
+ */
+export async function applyNetworkOptimizations(): Promise<boolean> {
+  if (process.platform !== 'win32') return false
+
+  // PowerShell script to apply all network tweaks
+  const script = `
+    # --- TCP Tweaks (per-adapter) ---
+    $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and ($_.InterfaceType -eq 6 -or $_.InterfaceType -eq 71) }
+    foreach ($adapter in $adapters) {
+      $ip = (Get-NetIPAddress -InterfaceIndex $adapter.InterfaceIndex -AddressFamily IPv4 -ErrorAction SilentlyContinue).IPAddress
+      if (-not $ip) { continue }
+      $guids = Get-ChildItem 'HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Tcpip\\Parameters\\Interfaces'
+      foreach ($g in $guids) {
+        $dhcpIp = (Get-ItemProperty $g.PSPath -ErrorAction SilentlyContinue).DhcpIPAddress
+        $staticIp = (Get-ItemProperty $g.PSPath -ErrorAction SilentlyContinue).IPAddress
+        if ($dhcpIp -eq $ip -or $staticIp -contains $ip) {
+          Set-ItemProperty -Path $g.PSPath -Name 'TcpNoDelay' -Value 1 -Type DWord -Force
+          Set-ItemProperty -Path $g.PSPath -Name 'TcpAckFrequency' -Value 1 -Type DWord -Force
+          Set-ItemProperty -Path $g.PSPath -Name 'TcpDelAckTicks' -Value 0 -Type DWord -Force
+          Write-Host "TCP tweaks applied to $($adapter.Name)"
+        }
+      }
+    }
+
+    # --- Network Throttling ---
+    $mmPath = 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Multimedia\\SystemProfile'
+    Set-ItemProperty -Path $mmPath -Name 'NetworkThrottlingIndex' -Value 0xFFFFFFFF -Type DWord -Force
+    Set-ItemProperty -Path $mmPath -Name 'SystemResponsiveness' -Value 0 -Type DWord -Force
+    Write-Host 'Network throttling disabled'
+
+    # --- DNS (Cloudflare) ---
+    $activeAdapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+    foreach ($a in $activeAdapters) {
+      Set-DnsClientServerAddress -InterfaceIndex $a.InterfaceIndex -ServerAddresses ('1.1.1.1','1.0.0.1') -ErrorAction SilentlyContinue
+    }
+    Clear-DnsClientCache
+    Write-Host 'DNS set to Cloudflare 1.1.1.1'
+  `.replace(/\n/g, '; ').replace(/;(\s*;)+/g, ';')
+
+  try {
+    const cmd = `powershell -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command','${script.replace(/'/g, "''")}' -Wait"`
+    await new Promise<void>((resolve, reject) => {
+      exec(cmd, { timeout: 30000 }, (err) => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+    console.log('[Perf] Network optimizations applied (TCP + DNS)')
+    return true
+  } catch (err: any) {
+    console.warn('[Perf] Network optimization failed:', err.message)
+    return false
+  }
+}
+
+/**
+ * Restore DNS to automatic (DHCP) defaults.
+ * TCP registry changes require a reboot to fully revert,
+ * so we only restore DNS here.
+ */
+export async function restoreNetworkSettings(): Promise<boolean> {
+  if (process.platform !== 'win32') return false
+
+  try {
+    const script = `
+      $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+      foreach ($a in $adapters) {
+        Set-DnsClientServerAddress -InterfaceIndex $a.InterfaceIndex -ResetServerAddresses -ErrorAction SilentlyContinue
+      }
+      Clear-DnsClientCache
+      Write-Host 'DNS restored to defaults'
+    `.replace(/\n/g, '; ').replace(/;(\s*;)+/g, ';')
+
+    const cmd = `powershell -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command','${script.replace(/'/g, "''")}' -Wait"`
+    await new Promise<void>((resolve, reject) => {
+      exec(cmd, { timeout: 30000 }, (err) => {
+        if (err) reject(err)
+        else resolve()
+      })
+    })
+    console.log('[Perf] Network settings restored')
+    return true
+  } catch (err: any) {
+    console.warn('[Perf] Network restore failed:', err.message)
+    return false
+  }
+}
