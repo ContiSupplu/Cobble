@@ -130,6 +130,17 @@ const electronAPI = {
     return () => ipcRenderer.removeListener('spotify:update', handler)
   },
 
+  // Modpack
+  parseModpackFile: (filePath: string) => ipcRenderer.invoke('modpack:parseFile', filePath),
+  installModpack: (filePath: string, instanceId: string) => ipcRenderer.invoke('modpack:install', filePath, instanceId),
+  searchModrinthModpacks: (query: string, offset?: number) => ipcRenderer.invoke('modpack:searchModrinth', query, offset),
+  getModrinthPackVersions: (projectId: string) => ipcRenderer.invoke('modpack:getModrinthVersions', projectId),
+  downloadModrinthPack: (projectId: string, versionId: string) => ipcRenderer.invoke('modpack:downloadModrinth', projectId, versionId),
+  onModpackProgress: (cb: (progress: any) => void) => {
+    ipcRenderer.on('modpack:progress', (_e, progress) => cb(progress))
+    return () => { ipcRenderer.removeAllListeners('modpack:progress') }
+  },
+
   // Preload progress
   onPreloadProgress: (callback: (data: { step: string; progress: number }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: { step: string; progress: number }) => callback(data)

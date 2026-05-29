@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, net } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, unlinkSync, copyFileSync } from 'fs'
 import dns from 'dns'
@@ -61,6 +61,36 @@ function getAgent() {
     persistentAgent = new Agent({ connections: 32, pipelining: 1 })
   }
   return persistentAgent
+}
+
+// Helper: ensure Java is available for mod loader installation (Forge/NeoForge need it)
+async function ensureJavaForLoader(rootPath: string, mcVersion: string): Promise<string> {
+  // Determine which Java component this MC version needs
+  // MC 1.20+ uses java-runtime-delta (Java 21), 1.18-1.19 uses java-runtime-gamma (Java 17)
+  const javaComponent = parseInt(mcVersion.split('.')[1] || '0') >= 20 
+    ? 'java-runtime-delta' 
+    : parseInt(mcVersion.split('.')[1] || '0') >= 18 
+      ? 'java-runtime-gamma' 
+      : 'java-runtime-beta'
+  const jreDir = join(rootPath, 'java', javaComponent)
+  const javaBin = join(jreDir, 'bin', process.platform === 'win32' ? 'java.exe' : 'java')
+  
+  if (existsSync(javaBin)) return javaBin
+  
+  // Download Java
+  console.log(`[Launcher] Pre-downloading Java (${javaComponent}) for mod loader install...`)
+  const { fetchJavaRuntimeManifest, installJavaRuntimeTask } = require('@xmcl/installer')
+  const javaManifest = await fetchJavaRuntimeManifest({ target: javaComponent })
+  const { Agent } = require('undici')
+  const agent = new Agent({ connections: 16, pipelining: 1 })
+  const javaTask = installJavaRuntimeTask({
+    manifest: javaManifest,
+    destination: jreDir,
+    agent
+  })
+  await javaTask.startAndWait()
+  agent.close()
+  return javaBin
 }
 
 export function setLauncherWindow(win: BrowserWindow) {
@@ -478,7 +508,6 @@ export async function launchInstance(id: string) {
       broadcastStatus({ task: 'Installing Fabric...', progress: 52 })
       try {
         const { installFabric } = require('@xmcl/installer')
-        // Use preloaded cache or fetch fresh
         let loaders = fabricLoaderCache.get(instance.version)
         if (!loaders) {
           broadcastLog('[Launcher] Fetching Fabric loader metadata...\n')
@@ -504,16 +533,67 @@ export async function launchInstance(id: string) {
       broadcastStatus({ task: 'Installing Forge...', progress: 52 })
       broadcastLog('[Launcher] Fetching Forge version list...\n')
       try {
+        const javaBin = await ensureJavaForLoader(rootPath, instance.version)
         const { getForgeVersionList, installForge } = require('@xmcl/installer')
         const forgeList = await getForgeVersionList({ minecraft: instance.version })
         const latestForge = forgeList.versions[0].version
         broadcastStatus({ task: `Installing Forge ${latestForge}...`, progress: 55 })
         broadcastLog(`[Launcher] Installing Forge ${latestForge}...\n`)
-        await installForge({ mcversion: instance.version, version: latestForge }, rootPath, installOptions)
+        await installForge({ mcversion: instance.version, version: latestForge }, rootPath, { ...installOptions, java: javaBin })
         broadcastStatus({ task: 'Forge installed', progress: 65 })
         broadcastLog(`[Launcher] Forge ${latestForge} installed successfully.\n`)
       } catch (e: any) {
         throw new Error(`Forge does not support version ${instance.version} yet. Try a different version or use Vanilla.`)
+      }
+    } else if (instance.loader === 'NeoForge') {
+      broadcastStatus({ task: 'Installing NeoForge...', progress: 52 })
+      broadcastLog('[Launcher] Fetching NeoForge versions...\n')
+      try {
+        const javaBin = await ensureJavaForLoader(rootPath, instance.version)
+        const { installNeoForged } = require('@xmcl/installer')
+        // Determine NeoForge version prefix from MC version
+        // MC 1.20.1 -> NeoForge 20.1.x, MC 1.21.1 -> NeoForge 21.1.x
+        const mcParts = instance.version.split('.')
+        const neoPrefix = `${mcParts[1]}.${mcParts[2] || '0'}`
+        // Fetch available versions from Maven metadata
+        const res = await net.fetch('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml')
+        const xml = await res.text()
+        const versionMatches = xml.match(/<version>([^<]+)<\/version>/g) || []
+        const allVersions = versionMatches.map((m: string) => m.replace(/<\/?version>/g, ''))
+        const compatible = allVersions.filter((v: string) => v.startsWith(neoPrefix + '.')).sort().reverse()
+        if (compatible.length === 0) {
+          throw new Error(`No NeoForge versions found for MC ${instance.version}`)
+        }
+        const latestNeoForge = compatible[0]
+        broadcastStatus({ task: `Installing NeoForge ${latestNeoForge}...`, progress: 55 })
+        broadcastLog(`[Launcher] Installing NeoForge ${latestNeoForge}...\n`)
+        await installNeoForged('neoforge', latestNeoForge, rootPath, { ...installOptions, java: javaBin })
+        broadcastStatus({ task: 'NeoForge installed', progress: 65 })
+        broadcastLog(`[Launcher] NeoForge ${latestNeoForge} installed successfully.\n`)
+      } catch (e: any) {
+        throw new Error(`NeoForge install failed for ${instance.version}: ${e.message}`)
+      }
+    } else if (instance.loader === 'Quilt') {
+      broadcastStatus({ task: 'Installing Quilt...', progress: 52 })
+      broadcastLog('[Launcher] Fetching Quilt loader versions...\n')
+      try {
+        const { getQuiltVersionsList, installQuiltVersion } = require('@xmcl/installer')
+        const quiltVersions = await getQuiltVersionsList()
+        if (!quiltVersions || quiltVersions.length === 0) {
+          throw new Error('No Quilt loader versions found')
+        }
+        const latestQuilt = quiltVersions[0].version
+        broadcastStatus({ task: `Installing Quilt ${latestQuilt}...`, progress: 55 })
+        broadcastLog(`[Launcher] Installing Quilt ${latestQuilt}...\n`)
+        await installQuiltVersion({
+          minecraftVersion: instance.version,
+          version: latestQuilt,
+          minecraft: rootPath,
+        })
+        broadcastStatus({ task: 'Quilt installed', progress: 65 })
+        broadcastLog(`[Launcher] Quilt ${latestQuilt} installed successfully.\n`)
+      } catch (e: any) {
+        throw new Error(`Quilt install failed for ${instance.version}: ${e.message}`)
       }
     } else {
       broadcastStatus({ task: 'Vanilla — no mod loader needed', progress: 65 })
@@ -533,6 +613,12 @@ export async function launchInstance(id: string) {
         if (match) resolvedVersionId = match
       } else if (instance.loader === 'Forge') {
         const match = allVersions.find((v: string) => v.includes('forge') && v.startsWith(instance.version + '-'))
+        if (match) resolvedVersionId = match
+      } else if (instance.loader === 'NeoForge') {
+        const match = allVersions.find((v: string) => v.includes('neoforge') && (v.startsWith(instance.version + '-') || v.startsWith('neoforge-')))
+        if (match) resolvedVersionId = match
+      } else if (instance.loader === 'Quilt') {
+        const match = allVersions.find((v: string) => v.includes('quilt') && v.startsWith(instance.version + '-'))
         if (match) resolvedVersionId = match
       }
       broadcastLog(`[Launcher] Resolved version: ${resolvedVersionId}\n`)
@@ -688,7 +774,7 @@ export async function launchInstance(id: string) {
     }
 
     // ── Dynamic Island — Multi-version deployment ──────────────
-    if (instance.loader && instance.loader.toLowerCase() === 'fabric') {
+    if (instance.loader && (instance.loader.toLowerCase() === 'fabric' || instance.loader.toLowerCase() === 'quilt')) {
       try {
         const ver = instance.version
         const modDest = join(instancePath, 'mods', 'dynamic-island-1.0.0.jar')

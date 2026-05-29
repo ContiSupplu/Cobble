@@ -684,6 +684,49 @@ ipcMain.handle('versions:getAll', async (_event, loader: string) => {
         // If Forge API fails, return all releases as fallback
         versions = allReleases
       }
+    } else if (cacheKey === 'neoforge') {
+      // Fetch NeoForge-supported MC versions from Maven metadata
+      try {
+        const res = await net.fetch('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml')
+        if (res.ok) {
+          const xml = await res.text()
+          const versionMatches = xml.match(/<version>([^<]+)<\/version>/g) || []
+          const allNeoVersions = versionMatches.map((m: string) => m.replace(/<\/?version>/g, ''))
+          // Extract MC versions from NeoForge version numbers
+          // NeoForge 21.1.77 -> MC 1.21.1, NeoForge 20.6.119 -> MC 1.20.6
+          const mcVersions = new Set<string>()
+          for (const v of allNeoVersions) {
+            const parts = v.split('.')
+            if (parts.length >= 2) {
+              const major = parts[0]
+              const minor = parts[1]
+              mcVersions.add(`1.${major}.${minor}`)
+            }
+          }
+          // Get vanilla releases and filter by NeoForge support
+          const mojRes = await net.fetch('https://launchermeta.mojang.com/mc/game/version_manifest_v2.json')
+          if (mojRes.ok) {
+            const mojData = await mojRes.json() as { versions: { id: string; type: string }[] }
+            const allReleases = mojData.versions.filter((v) => v.type === 'release').map((v) => v.id)
+            versions = allReleases.filter((v) => mcVersions.has(v))
+          }
+        }
+      } catch {
+        // fallback: return empty
+      }
+    } else if (cacheKey === 'quilt') {
+      // Fetch Quilt-supported MC versions from Quilt Meta
+      try {
+        const res = await net.fetch('https://meta.quiltmc.org/v3/versions/game')
+        if (res.ok) {
+          const data = await res.json() as { version: string; stable: boolean }[]
+          versions = data
+            .filter((v) => v.stable)
+            .map((v) => v.version)
+        }
+      } catch {
+        // fallback: return empty
+      }
     }
 
     if (versions.length > 0) {
@@ -693,6 +736,78 @@ ipcMain.handle('versions:getAll', async (_event, loader: string) => {
   } catch (err) {
     console.error('Failed to fetch versions:', err)
     return []
+  }
+})
+
+// ============================================================
+// IPC Handlers — Modpack Import
+// ============================================================
+
+ipcMain.handle('modpack:parseFile', async (_event, filePath: string) => {
+  try {
+    const { parseModpackFile } = require('./modpack-installer')
+    return await parseModpackFile(filePath)
+  } catch (err: any) {
+    console.error('[Modpack] Parse error:', err)
+    return { error: err.message }
+  }
+})
+
+ipcMain.handle('modpack:install', async (_event, filePath: string, instanceId: string) => {
+  try {
+    const { parseModpackFile, installModrinthPack, installCurseForgePack } = require('./modpack-installer')
+    const info = await parseModpackFile(filePath)
+    const { getInstancePath } = require('./instances')
+    const instancePath = getInstancePath(instanceId)
+    
+    const onProgress = (progress: any) => {
+      mainWindow?.webContents.send('modpack:progress', progress)
+    }
+    
+    if (info.source === 'modrinth') {
+      await installModrinthPack(filePath, instancePath, onProgress)
+    } else {
+      const apiKey = configStore['curseforge_api_key'] as string || null
+      await installCurseForgePack(filePath, instancePath, apiKey, onProgress)
+    }
+    
+    return { success: true, info }
+  } catch (err: any) {
+    console.error('[Modpack] Install error:', err)
+    return { error: err.message }
+  }
+})
+
+ipcMain.handle('modpack:searchModrinth', async (_event, query: string, offset: number = 0) => {
+  try {
+    const { searchModrinthModpacks } = require('./modpack-installer')
+    return await searchModrinthModpacks(query, offset)
+  } catch (err: any) {
+    console.error('[Modpack] Search error:', err)
+    return { hits: [], total_hits: 0, offset: 0, limit: 20 }
+  }
+})
+
+ipcMain.handle('modpack:getModrinthVersions', async (_event, projectId: string) => {
+  try {
+    const { getModrinthPackVersions } = require('./modpack-installer')
+    return await getModrinthPackVersions(projectId)
+  } catch (err: any) {
+    console.error('[Modpack] Versions error:', err)
+    return []
+  }
+})
+
+ipcMain.handle('modpack:downloadModrinth', async (_event, projectId: string, versionId: string) => {
+  try {
+    const { downloadModrinthPack } = require('./modpack-installer')
+    const tempDir = join(app.getPath('temp'), 'loom-modpacks')
+    if (!existsSync(tempDir)) mkdirSync(tempDir, { recursive: true })
+    const filePath = await downloadModrinthPack(projectId, versionId, tempDir)
+    return { filePath }
+  } catch (err: any) {
+    console.error('[Modpack] Download error:', err)
+    return { error: err.message }
   }
 })
 

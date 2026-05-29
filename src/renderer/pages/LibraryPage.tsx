@@ -34,7 +34,7 @@ interface Instance {
   customIcon?: string
 }
 
-const LOADERS = ['Vanilla', 'Fabric', 'Forge']
+const LOADERS = ['Vanilla', 'Fabric', 'Forge', 'NeoForge', 'Quilt']
 
 // ─── Version Picker ────────────────────────────────────────────────────────────
 
@@ -664,6 +664,15 @@ export default function LibraryPage() {
   const [changelogLoading, setChangelogLoading] = useState(false)
   const [showChangelog, setShowChangelog] = useState(false)
 
+  // Modpack import
+  const [showModpackBrowser, setShowModpackBrowser] = useState(false)
+  const [modpackSearch, setModpackSearch] = useState('')
+  const [modpackResults, setModpackResults] = useState<any[]>([])
+  const [modpackSearching, setModpackSearching] = useState(false)
+  const [modpackInstalling, setModpackInstalling] = useState<string | null>(null)
+  const [modpackProgress, setModpackProgress] = useState<any>(null)
+  const modpackFileRef = useRef<HTMLInputElement>(null)
+
   // ── Load Instances ──
 
   const loadInstances = useCallback(async () => {
@@ -823,6 +832,119 @@ export default function LibraryPage() {
     await api?.updateInstance(editTarget.id, data)
     setEditTarget(null)
     await loadInstances()
+  }
+
+  // ── Modpack Handlers ──
+
+  const handleModpackFileImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = '' // Reset input
+
+    try {
+      setModpackInstalling(file.name)
+      setModpackProgress({ stage: 'Parsing modpack...', progress: 5 })
+
+      const info = await api?.parseModpackFile(file.path)
+      if (info?.error) throw new Error(info.error)
+
+      // Create a new instance for this modpack
+      const newInstance = await api?.createInstance({
+        name: info.name || file.name.replace(/\.(zip|mrpack)$/i, ''),
+        version: info.mcVersion,
+        loader: info.loader,
+        createdBy: user?.uuid
+      })
+
+      if (!newInstance) throw new Error('Failed to create instance')
+
+      // Install the modpack into the instance
+      setModpackProgress({ stage: 'Installing mods...', progress: 10 })
+      const result = await api?.installModpack(file.path, newInstance.id)
+      if (result?.error) throw new Error(result.error)
+
+      setModpackProgress({ stage: 'Done!', progress: 100 })
+      await loadInstances()
+      setSelectedId(newInstance.id)
+
+      setTimeout(() => {
+        setModpackInstalling(null)
+        setModpackProgress(null)
+      }, 1500)
+    } catch (err: any) {
+      console.error('Modpack import failed:', err)
+      setModpackProgress({ stage: `Error: ${err.message}`, progress: 0 })
+      setTimeout(() => {
+        setModpackInstalling(null)
+        setModpackProgress(null)
+      }, 3000)
+    }
+  }
+
+  const handleModpackSearch = async () => {
+    if (!modpackSearch.trim()) return
+    setModpackSearching(true)
+    try {
+      const results = await api?.searchModrinthModpacks(modpackSearch.trim())
+      setModpackResults(results?.hits || [])
+    } catch {
+      setModpackResults([])
+    } finally {
+      setModpackSearching(false)
+    }
+  }
+
+  const handleModrinthPackInstall = async (pack: any) => {
+    try {
+      setModpackInstalling(pack.title)
+      setModpackProgress({ stage: 'Fetching versions...', progress: 5 })
+
+      // Get the latest version
+      const versions = await api?.getModrinthPackVersions(pack.slug || pack.project_id)
+      if (!versions || versions.length === 0) throw new Error('No versions found')
+      const latest = versions[0]
+
+      // Download the .mrpack
+      setModpackProgress({ stage: 'Downloading modpack...', progress: 15 })
+      const downloadResult = await api?.downloadModrinthPack(pack.slug || pack.project_id, latest.id)
+      if (downloadResult?.error) throw new Error(downloadResult.error)
+
+      // Parse it to get MC version and loader
+      const info = await api?.parseModpackFile(downloadResult.filePath)
+      if (info?.error) throw new Error(info.error)
+
+      // Create instance
+      setModpackProgress({ stage: 'Creating instance...', progress: 25 })
+      const newInstance = await api?.createInstance({
+        name: pack.title,
+        version: info.mcVersion,
+        loader: info.loader,
+        createdBy: user?.uuid
+      })
+      if (!newInstance) throw new Error('Failed to create instance')
+
+      // Install
+      setModpackProgress({ stage: 'Installing mods...', progress: 30 })
+      const result = await api?.installModpack(downloadResult.filePath, newInstance.id)
+      if (result?.error) throw new Error(result.error)
+
+      setModpackProgress({ stage: 'Done!', progress: 100 })
+      await loadInstances()
+      setSelectedId(newInstance.id)
+      setShowModpackBrowser(false)
+
+      setTimeout(() => {
+        setModpackInstalling(null)
+        setModpackProgress(null)
+      }, 1500)
+    } catch (err: any) {
+      console.error('Modpack install failed:', err)
+      setModpackProgress({ stage: `Error: ${err.message}`, progress: 0 })
+      setTimeout(() => {
+        setModpackInstalling(null)
+        setModpackProgress(null)
+      }, 3000)
+    }
   }
 
   // ── Render ──
@@ -987,11 +1109,31 @@ export default function LibraryPage() {
           <button
             className="library-inst library-new"
             onClick={() => setShowForm(!showForm)}
+            title="New instance"
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
+          <button
+            className="library-inst library-new"
+            onClick={() => setShowModpackBrowser(true)}
+            title="Import modpack"
+            style={{ fontSize: '11px', gap: '4px' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+          </button>
+          <input
+            ref={modpackFileRef}
+            type="file"
+            accept=".zip,.mrpack"
+            style={{ display: 'none' }}
+            onChange={handleModpackFileImport}
+          />
         </div>
 
         {/* ── Trash Section ── */}
@@ -1251,6 +1393,97 @@ export default function LibraryPage() {
           instanceName={fileExplorerTarget.name}
           onClose={() => setFileExplorerTarget(null)}
         />
+      )}
+
+      {/* ── Modpack Progress Overlay ── */}
+      {modpackInstalling && modpackProgress && (
+        <div className="library-modpack-overlay">
+          <div className="library-modpack-progress">
+            <div className="library-modpack-progress-title">
+              {modpackProgress.stage?.startsWith('Error') ? '❌' : '📦'} {modpackInstalling}
+            </div>
+            <div className="library-modpack-progress-bar">
+              <div
+                className="library-modpack-progress-fill"
+                style={{ width: `${modpackProgress.progress || 0}%` }}
+              />
+            </div>
+            <div className="library-modpack-progress-detail">{modpackProgress.stage}</div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modpack Browser Modal ── */}
+      {showModpackBrowser && (
+        <div className="modal-backdrop" onClick={() => !modpackInstalling && setShowModpackBrowser(false)}>
+          <div className="modal library-modpack-browser" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Import Modpack</h2>
+              <button className="modal-close" onClick={() => !modpackInstalling && setShowModpackBrowser(false)}>×</button>
+            </div>
+
+            <div className="library-modpack-actions">
+              <button
+                className="library-modpack-file-btn"
+                onClick={() => modpackFileRef.current?.click()}
+                disabled={!!modpackInstalling}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                  <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
+                </svg>
+                Import from File (.zip / .mrpack)
+              </button>
+            </div>
+
+            <div className="library-modpack-divider">
+              <span>or browse Modrinth</span>
+            </div>
+
+            <div className="library-modpack-search">
+              <input
+                type="text"
+                placeholder="Search modpacks..."
+                value={modpackSearch}
+                onChange={(e) => setModpackSearch(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleModpackSearch()}
+              />
+              <button onClick={handleModpackSearch} disabled={modpackSearching}>
+                {modpackSearching ? '...' : 'Search'}
+              </button>
+            </div>
+
+            <div className="library-modpack-results">
+              {modpackResults.length === 0 && !modpackSearching && (
+                <div className="library-modpack-empty">
+                  Search for modpacks on Modrinth to get started
+                </div>
+              )}
+              {modpackResults.map((pack: any) => (
+                <div key={pack.slug || pack.project_id} className="library-modpack-card">
+                  {pack.icon_url && (
+                    <img src={pack.icon_url} alt="" className="library-modpack-icon" />
+                  )}
+                  <div className="library-modpack-info">
+                    <div className="library-modpack-name">{pack.title}</div>
+                    <div className="library-modpack-desc">{pack.description}</div>
+                    <div className="library-modpack-meta">
+                      {pack.downloads?.toLocaleString()} downloads
+                      {pack.categories && ` · ${pack.categories.slice(0, 3).join(', ')}`}
+                    </div>
+                  </div>
+                  <button
+                    className="library-modpack-install-btn"
+                    onClick={() => handleModrinthPackInstall(pack)}
+                    disabled={!!modpackInstalling}
+                  >
+                    {modpackInstalling === pack.title ? 'Installing...' : 'Install'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
