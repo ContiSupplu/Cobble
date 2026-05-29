@@ -42,7 +42,7 @@ async function tryRcedit(attempt) {
 
 async function main() {
   // Try with increasing delays — the exe may be locked by Defender or lingering handles
-  const delays = [3000, 5000, 8000, 10000]
+  const delays = [5000, 8000, 12000, 15000]
 
   for (let i = 0; i < delays.length; i++) {
     console.log(`[post-build] Waiting ${delays[i] / 1000}s for file handles to release...`)
@@ -50,8 +50,8 @@ async function main() {
     if (await tryRcedit(i + 1)) return
   }
 
-  console.error('[post-build] All attempts failed. The exe will use the default Electron icon.')
-  process.exit(1)
+  console.warn('[post-build] All attempts failed. The exe will use the default Electron icon.')
+  // Don't exit(1) — let the NSIS installer build continue without the custom icon
 }
 
 main()
