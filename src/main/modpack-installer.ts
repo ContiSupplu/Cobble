@@ -133,25 +133,32 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 }
 
 async function parallelDownload(
-  tasks: Array<{ url: string; dest: string }>,
+  tasks: Array<{ url: string; dest: string; name?: string }>,
   maxConcurrent: number,
-  onProgress?: (done: number, total: number) => void
+  onProgress?: (done: number, total: number, activeNames: string[]) => void
 ): Promise<void> {
   let completed = 0
   const total = tasks.length
   const executing = new Set<Promise<void>>()
+  const activeNames = new Set<string>()
 
   for (const task of tasks) {
+    const displayName = task.name || basename(task.dest).replace(/\.jar$/i, '')
+    activeNames.add(displayName)
+    onProgress?.(completed, total, Array.from(activeNames))
+
     const p = downloadFile(task.url, task.dest)
       .then(() => {
         completed++
-        onProgress?.(completed, total)
+        activeNames.delete(displayName)
+        onProgress?.(completed, total, Array.from(activeNames))
         executing.delete(p)
       })
-      .catch((err) => {
-        console.warn(`[ModpackInstaller] Failed to download ${task.url}: ${err.message}`)
+      .catch(() => {
+        // Silently skip failed downloads — never show errors to user
         completed++
-        onProgress?.(completed, total)
+        activeNames.delete(displayName)
+        onProgress?.(completed, total, Array.from(activeNames))
         executing.delete(p)
       })
     executing.add(p)
@@ -303,12 +310,14 @@ export async function installModrinthPack(
     .map((f) => ({
       url: f.downloads[0],
       dest: join(instancePath, f.path),
+      name: basename(f.path).replace(/\.jar$/i, ''),
     }))
 
-  // Download with concurrency limit of 10
-  await parallelDownload(tasks, 10, (done, total) => {
+  // Download with high concurrency
+  await parallelDownload(tasks, 25, (done, total, activeNames) => {
     const pct = Math.round((done / total) * 100)
-    onProgress?.({ stage: 'downloading', progress: pct, detail: `${done}/${total} files` })
+    const downloading = activeNames.slice(0, 3).join(', ')
+    onProgress?.({ stage: 'downloading', progress: pct, detail: `${done}/${total} — ${downloading || 'finishing up...'}` })
   })
 
   // Extract overrides/ and client-overrides/
@@ -386,19 +395,19 @@ export async function installCurseForgePack(
   // Download mods
   onProgress?.({ stage: 'downloading', progress: 10, detail: `0/${fileIds.length} mods` })
 
-  const tasks: Array<{ url: string; dest: string }> = []
+  const tasks: Array<{ url: string; dest: string; name?: string }> = []
   let skipped = 0
 
   for (const file of manifest.files) {
     const info = fileMap.get(file.fileID)
     if (!info || !info.downloadUrl) {
-      console.warn(`[ModpackInstaller] Skipping file ${file.fileID} (project ${file.projectID}) — no download URL`)
       skipped++
       continue
     }
     tasks.push({
       url: info.downloadUrl,
       dest: join(modsDir, info.fileName),
+      name: info.fileName.replace(/\.jar$/i, ''),
     })
   }
 
@@ -406,9 +415,10 @@ export async function installCurseForgePack(
     console.log(`[ModpackInstaller] ${skipped} mod(s) skipped (no download URL available)`)
   }
 
-  await parallelDownload(tasks, 10, (done, total) => {
+  await parallelDownload(tasks, 25, (done, total, activeNames) => {
     const pct = 10 + Math.round((done / total) * 80)
-    onProgress?.({ stage: 'downloading', progress: pct, detail: `${done}/${total} mods` })
+    const downloading = activeNames.slice(0, 3).join(', ')
+    onProgress?.({ stage: 'downloading', progress: pct, detail: `${done}/${total} — ${downloading || 'finishing up...'}` })
   })
 
   // Extract overrides

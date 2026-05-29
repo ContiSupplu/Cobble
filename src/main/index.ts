@@ -575,8 +575,8 @@ ipcMain.handle('skins:resolveBody', async (_event, uuid: string, height = 256) =
 // ============================================================
 
 ipcMain.handle('instances:getAll', () => getAllInstances())
-ipcMain.handle('instances:create', (_event, config: { name: string; version: string; loader: string; createdBy?: string }) => {
-  return createInstance(config.name, config.version, config.loader, config.createdBy)
+ipcMain.handle('instances:create', (_event, config: { name: string; version: string; loader: string; createdBy?: string; loaderVersion?: string }) => {
+  return createInstance(config.name, config.version, config.loader, config.createdBy, config.loaderVersion)
 })
 ipcMain.handle('instances:delete', (_event, id: string) => deleteInstance(id))
 ipcMain.handle('instances:getTrash', () => getTrashedInstances())

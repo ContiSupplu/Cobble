@@ -21,6 +21,7 @@ export interface InstanceConfig {
   name: string
   version: string
   loader: string
+  loaderVersion?: string   // Exact loader version (e.g. '21.1.99' for NeoForge)
   mods: number
   created: number
   lastPlayed: number | null
@@ -175,7 +176,8 @@ export function createInstance(
   name: string,
   version: string,
   loader: string,
-  createdBy?: string
+  createdBy?: string,
+  loaderVersion?: string
 ): InstanceConfig {
   ensureDir(INSTANCES_DIR)
 
@@ -187,6 +189,7 @@ export function createInstance(
     name,
     version,
     loader,
+    ...(loaderVersion ? { loaderVersion } : {}),
     mods: 0,
     created: Date.now(),
     lastPlayed: null,

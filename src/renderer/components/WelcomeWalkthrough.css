@@ -1,0 +1,403 @@
+/* ═══════════════════════════════════════════════════════
+   Welcome Walkthrough — One UI 8-inspired post-update flow
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Overlay ── */
+
+.walkthrough {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  user-select: none;
+}
+
+/* ── Animated gradient background ── */
+
+.walkthrough-bg {
+  position: absolute;
+  inset: 0;
+  transition: opacity 800ms cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 0;
+}
+
+.walkthrough-bg-layer {
+  position: absolute;
+  inset: -40%;
+  background-size: 200% 200%;
+  animation: wkGradientShift 12s ease-in-out infinite alternate;
+  opacity: 0;
+  transition: opacity 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.walkthrough-bg-layer.active {
+  opacity: 1;
+}
+
+@keyframes wkGradientShift {
+  0%   { background-position: 0% 30%; }
+  25%  { background-position: 50% 0%; }
+  50%  { background-position: 100% 50%; }
+  75%  { background-position: 50% 100%; }
+  100% { background-position: 20% 60%; }
+}
+
+/* Very subtle noise overlay for depth */
+.walkthrough::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, transparent 50%, rgba(0, 0, 0, 0.35) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+
+/* ── Skip link — top right ── */
+
+.walkthrough-skip {
+  position: absolute;
+  top: 24px;
+  right: 32px;
+  z-index: 10;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 980px;
+  transition: color 250ms ease, background 250ms ease;
+  font-family: var(--font-sans);
+  letter-spacing: 0.01em;
+}
+
+.walkthrough-skip:hover {
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+
+/* ── Slide container ── */
+
+.walkthrough-slides {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+}
+
+
+/* ── Individual slide ── */
+
+.wk-slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 48px 160px;
+  opacity: 0;
+  transform: scale(0.96);
+  pointer-events: none;
+  transition: opacity 600ms cubic-bezier(0.4, 0, 0.2, 1),
+              transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.wk-slide.active {
+  opacity: 1;
+  transform: scale(1);
+  pointer-events: auto;
+}
+
+.wk-slide.exiting {
+  opacity: 0;
+  transform: scale(1.03);
+  pointer-events: none;
+}
+
+.wk-slide-content {
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+
+/* ── Emoji hero ── */
+
+.wk-emoji {
+  font-size: 64px;
+  line-height: 1;
+  margin-bottom: 28px;
+  opacity: 0;
+  transform: translateY(16px) scale(0.8);
+  filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.25));
+}
+
+.wk-slide.active .wk-emoji {
+  animation: wkEmojiIn 700ms cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards;
+}
+
+@keyframes wkEmojiIn {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
+/* ── Typography ── */
+
+.wk-title {
+  font-size: 36px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.12;
+  color: var(--text-0);
+  margin-bottom: 10px;
+  opacity: 0;
+  transform: translateY(14px);
+}
+
+.wk-slide.active .wk-title {
+  animation: wkTextIn 650ms cubic-bezier(0.16, 1, 0.3, 1) 200ms forwards;
+}
+
+.wk-subtitle {
+  font-size: 17px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.5;
+  margin-bottom: 8px;
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.wk-slide.active .wk-subtitle {
+  animation: wkTextIn 600ms cubic-bezier(0.16, 1, 0.3, 1) 320ms forwards;
+}
+
+@keyframes wkTextIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ── Bullet list ── */
+
+.wk-bullets {
+  list-style: none;
+  text-align: left;
+  width: 100%;
+  margin-top: 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.wk-bullet {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 18px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 450;
+  color: rgba(255, 255, 255, 0.82);
+  line-height: 1.45;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: background 200ms ease;
+}
+
+.wk-bullet:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.wk-bullet::before {
+  content: '';
+  flex-shrink: 0;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.45);
+  position: relative;
+  top: 5px;
+}
+
+/* Staggered bullet entry — each delay is injected via style attribute */
+.wk-slide.active .wk-bullet {
+  animation: wkBulletIn 550ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes wkBulletIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+/* ── Bottom controls area ── */
+
+.walkthrough-controls {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: 40px;
+  gap: 20px;
+}
+
+
+/* ── Continue button — pill with glassmorphism ── */
+
+.wk-btn-continue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 52px;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(24px) saturate(1.4);
+  -webkit-backdrop-filter: blur(24px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 980px;
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 2px 20px rgba(255, 255, 255, 0.06),
+              0 0 40px rgba(255, 255, 255, 0.03),
+              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.wk-btn-continue::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.wk-btn-continue:hover {
+  background: rgba(255, 255, 255, 0.18);
+  border-color: rgba(255, 255, 255, 0.24);
+  transform: scale(1.04);
+  box-shadow: 0 4px 28px rgba(255, 255, 255, 0.1),
+              0 0 60px rgba(255, 255, 255, 0.04),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.wk-btn-continue:active {
+  transform: scale(0.97);
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Last slide — make it pop */
+.wk-btn-continue.final {
+  background: rgba(255, 255, 255, 0.92);
+  color: #111;
+  border-color: rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 24px rgba(255, 255, 255, 0.2),
+              0 0 80px rgba(255, 255, 255, 0.06);
+}
+
+.wk-btn-continue.final:hover {
+  background: #fff;
+  transform: scale(1.05);
+  box-shadow: 0 6px 32px rgba(255, 255, 255, 0.25),
+              0 0 100px rgba(255, 255, 255, 0.08);
+}
+
+.wk-btn-continue.final:active {
+  transform: scale(0.97);
+}
+
+
+/* ── Dot indicators ── */
+
+.wk-dots {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wk-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.22);
+  transition: all 400ms cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+
+.wk-dot:hover {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+.wk-dot.active {
+  width: 24px;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.wk-dot.visited {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+
+/* ── Exit animation ── */
+
+.walkthrough.walkthrough-exit {
+  animation: wkExit 700ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes wkExit {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+    filter: blur(16px);
+  }
+}
+
+
+/* ── Version badge — subtle, bottom-left ── */
+
+.wk-version {
+  position: absolute;
+  bottom: 20px;
+  left: 28px;
+  z-index: 10;
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.18);
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+}

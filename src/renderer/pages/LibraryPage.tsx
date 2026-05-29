@@ -749,9 +749,15 @@ export default function LibraryPage() {
       .catch(() => {})
       .finally(() => setChangelogLoading(false))
 
+    // Listen for modpack install progress from main process
+    const cleanupModpack = api?.onModpackProgress?.((progress: any) => {
+      setModpackProgress(progress)
+    })
+
     return () => {
       if (cleanupStatus) cleanupStatus()
       if (cleanupUpdate) cleanupUpdate()
+      if (cleanupModpack) cleanupModpack()
       window.removeEventListener('loomie-action', handleLoomieAction)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -853,6 +859,7 @@ export default function LibraryPage() {
         name: info.name || file.name.replace(/\.(zip|mrpack)$/i, ''),
         version: info.mcVersion,
         loader: info.loader,
+        loaderVersion: info.loaderVersion,
         createdBy: user?.uuid
       })
 
@@ -919,6 +926,7 @@ export default function LibraryPage() {
         name: pack.title,
         version: info.mcVersion,
         loader: info.loader,
+        loaderVersion: info.loaderVersion,
         createdBy: user?.uuid
       })
       if (!newInstance) throw new Error('Failed to create instance')
@@ -1236,13 +1244,50 @@ export default function LibraryPage() {
                     {entry.body.split('\n').map((line, i) => {
                       const trimmed = line.trim()
                       if (!trimmed) return null
+
+                      // Parse inline markdown: **bold**, *italic*, `code`
+                      const parseInline = (text: string) => {
+                        const parts: React.ReactNode[] = []
+                        let remaining = text
+                        let key = 0
+                        while (remaining.length > 0) {
+                          // Bold: **text**
+                          const boldMatch = remaining.match(/\*\*(.+?)\*\*/)
+                          // Code: `text`
+                          const codeMatch = remaining.match(/`(.+?)`/)
+
+                          // Find the earliest match
+                          const matches = [
+                            boldMatch ? { type: 'bold', match: boldMatch } : null,
+                            codeMatch ? { type: 'code', match: codeMatch } : null,
+                          ].filter(Boolean).sort((a, b) => (a!.match.index! - b!.match.index!))
+
+                          if (matches.length === 0) {
+                            parts.push(remaining)
+                            break
+                          }
+
+                          const first = matches[0]!
+                          const idx = first.match.index!
+                          if (idx > 0) parts.push(remaining.slice(0, idx))
+
+                          if (first.type === 'bold') {
+                            parts.push(<strong key={key++}>{first.match[1]}</strong>)
+                          } else if (first.type === 'code') {
+                            parts.push(<code key={key++} style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '4px', fontSize: '0.9em' }}>{first.match[1]}</code>)
+                          }
+                          remaining = remaining.slice(idx + first.match[0].length)
+                        }
+                        return parts
+                      }
+
                       if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
-                        return <div key={i} className="library-changelog-bullet">• {trimmed.slice(2)}</div>
+                        return <div key={i} className="library-changelog-bullet">• {parseInline(trimmed.slice(2))}</div>
                       }
                       if (trimmed.startsWith('## ') || trimmed.startsWith('### ')) {
-                        return <div key={i} className="library-changelog-subheading">{trimmed.replace(/^#+\s*/, '')}</div>
+                        return <div key={i} className="library-changelog-subheading">{parseInline(trimmed.replace(/^#+\s*/, ''))}</div>
                       }
-                      return <div key={i}>{trimmed}</div>
+                      return <div key={i}>{parseInline(trimmed)}</div>
                     })}
                   </div>
                 </div>
@@ -1400,7 +1445,7 @@ export default function LibraryPage() {
         <div className="library-modpack-overlay">
           <div className="library-modpack-progress">
             <div className="library-modpack-progress-title">
-              {modpackProgress.stage?.startsWith('Error') ? '❌' : '📦'} {modpackInstalling}
+              📦 {modpackInstalling}
             </div>
             <div className="library-modpack-progress-bar">
               <div
@@ -1408,7 +1453,14 @@ export default function LibraryPage() {
                 style={{ width: `${modpackProgress.progress || 0}%` }}
               />
             </div>
-            <div className="library-modpack-progress-detail">{modpackProgress.stage}</div>
+            <div className="library-modpack-progress-detail">
+              {modpackProgress.stage === 'downloading' ? 'Installing mods...' : modpackProgress.stage}
+            </div>
+            {modpackProgress.detail && (
+              <div className="library-modpack-progress-files">
+                {modpackProgress.detail}
+              </div>
+            )}
           </div>
         </div>
       )}

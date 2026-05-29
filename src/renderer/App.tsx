@@ -18,6 +18,45 @@ import ChangingRoomPage from './pages/ChangingRoomPage'
 import GameLogsWindow from './components/GameLogsWindow'
 import SplashScreen from './components/SplashScreen'
 import SetupWizard, { type WizardSettings } from './components/SetupWizard'
+import WelcomeWalkthrough, { type WalkthroughSlide } from './components/WelcomeWalkthrough'
+
+/* ── v1.3.0 Walkthrough slides ── */
+const CURRENT_VERSION = '1.3.0'
+
+const WALKTHROUGH_SLIDES: WalkthroughSlide[] = [
+  {
+    emoji: '🎉',
+    title: 'Welcome to Loom 1.3.0',
+    subtitle: "Here's what's new in this update.",
+    gradient: 'linear-gradient(135deg, #2d1b4e 0%, #e0604e 35%, #f4a261 70%, #1a1a2e 100%)',
+  },
+  {
+    emoji: '🔧',
+    title: 'Multi-Loader Support',
+    bullets: [
+      'NeoForge support — install and play NeoForge instances',
+      'Quilt loader — full Quilt mod compatibility',
+      'Forge stability fixes for older Minecraft versions',
+    ],
+    gradient: 'linear-gradient(135deg, #0c1b33 0%, #0a4d68 40%, #088395 70%, #0d0d1a 100%)',
+  },
+  {
+    emoji: '📦',
+    title: 'Modpack Importing',
+    bullets: [
+      'Browse and install modpacks directly from Modrinth',
+      'Import .mrpack files from your computer',
+      'One-click install with automatic dependency resolution',
+    ],
+    gradient: 'linear-gradient(135deg, #1a0a2e 0%, #5b21b6 35%, #7c3aed 65%, #0d0d1a 100%)',
+  },
+  {
+    emoji: '🚀',
+    title: 'Ready to Play',
+    subtitle: "That's everything — let's go!",
+    gradient: 'linear-gradient(135deg, #052e16 0%, #059669 40%, #34d399 70%, #0d1a0d 100%)',
+  },
+]
 
 function AppShell() {
   const {
@@ -39,6 +78,17 @@ function AppShell() {
 
   // Profile screen — shown on every launch after auth
   const [profileDone, setProfileDone] = useState(false)
+
+  // Post-update walkthrough
+  const [walkthroughDone, setWalkthroughDone] = useState(() => {
+    const seen = localStorage.getItem('loom_last_seen_version')
+    return seen === CURRENT_VERSION
+  })
+
+  const handleWalkthroughComplete = useCallback(() => {
+    localStorage.setItem('loom_last_seen_version', CURRENT_VERSION)
+    setWalkthroughDone(true)
+  }, [])
   const [showProfileScreen, setShowProfileScreen] = useState(false)
 
   // Always start on the home screen when app launches
@@ -95,6 +145,17 @@ function AppShell() {
           onClose={() => setProfileDone(true)}
         />
       </div>
+    )
+  }
+
+  // Post-update walkthrough — shown once per version, after profile select
+  if (!walkthroughDone) {
+    return (
+      <WelcomeWalkthrough
+        version={CURRENT_VERSION}
+        slides={WALKTHROUGH_SLIDES}
+        onComplete={handleWalkthroughComplete}
+      />
     )
   }
 

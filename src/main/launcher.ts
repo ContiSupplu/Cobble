@@ -535,13 +535,21 @@ export async function launchInstance(id: string) {
       try {
         const javaBin = await ensureJavaForLoader(rootPath, instance.version)
         const { getForgeVersionList, installForge } = require('@xmcl/installer')
-        const forgeList = await getForgeVersionList({ minecraft: instance.version })
-        const latestForge = forgeList.versions[0].version
-        broadcastStatus({ task: `Installing Forge ${latestForge}...`, progress: 55 })
-        broadcastLog(`[Launcher] Installing Forge ${latestForge}...\n`)
-        await installForge({ mcversion: instance.version, version: latestForge }, rootPath, { ...installOptions, java: javaBin })
+        let forgeVersion: string
+        if (instance.loaderVersion) {
+          // Use exact version from modpack/instance config
+          forgeVersion = instance.loaderVersion
+          broadcastLog(`[Launcher] Using pinned Forge version: ${forgeVersion}\n`)
+        } else {
+          const forgeList = await getForgeVersionList({ minecraft: instance.version })
+          forgeVersion = forgeList.versions[0].version
+          broadcastLog(`[Launcher] Auto-selected Forge version: ${forgeVersion}\n`)
+        }
+        broadcastStatus({ task: `Installing Forge ${forgeVersion}...`, progress: 55 })
+        broadcastLog(`[Launcher] Installing Forge ${forgeVersion}...\n`)
+        await installForge({ mcversion: instance.version, version: forgeVersion }, rootPath, { ...installOptions, java: javaBin })
         broadcastStatus({ task: 'Forge installed', progress: 65 })
-        broadcastLog(`[Launcher] Forge ${latestForge} installed successfully.\n`)
+        broadcastLog(`[Launcher] Forge ${forgeVersion} installed successfully.\n`)
       } catch (e: any) {
         throw new Error(`Forge does not support version ${instance.version} yet. Try a different version or use Vanilla.`)
       }
@@ -551,25 +559,32 @@ export async function launchInstance(id: string) {
       try {
         const javaBin = await ensureJavaForLoader(rootPath, instance.version)
         const { installNeoForged } = require('@xmcl/installer')
-        // Determine NeoForge version prefix from MC version
-        // MC 1.20.1 -> NeoForge 20.1.x, MC 1.21.1 -> NeoForge 21.1.x
-        const mcParts = instance.version.split('.')
-        const neoPrefix = `${mcParts[1]}.${mcParts[2] || '0'}`
-        // Fetch available versions from Maven metadata
-        const res = await net.fetch('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml')
-        const xml = await res.text()
-        const versionMatches = xml.match(/<version>([^<]+)<\/version>/g) || []
-        const allVersions = versionMatches.map((m: string) => m.replace(/<\/?version>/g, ''))
-        const compatible = allVersions.filter((v: string) => v.startsWith(neoPrefix + '.')).sort().reverse()
-        if (compatible.length === 0) {
-          throw new Error(`No NeoForge versions found for MC ${instance.version}`)
+        let neoForgeVersion: string
+        if (instance.loaderVersion) {
+          // Use exact version from modpack/instance config
+          neoForgeVersion = instance.loaderVersion
+          broadcastLog(`[Launcher] Using pinned NeoForge version: ${neoForgeVersion}\n`)
+        } else {
+          // Auto-detect: Determine NeoForge version prefix from MC version
+          // MC 1.20.1 -> NeoForge 20.1.x, MC 1.21.1 -> NeoForge 21.1.x
+          const mcParts = instance.version.split('.')
+          const neoPrefix = `${mcParts[1]}.${mcParts[2] || '0'}`
+          const res = await net.fetch('https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml')
+          const xml = await res.text()
+          const versionMatches = xml.match(/<version>([^<]+)<\/version>/g) || []
+          const allVersions = versionMatches.map((m: string) => m.replace(/<\/?version>/g, ''))
+          const compatible = allVersions.filter((v: string) => v.startsWith(neoPrefix + '.')).sort().reverse()
+          if (compatible.length === 0) {
+            throw new Error(`No NeoForge versions found for MC ${instance.version}`)
+          }
+          neoForgeVersion = compatible[0]
+          broadcastLog(`[Launcher] Auto-selected NeoForge version: ${neoForgeVersion}\n`)
         }
-        const latestNeoForge = compatible[0]
-        broadcastStatus({ task: `Installing NeoForge ${latestNeoForge}...`, progress: 55 })
-        broadcastLog(`[Launcher] Installing NeoForge ${latestNeoForge}...\n`)
-        await installNeoForged('neoforge', latestNeoForge, rootPath, { ...installOptions, java: javaBin })
+        broadcastStatus({ task: `Installing NeoForge ${neoForgeVersion}...`, progress: 55 })
+        broadcastLog(`[Launcher] Installing NeoForge ${neoForgeVersion}...\n`)
+        await installNeoForged('neoforge', neoForgeVersion, rootPath, { ...installOptions, java: javaBin })
         broadcastStatus({ task: 'NeoForge installed', progress: 65 })
-        broadcastLog(`[Launcher] NeoForge ${latestNeoForge} installed successfully.\n`)
+        broadcastLog(`[Launcher] NeoForge ${neoForgeVersion} installed successfully.\n`)
       } catch (e: any) {
         throw new Error(`NeoForge install failed for ${instance.version}: ${e.message}`)
       }
@@ -578,20 +593,27 @@ export async function launchInstance(id: string) {
       broadcastLog('[Launcher] Fetching Quilt loader versions...\n')
       try {
         const { getQuiltVersionsList, installQuiltVersion } = require('@xmcl/installer')
-        const quiltVersions = await getQuiltVersionsList()
-        if (!quiltVersions || quiltVersions.length === 0) {
-          throw new Error('No Quilt loader versions found')
+        let quiltVersion: string
+        if (instance.loaderVersion) {
+          quiltVersion = instance.loaderVersion
+          broadcastLog(`[Launcher] Using pinned Quilt version: ${quiltVersion}\n`)
+        } else {
+          const quiltVersions = await getQuiltVersionsList()
+          if (!quiltVersions || quiltVersions.length === 0) {
+            throw new Error('No Quilt loader versions found')
+          }
+          quiltVersion = quiltVersions[0].version
+          broadcastLog(`[Launcher] Auto-selected Quilt version: ${quiltVersion}\n`)
         }
-        const latestQuilt = quiltVersions[0].version
-        broadcastStatus({ task: `Installing Quilt ${latestQuilt}...`, progress: 55 })
-        broadcastLog(`[Launcher] Installing Quilt ${latestQuilt}...\n`)
+        broadcastStatus({ task: `Installing Quilt ${quiltVersion}...`, progress: 55 })
+        broadcastLog(`[Launcher] Installing Quilt ${quiltVersion}...\n`)
         await installQuiltVersion({
           minecraftVersion: instance.version,
-          version: latestQuilt,
+          version: quiltVersion,
           minecraft: rootPath,
         })
         broadcastStatus({ task: 'Quilt installed', progress: 65 })
-        broadcastLog(`[Launcher] Quilt ${latestQuilt} installed successfully.\n`)
+        broadcastLog(`[Launcher] Quilt ${quiltVersion} installed successfully.\n`)
       } catch (e: any) {
         throw new Error(`Quilt install failed for ${instance.version}: ${e.message}`)
       }
