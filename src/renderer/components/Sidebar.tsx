@@ -45,14 +45,17 @@ export default function Sidebar({ onOpenProfiles }: SidebarProps) {
           <svg {...I}><path d="M20.38 3.46L16 2 12 5.5 8 2 3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" /></svg>
         </NavLink>
         <NavLink to="/gemini" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Loomie">
-          <svg width="18" height="18" viewBox="0 0 28 28" fill="none">
-            <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill="url(#sidebar-gem)" />
+          <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
+            <circle cx="16" cy="16" r="12" stroke="url(#sidebar-loomie)" strokeWidth="3.5" fill="none" />
             <defs>
-              <linearGradient id="sidebar-gem" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-                <stop stopColor="#4285F4" /><stop offset="0.33" stopColor="#9B72CB" /><stop offset="0.66" stopColor="#D96570" /><stop offset="1" stopColor="#D96570" />
+              <linearGradient id="sidebar-loomie" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+                <stop offset="0" stopColor="#F59E0B" /><stop offset="0.25" stopColor="#10B981" /><stop offset="0.5" stopColor="#6366F1" /><stop offset="0.75" stopColor="#EC4899" /><stop offset="1" stopColor="#F59E0B" />
               </linearGradient>
             </defs>
           </svg>
+        </NavLink>
+        <NavLink to="/bedrock" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Bedrock">
+          <svg {...I}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
         </NavLink>
       </nav>
 

@@ -46,15 +46,19 @@ function renderInline(text: string): React.ReactNode[] {
   return parts
 }
 
-/* ── Loomie Logo ── */
+/* ── Loomie Logo — Rainbow Circle ── */
 function LoomieLogo({ size = 32, className = '' }: { size?: number; className?: string }) {
-  const id = `pbl-${size}-${Math.random().toString(36).slice(2, 6)}`
+  const id = `lml-${size}-${Math.random().toString(36).slice(2, 6)}`
   return (
-    <svg className={className} width={size} height={size} viewBox="0 0 28 28" fill="none">
-      <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill={`url(#${id})`} />
+    <svg className={className} width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="12" stroke={`url(#${id})`} strokeWidth="3.5" fill="none" />
       <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#4285F4" /><stop offset="0.33" stopColor="#9B72CB" /><stop offset="0.66" stopColor="#D96570" /><stop offset="1" stopColor="#D96570" />
+        <linearGradient id={id} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#F59E0B" />
+          <stop offset="0.25" stopColor="#10B981" />
+          <stop offset="0.5" stopColor="#6366F1" />
+          <stop offset="0.75" stopColor="#EC4899" />
+          <stop offset="1" stopColor="#F59E0B" />
         </linearGradient>
       </defs>
     </svg>
@@ -111,6 +115,12 @@ export default function GeminiPage() {
       }
     }
   }, [loomie.lastMessages])
+
+  // Sync island loading state so the thinking indicator shows
+  useEffect(() => {
+    if (loomie.isLoading && !loading) setLoading(true)
+    if (!loomie.isLoading && loading && loomie.isOnTheGo) setLoading(false)
+  }, [loomie.isLoading])
 
   const hasMessages = messages.length > 0
   const firstName = user?.displayName?.split(' ')[0] || user?.username || 'there'
@@ -317,7 +327,15 @@ export default function GeminiPage() {
                 </div>
               ))}
               {loading && (
-                <div className="gem-typing"><div className="gem-typing-avatar"><LoomieLogo size={18} /></div><div className="gem-typing-dots"><span className="gem-dot" /><span className="gem-dot" /><span className="gem-dot" /></div></div>
+                <div className="gem-thinking" key="thinking">
+                  <div className="gem-thinking-avatar">
+                    <LoomieLogo size={18} className="gem-thinking-spin" />
+                  </div>
+                  <div className="gem-thinking-content">
+                    <div className="gem-thinking-label">Loomie is thinking</div>
+                    <div className="gem-thinking-dots"><span /><span /><span /></div>
+                  </div>
+                </div>
               )}
               <div ref={bottomRef} />
             </div>

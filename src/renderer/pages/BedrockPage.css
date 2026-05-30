@@ -1,0 +1,504 @@
+/* ── Bedrock Page — matches Library glass design ── */
+
+.bedrock-page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: calc(100vh - 40px);
+}
+
+/* Fullscreen — covers the entire window including sidebar/titlebar */
+.bedrock-page.fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 10001;
+  min-height: 100vh;
+  background: #0d0d0d;
+}
+
+.bedrock-page.fullscreen .bedrock-browser-bar {
+  -webkit-app-region: no-drag;
+  padding-top: 6px;
+}
+
+.bedrock-page.fullscreen .bedrock-browser-bar * {
+  -webkit-app-region: no-drag;
+}
+
+/* ── Home view ── */
+.bedrock-home {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.bedrock-home > * {
+  width: 100%;
+  max-width: 560px;
+}
+
+.bedrock-header {
+  margin-bottom: 28px;
+}
+
+.bedrock-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-0);
+  letter-spacing: -0.03em;
+}
+
+/* ── Hero card — identical to Library hero ── */
+.bedrock-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 26px;
+  border-radius: 22px;
+  margin-bottom: 20px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  border: 2px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
+
+.bedrock-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(170deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.03) 25%, transparent 50%);
+  pointer-events: none;
+}
+
+.bedrock-hero::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  pointer-events: none;
+}
+
+.bedrock-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.bedrock-hero-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid var(--glass-border);
+}
+
+.bedrock-hero-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-0);
+  letter-spacing: -0.01em;
+}
+
+.bedrock-hero-meta {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-top: 3px;
+}
+
+.bedrock-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  z-index: 1;
+}
+
+.bedrock-fav-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1.5px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.bedrock-fav-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-0);
+}
+
+.bedrock-play {
+  position: relative;
+  z-index: 1;
+  padding: 0 36px;
+  height: 42px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-0);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  border: 1.5px solid var(--glass-border);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.bedrock-play:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.bedrock-play:active { transform: translateY(1px); }
+
+.bedrock-play.launching {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+/* ── Sections ── */
+.bedrock-section {
+  margin-bottom: 20px;
+}
+
+.bedrock-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.bedrock-section-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bedrock-refresh {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: none;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.bedrock-refresh:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-0);
+}
+
+/* ── Worlds — matches Library instance cards ── */
+.bedrock-worlds {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.bedrock-world {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  border: 1.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  min-width: 220px;
+  flex: 1;
+  transition: all 200ms;
+}
+
+.bedrock-world:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.bedrock-world-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--glass-border);
+}
+
+.bedrock-world-icon img {
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+
+.bedrock-world-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.bedrock-world-meta {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+
+/* ── Folders ── */
+.bedrock-folders {
+  display: flex;
+  gap: 8px;
+}
+
+.bedrock-folder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  border: 1.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-0);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.bedrock-folder:hover {
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+/* ── Browse Add-Ons — site cards ── */
+.bedrock-sites {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bedrock-site-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  border: 1.5px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.bedrock-site-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.bedrock-site-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.bedrock-site-card svg {
+  color: var(--text-2);
+  transition: transform 200ms;
+}
+
+.bedrock-site-card:hover svg {
+  transform: translateX(3px);
+  color: var(--text-0);
+}
+
+/* ── Status card ── */
+.bedrock-status-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 24px;
+  border-radius: 22px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(80%) brightness(1.05);
+  border: 2px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  color: var(--text-2);
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+.bedrock-glass-btn {
+  padding: 10px 24px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1.5px solid var(--glass-border);
+  color: var(--text-0);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms;
+}
+
+.bedrock-glass-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  transform: translateY(-1px);
+}
+
+.bedrock-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-top-color: var(--text-0);
+  border-radius: 50%;
+  animation: bedrock-spin 0.7s linear infinite;
+}
+
+@keyframes bedrock-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Browser view ── */
+.bedrock-browser-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--glass-bg);
+  border-bottom: 1px solid var(--glass-border);
+  flex-shrink: 0;
+}
+
+.bedrock-back-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1.5px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-0);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 200ms;
+  flex-shrink: 0;
+}
+
+.bedrock-back-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.bedrock-browser-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.bedrock-browser-tab {
+  padding: 6px 14px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.bedrock-browser-tab:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-0);
+}
+
+.bedrock-browser-tab.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-0);
+}
+
+.bedrock-browser-url {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-2);
+  opacity: 0.5;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.bedrock-browser-content {
+  flex: 1;
+  overflow: hidden;
+}
+
+.bedrock-webview {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.bedrock-fullscreen-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  border: 1.5px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 200ms;
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.bedrock-fullscreen-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-0);
+}
+
+.bedrock-hero-icon svg {
+  color: var(--text-0);
+}
+

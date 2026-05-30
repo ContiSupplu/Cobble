@@ -131,22 +131,28 @@
 }
 
 
-/* ── Emoji hero ── */
+/* ── Icon hero ── */
 
-.wk-emoji {
-  font-size: 64px;
-  line-height: 1;
+.wk-icon {
+  width: 56px;
+  height: 56px;
   margin-bottom: 28px;
   opacity: 0;
   transform: translateY(16px) scale(0.8);
   filter: drop-shadow(0 8px 24px rgba(0, 0, 0, 0.25));
+  color: rgba(255, 255, 255, 0.9);
 }
 
-.wk-slide.active .wk-emoji {
-  animation: wkEmojiIn 700ms cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards;
+.wk-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
-@keyframes wkEmojiIn {
+.wk-slide.active .wk-icon {
+  animation: wkIconIn 700ms cubic-bezier(0.16, 1, 0.3, 1) 100ms forwards;
+}
+
+@keyframes wkIconIn {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);

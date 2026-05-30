@@ -215,7 +215,7 @@
   position: absolute;
   width: 500px; height: 500px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(66, 133, 244, 0.08) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
   pointer-events: none;
   top: 50%; left: 50%;
   transform: translate(-50%, -60%);
@@ -416,21 +416,65 @@
 .gem-code-block pre { margin: 0; padding: 12px 14px; overflow-x: auto; scrollbar-width: thin; }
 .gem-code-block code { font-family: var(--font-mono); font-size: 12px; line-height: 1.55; color: var(--text-1); }
 
-/* â”€â”€ Typing â”€â”€ */
-.gem-typing { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; animation: msg-in 0.25s ease; }
-.gem-typing-avatar { width: 28px; height: 28px; display: flex; align-items: flex-start; justify-content: center; padding-top: 4px; }
-.gem-typing-dots { display: flex; align-items: center; gap: 4px; padding: 8px 0; }
-.gem-dot {
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #4285F4, #9B72CB);
-  animation: dot-bounce 1.4s ease-in-out infinite;
+/* ── Thinking Indicator ── */
+.gem-thinking {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 0;
+  animation: msg-in 0.35s ease;
 }
-.gem-dot:nth-child(2) { animation-delay: 0.15s; }
-.gem-dot:nth-child(3) { animation-delay: 0.3s; }
-@keyframes dot-bounce {
-  0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
-  40% { opacity: 1; transform: scale(1); }
+.gem-thinking-avatar {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.gem-thinking-spin {
+  animation: loomie-spin 2s linear infinite;
+}
+@keyframes loomie-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.gem-thinking-content {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  backdrop-filter: blur(8px);
+}
+.gem-thinking-label {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.55);
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+.gem-thinking-dots {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding-left: 2px;
+}
+.gem-thinking-dots span {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #F59E0B, #10B981, #6366F1);
+  animation: thinking-pulse 1.4s ease-in-out infinite;
+}
+.gem-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+.gem-thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes thinking-pulse {
+  0%, 80%, 100% { opacity: 0.25; transform: scale(0.6); }
+  40% { opacity: 1; transform: scale(1.1); }
 }
 
 /* â”€â”€ Bottom Input â”€â”€ */

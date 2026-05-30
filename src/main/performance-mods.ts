@@ -26,29 +26,30 @@ interface PerfModEntry {
   description: string
   maxVersion?: string  // Only install if gameVersion < this (semver-like compare)
   minVersion?: string  // Only install if gameVersion >= this
+  loaders?: string[]   // Restrict to these loaders only (omit = all loaders)
 }
 
 const PERFORMANCE_MODS: PerfModEntry[] = [
   // ── Core / Dependencies ──
-  { slug: 'fabric-api', name: 'Fabric API', description: 'Core library required by most Fabric mods' },
+  { slug: 'fabric-api', name: 'Fabric API', description: 'Core library required by most Fabric mods', loaders: ['fabric', 'quilt'] },
   { slug: 'cloth-config', name: 'Cloth Config', description: 'Config library required by many mods' },
-  { slug: 'modmenu', name: 'Mod Menu', description: 'In-game mod configuration menu' },
+  { slug: 'modmenu', name: 'Mod Menu', description: 'In-game mod configuration menu', loaders: ['fabric', 'quilt'] },
 
   // ── Rendering (FPS) ──
-  { slug: 'sodium', name: 'Sodium', description: 'Rendering engine replacement (MASSIVE FPS boost)' },
+  { slug: 'sodium', name: 'Sodium', description: 'Rendering engine replacement (MASSIVE FPS boost)', loaders: ['fabric', 'quilt'] },
+  { slug: 'embeddium', name: 'Embeddium', description: 'Sodium port for Forge/NeoForge (MASSIVE FPS boost)', loaders: ['forge', 'neoforge'] },
   { slug: 'immediatelyfast', name: 'ImmediatelyFast', description: 'UI/text rendering optimization' },
   { slug: 'entityculling', name: 'Entity Culling', description: 'Skip rendering hidden entities' },
-  { slug: 'enhanced-block-entities', name: 'Enhanced Block Entities', description: 'Block entity rendering optimization (chests, signs, beds)' },
-  { slug: 'moreculling', name: 'More Culling', description: 'Additional culling for entities, tiles, and sky' },
-  { slug: 'cull-less-leaves', name: 'Cull Less Leaves', description: 'Configurable leaf rendering optimization' },
-  { slug: 'sodium-extra', name: 'Sodium Extra', description: 'Extra optimization toggles for Sodium' },
+  { slug: 'enhanced-block-entities', name: 'Enhanced Block Entities', description: 'Block entity rendering optimization (chests, signs, beds)', loaders: ['fabric', 'quilt'] },
+  { slug: 'moreculling', name: 'More Culling', description: 'Additional culling for entities, tiles, and sky', loaders: ['fabric', 'quilt'] },
+  { slug: 'cull-less-leaves', name: 'Cull Less Leaves', description: 'Configurable leaf rendering optimization', loaders: ['fabric', 'quilt'] },
+  { slug: 'sodium-extra', name: 'Sodium Extra', description: 'Extra optimization toggles for Sodium', loaders: ['fabric', 'quilt'] },
   { slug: 'badoptimizations', name: 'BadOptimizations', description: 'Non-rendering logic optimizations' },
 
   // ── Game Logic ──
-  { slug: 'lithium', name: 'Lithium', description: 'Game logic optimizer' },
+  { slug: 'lithium', name: 'Lithium', description: 'Game logic optimizer', loaders: ['fabric', 'quilt'] },
 
   // ── Chunk Loading & World Gen ──
-  // NOTE: C2ME removed — requires Java 22+ but Loom ships Java 21
   { slug: 'noisium', name: 'Noisium', description: 'World generation speed optimization' },
 
   // ── Lighting ──
@@ -60,16 +61,16 @@ const PERFORMANCE_MODS: PerfModEntry[] = [
   { slug: 'modernfix', name: 'ModernFix', description: 'Various performance fixes' },
 
   // ── Network ──
-  { slug: 'krypton', name: 'Krypton', description: 'Network stack optimization' },
+  { slug: 'krypton', name: 'Krypton', description: 'Network stack optimization', loaders: ['fabric', 'quilt'] },
 
   // ── Startup ──
   { slug: 'lazydfu', name: 'LazyDFU', description: 'Faster game startup', maxVersion: '1.20' },
 
   // ── Quality of Life ──
-  { slug: 'dynamic-fps', name: 'Dynamic FPS', description: 'Reduces FPS when game is in background' },
+  { slug: 'dynamic-fps', name: 'Dynamic FPS', description: 'Reduces FPS when game is in background', loaders: ['fabric', 'quilt'] },
   { slug: 'notenoughcrashes', name: 'Not Enough Crashes', description: 'Crash recovery — returns to title instead of closing' },
   { slug: 'clumps', name: 'Clumps', description: 'Merges XP orbs to reduce entity lag' },
-  { slug: 'debugify', name: 'Debugify', description: 'Fixes 70+ MC bugs including performance-affecting ones' },
+  { slug: 'debugify', name: 'Debugify', description: 'Fixes 70+ MC bugs including performance-affecting ones', loaders: ['fabric', 'quilt'] },
 ]
 
 // Iris is handled separately via the 'perf_iris_shaders' setting
@@ -117,7 +118,38 @@ function writeInstanceMods(instanceId: string, mods: any[]): void {
   const modsPath = getInstanceModsPath(instanceId)
   const dir = join(INSTANCES_DIR, instanceId)
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
-  writeFileSync(modsPath, JSON.stringify(mods, null, 2), 'utf-8')
+  writeFileSync(modsPath, JSON.stringify(mods, null, 2))
+}
+
+// ── Perf Mod Blacklist ──
+// Tracks mods deliberately removed by the user/Loomie to prevent re-installation
+
+function getBlacklistPath(instanceId: string): string {
+  return join(INSTANCES_DIR, instanceId, '.perf-blacklist.json')
+}
+
+function readBlacklist(instanceId: string): string[] {
+  try {
+    const p = getBlacklistPath(instanceId)
+    if (existsSync(p)) return JSON.parse(readFileSync(p, 'utf-8'))
+  } catch { /* ignore */ }
+  return []
+}
+
+function writeBlacklist(instanceId: string, slugs: string[]): void {
+  const p = getBlacklistPath(instanceId)
+  const dir = join(INSTANCES_DIR, instanceId)
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true })
+  writeFileSync(p, JSON.stringify([...new Set(slugs)], null, 2))
+}
+
+export function blacklistPerfMod(instanceId: string, slug: string): void {
+  const list = readBlacklist(instanceId)
+  if (!list.includes(slug)) {
+    list.push(slug)
+    writeBlacklist(instanceId, list)
+    console.log(`[PerfMods] Blacklisted '${slug}' for instance ${instanceId}`)
+  }
 }
 
 async function downloadFile(url: string, destPath: string): Promise<void> {
@@ -177,6 +209,7 @@ export async function installPerformanceMods(
   console.log(`[PerfMods] Installing performance mods for ${instanceId} (MC ${gameVersion}, ${loader})`)
   const modsDir = getInstanceModsDir(instanceId)
   const existingMods = readInstanceMods(instanceId)
+  const blacklist = readBlacklist(instanceId)
 
   // Build the mod list — include Iris if its separate toggle is on
   const { storeGet } = require('./settings-store')
@@ -184,12 +217,25 @@ export async function installPerformanceMods(
   const allMods = irisEnabled ? [...PERFORMANCE_MODS, IRIS_MOD] : PERFORMANCE_MODS
 
   const applicableMods = allMods.filter(mod => {
+    if (blacklist.includes(mod.slug)) {
+      console.log(`[PerfMods] Skipping ${mod.slug} — blacklisted (previously removed)`)
+      return false
+    }
+    // Dependency-aware: iris and sodium-extra require a rendering engine (sodium/embeddium)
+    if ((mod.slug === 'iris' || mod.slug === 'sodium-extra') && blacklist.includes('sodium') && blacklist.includes('embeddium')) {
+      console.log(`[PerfMods] Skipping ${mod.slug} — depends on sodium/embeddium which are blacklisted`)
+      return false
+    }
     if (mod.maxVersion && !isVersionBelow(gameVersion, mod.maxVersion)) {
       console.log(`[PerfMods] Skipping ${mod.slug} — included in vanilla since ${mod.maxVersion}`)
       return false
     }
     if (mod.minVersion && isVersionBelow(gameVersion, mod.minVersion)) {
       console.log(`[PerfMods] Skipping ${mod.slug} — requires MC ${mod.minVersion}+`)
+      return false
+    }
+    if (mod.loaders && !mod.loaders.includes(loader.toLowerCase())) {
+      console.log(`[PerfMods] Skipping ${mod.slug} — not available for ${loader}`)
       return false
     }
     return true

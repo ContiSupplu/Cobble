@@ -20,7 +20,13 @@ interface LaunchStatus {
   error?: string
 }
 
-type IslandState = 'idle' | 'music' | 'music-paused' | 'error' | 'launching' | 'running' | 'loomie' | 'loomie-standby'
+type IslandState = 'idle' | 'music' | 'music-paused' | 'error' | 'launching' | 'running' | 'loomie' | 'loomie-standby' | 'crash'
+
+interface CrashData {
+  type: string
+  instanceId: string
+  details: string
+}
 
 interface DynamicIslandProps {
   onOpenLogs?: () => void
@@ -28,15 +34,15 @@ interface DynamicIslandProps {
 
 const api = (window as any).electronAPI
 
-/* ── Loomie Logo (inline) ── */
+/* ── Loomie Logo (inline — rainbow circle) ── */
 function LoomieLogo({ size = 14 }: { size?: number }) {
-  const id = `pbl-di-${Math.random().toString(36).slice(2, 6)}`
+  const id = `lml-di-${Math.random().toString(36).slice(2, 6)}`
   return (
-    <svg width={size} height={size} viewBox="0 0 28 28" fill="none">
-      <path d="M14 0C14 7.732 7.732 14 0 14c7.732 0 14 6.268 14 14 0-7.732 6.268-14 14-14-7.732 0-14-6.268-14-14z" fill={`url(#${id})`} />
+    <svg width={size} height={size} viewBox="0 0 32 32" fill="none">
+      <circle cx="16" cy="16" r="12" stroke={`url(#${id})`} strokeWidth="3.5" fill="none" />
       <defs>
-        <linearGradient id={id} x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#4285F4" /><stop offset="0.33" stopColor="#9B72CB" /><stop offset="0.66" stopColor="#D96570" /><stop offset="1" stopColor="#D96570" />
+        <linearGradient id={id} x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#F59E0B" /><stop offset="0.25" stopColor="#10B981" /><stop offset="0.5" stopColor="#6366F1" /><stop offset="0.75" stopColor="#EC4899" /><stop offset="1" stopColor="#F59E0B" />
         </linearGradient>
       </defs>
     </svg>
@@ -75,6 +81,7 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
   const [isRunning, setIsRunning] = useState(false)
   const [firstDownload, setFirstDownload] = useState(false)
   const [error, setError] = useState('')
+  const [crashData, setCrashData] = useState<CrashData | null>(null)
   const [contentKey, setContentKey] = useState(0)
   const [expanded, setExpanded] = useState(false)
   const [minimized, setMinimized] = useState(false)
@@ -99,8 +106,9 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
     wasOnGeminiPage.current = onGemini
   }, [location.pathname, loomie.isOnTheGo])
 
-  // State priority: error > running > launching > loomie > music > loomie-standby > idle
+  // State priority: crash > error > running > launching > loomie > music > loomie-standby > idle
   const getState = useCallback((): IslandState => {
+    if (crashData) return 'crash'
     if (error) return 'error'
     if (isRunning && launchProgress >= 100) return 'running'
     if (isRunning && launchProgress < 100) return 'launching'
@@ -109,7 +117,7 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
     if (loomie.isOnTheGo && loomie.onGeminiPage) return 'loomie-standby'
     if (spotifyConnected && track && !spotifyPlaying) return 'music-paused'
     return 'idle'
-  }, [error, isRunning, launchTask, launchProgress, spotifyPlaying, spotifyConnected, track, loomie.isOnTheGo, loomie.onGeminiPage])
+  }, [crashData, error, isRunning, launchTask, launchProgress, spotifyPlaying, spotifyConnected, track, loomie.isOnTheGo, loomie.onGeminiPage])
 
   const state = getState()
 
@@ -141,6 +149,31 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
     return () => remove?.()
   }, [])
 
+  // Crash detection listener
+  useEffect(() => {
+
+    const remove = api?.onCrashDetected?.((data: CrashData) => {
+
+      setCrashData(data)
+      setExpanded(true)
+      setMinimized(false)
+    })
+    // Dev shortcut: Ctrl+Shift+K to simulate crash
+    const handleDevCrash = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'K') {
+        setCrashData({
+          type: 'missing_dependency',
+          instanceId: 'test-instance',
+          details: "Mod 'More Culling' (moreculling) 1.6.2 requires version 16.0.0 or later of cloth-config, which is missing!"
+        })
+        setExpanded(true)
+        setMinimized(false)
+      }
+    }
+    window.addEventListener('keydown', handleDevCrash)
+    return () => { remove?.(); window.removeEventListener('keydown', handleDevCrash) }
+  }, [])
+
   // Spotify polling
   useEffect(() => {
     let alive = true
@@ -159,9 +192,27 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
     return () => { alive = false; clearInterval(iv) }
   }, [])
 
+  // Fix with Loomie handler
+  const handleFixWithLoomie = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!crashData) return
+    const msg = `My game just crashed with mod errors.\n\n${crashData.details}\n\nInstance ID: ${crashData.instanceId}\n\nPlease use get_game_logs to see ALL errors, then use remove_mod to remove ALL conflicting mods automatically. Fix every issue, not just the first one. Do not ask me for filenames — just use the mod name.`
+    // Enable On the Go so Loomie stays active
+    if (!loomie.isOnTheGo) loomie.setOnTheGo(true)
+    navigate('/gemini')
+    // Small delay to let the page mount, then send
+    setTimeout(() => {
+      loomie.sendFromIsland(msg)
+    }, 400)
+    setCrashData(null)
+    setExpanded(false)
+  }
+
   // Click handler
   const handleClick = () => {
-    if (state === 'error') {
+    if (state === 'crash') {
+      setExpanded(!expanded)
+    } else if (state === 'error') {
       setError('')
     } else if (state === 'loomie-standby') {
       // Do nothing — just a status indicator
@@ -304,6 +355,41 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
 
   const renderContent = () => {
     switch (state) {
+      /* ── Crash Detected ── */
+      case 'crash':
+        if (!expanded) {
+          return (
+            <div className="di-content di-crash-compact" key="crash-compact">
+              <div className="di-dot di-dot-red" />
+              <span className="di-label">Game crashed</span>
+              <div className="di-crash-fix-mini">
+                <LoomieLogo size={12} />
+                Fix
+              </div>
+            </div>
+          )
+        }
+        return (
+          <div className="di-content di-content-expanded di-crash-expanded" key="crash-expanded">
+            <div className="di-expanded-top">
+              <div className="di-dot di-dot-red" />
+              <span className="di-label">Crash Detected</span>
+            </div>
+            <div className="di-crash-details">
+              <p className="di-crash-summary">{crashData?.details || 'The game exited unexpectedly.'}</p>
+              <div className="di-crash-actions">
+                <button className="di-crash-fix-btn" onClick={handleFixWithLoomie}>
+                  <LoomieLogo size={14} />
+                  Fix with Loomie
+                </button>
+                <button className="di-footer-btn" onClick={(e) => { e.stopPropagation(); setCrashData(null); setExpanded(false) }}>
+                  Dismiss
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+
       /* ── Loomie Standby (still on Gemini page) ── */
       case 'loomie-standby':
         return (
@@ -539,6 +625,7 @@ export default function DynamicIsland({ onOpenLogs }: DynamicIslandProps) {
     (state === 'launching' || state === 'running') && expanded ? 'di-launch-expanded' : '',
     state === 'idle' && expanded ? 'di-idle-expanded' : '',
     state === 'loomie' && expanded ? 'di-loomie-full-expanded' : '',
+    state === 'crash' && expanded ? 'di-crash-full-expanded' : '',
     showLoomieTransition ? 'di-loomie-arrive' : '',
   ].filter(Boolean).join(' ')
 

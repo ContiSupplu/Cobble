@@ -527,6 +527,16 @@ export default function SettingsPage() {
             window.location.reload()
           }}>Replay</button>
         </div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">Update Walkthrough</div>
+            <div className="settings-row-desc">Replay the latest update walkthrough</div>
+          </div>
+          <button className="settings-btn-sm settings-btn-accent" onClick={() => {
+            localStorage.removeItem('loom_last_seen_version')
+            window.location.reload()
+          }}>Replay</button>
+        </div>
         <div className="settings-row last">
           <div className="settings-row-title">Reset Customization</div>
           <button className="settings-btn-sm" onClick={reset}>Reset All</button>

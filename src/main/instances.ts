@@ -202,7 +202,7 @@ export function createInstance(
   return config
 }
 
-export function deleteInstance(id: string): boolean {
+export function deleteInstance(id: string): boolean | string {
   const instanceDir = join(INSTANCES_DIR, id)
 
   if (!existsSync(instanceDir)) {
@@ -213,15 +213,34 @@ export function deleteInstance(id: string): boolean {
   ensureDir(TRASH_DIR)
   const trashDest = join(TRASH_DIR, id)
   // If already in trash, remove old one first
-  if (existsSync(trashDest)) rmSync(trashDest, { recursive: true, force: true })
-  cpSync(instanceDir, trashDest, { recursive: true })
+  try {
+    if (existsSync(trashDest)) rmSync(trashDest, { recursive: true, force: true })
+  } catch { /* ignore */ }
+
+  try {
+    cpSync(instanceDir, trashDest, { recursive: true })
+  } catch { /* copy best-effort */ }
 
   // Write trash metadata
   const meta = { deletedAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 }
-  writeFileSync(join(trashDest, '.trash-meta.json'), JSON.stringify(meta), 'utf-8')
+  try {
+    writeFileSync(join(trashDest, '.trash-meta.json'), JSON.stringify(meta), 'utf-8')
+  } catch { /* ignore */ }
 
-  // Remove from instances
-  rmSync(instanceDir, { recursive: true, force: true })
+  // Remove from instances — retry if files are locked (game still running)
+  try {
+    rmSync(instanceDir, { recursive: true, force: true })
+  } catch (err: any) {
+    if (err.code === 'EBUSY' || err.code === 'EPERM') {
+      return 'Close the game first before deleting this instance.'
+    }
+    // Try once more after a brief pause
+    try {
+      rmSync(instanceDir, { recursive: true, force: true })
+    } catch {
+      return 'Could not delete — some files are still in use. Try again in a moment.'
+    }
+  }
   return true
 }
 

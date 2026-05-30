@@ -15,46 +15,82 @@ import SettingsPage from './pages/SettingsPage'
 import AccountPage from './pages/AccountPage'
 import GeminiPage from './pages/GeminiPage'
 import ChangingRoomPage from './pages/ChangingRoomPage'
+import BedrockPage from './pages/BedrockPage'
 import GameLogsWindow from './components/GameLogsWindow'
 import SplashScreen from './components/SplashScreen'
 import SetupWizard, { type WizardSettings } from './components/SetupWizard'
 import WelcomeWalkthrough, { type WalkthroughSlide } from './components/WelcomeWalkthrough'
 
-/* ── v1.3.0 Walkthrough slides ── */
-const CURRENT_VERSION = '1.3.0'
+/* ── Versioning — codenames + simplified display ── */
+const CURRENT_VERSION = '1.5.0'
+
+// Minecraft-themed codenames for each minor release
+const VERSION_CODENAMES: Record<string, string> = {
+  '1.0': 'Cobblestone',
+  '1.1': 'Iron',
+  '1.2': 'Gold',
+  '1.3': 'Redstone',
+  '1.4': 'Diamond',
+  '1.5': 'Obsidian',
+  // Future: 'Netherite', 'Amethyst', 'Beacon', 'Ender'
+}
+
+// "1.3.0" → "1.3", "1.3.1" → "1.3.1"
+function displayVersion(v: string): string {
+  return v.endsWith('.0') ? v.slice(0, -2) : v
+}
+
+function getCodename(v: string): string | undefined {
+  const minor = v.split('.').slice(0, 2).join('.')
+  return VERSION_CODENAMES[minor]
+}
+
+const DISPLAY_VER = displayVersion(CURRENT_VERSION)
+const CODENAME = getCodename(CURRENT_VERSION)
 
 const WALKTHROUGH_SLIDES: WalkthroughSlide[] = [
   {
-    emoji: '🎉',
-    title: 'Welcome to Loom 1.3.0',
-    subtitle: "Here's what's new in this update.",
-    gradient: 'linear-gradient(135deg, #2d1b4e 0%, #e0604e 35%, #f4a261 70%, #1a1a2e 100%)',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15z"/></svg>,
+    title: `Loom ${DISPLAY_VER} — "${CODENAME}"`,
+    subtitle: 'The biggest update yet. A whole new edition joins the family.',
+    gradient: 'linear-gradient(135deg, #0c0c1a 0%, #1a0533 20%, #7c3aed 50%, #c026d3 75%, #0c0c1a 100%)',
   },
   {
-    emoji: '🔧',
-    title: 'Multi-Loader Support',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
+    title: 'Bedrock Edition',
+    subtitle: 'Introducing Bedrock support — a new member of the Loom family.',
     bullets: [
-      'NeoForge support — install and play NeoForge instances',
-      'Quilt loader — full Quilt mod compatibility',
-      'Forge stability fixes for older Minecraft versions',
+      'Detect, launch, and manage Minecraft Bedrock from Loom',
+      'Browse your worlds, resource packs, and behavior packs',
+      'Dedicated sidebar tab — Bedrock gets its own home',
     ],
-    gradient: 'linear-gradient(135deg, #0c1b33 0%, #0a4d68 40%, #088395 70%, #0d0d1a 100%)',
+    gradient: 'linear-gradient(135deg, #020617 0%, #064e3b 30%, #10b981 55%, #059669 75%, #020617 100%)',
   },
   {
-    emoji: '📦',
-    title: 'Modpack Importing',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
+    title: 'Built-In Add-On Browser',
     bullets: [
-      'Browse and install modpacks directly from Modrinth',
-      'Import .mrpack files from your computer',
-      'One-click install with automatic dependency resolution',
+      'Browse MCPEDL, CurseForge, ModBay, and Planet Minecraft right inside Loom',
+      'Download add-ons with one click — auto-installed into Bedrock',
+      'Fullscreen mode for a seamless browsing experience',
     ],
-    gradient: 'linear-gradient(135deg, #1a0a2e 0%, #5b21b6 35%, #7c3aed 65%, #0d0d1a 100%)',
+    gradient: 'linear-gradient(135deg, #0c0c1a 0%, #1e3a5f 30%, #3b82f6 55%, #6366f1 80%, #0c0c1a 100%)',
   },
   {
-    emoji: '🚀',
-    title: 'Ready to Play',
-    subtitle: "That's everything — let's go!",
-    gradient: 'linear-gradient(135deg, #052e16 0%, #059669 40%, #34d399 70%, #0d1a0d 100%)',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
+    title: 'Smart Downloads',
+    bullets: [
+      '.mcaddon, .mcpack, and .mcworld files downloaded automatically',
+      'No save dialogs — Loom handles everything behind the scenes',
+      'Addons are sent to Minecraft\'s importer instantly',
+    ],
+    gradient: 'linear-gradient(135deg, #1a0a2e 0%, #7c3aed 35%, #a855f7 60%, #0d0d1a 100%)',
+  },
+  {
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>,
+    title: 'Two Editions. One Launcher.',
+    subtitle: 'Java and Bedrock, together at last. Welcome to the new Loom.',
+    gradient: 'linear-gradient(135deg, #0c0c0c 0%, #b45309 25%, #f59e0b 50%, #10b981 75%, #0c0c0c 100%)',
   },
 ]
 
@@ -152,7 +188,7 @@ function AppShell() {
   if (!walkthroughDone) {
     return (
       <WelcomeWalkthrough
-        version={CURRENT_VERSION}
+        version={DISPLAY_VER}
         slides={WALKTHROUGH_SLIDES}
         onComplete={handleWalkthroughComplete}
       />
@@ -177,6 +213,7 @@ function AppShell() {
               <Route path="/gemini" element={<GeminiPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/changing-room" element={<ChangingRoomPage />} />
+              <Route path="/bedrock" element={<BedrockPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>

@@ -141,6 +141,12 @@ const electronAPI = {
     return () => { ipcRenderer.removeAllListeners('modpack:progress') }
   },
 
+  onCrashDetected: (cb: (data: any) => void) => {
+    const handler = (_e: Electron.IpcRendererEvent, data: any) => cb(data)
+    ipcRenderer.on('loomie:crash-detected', handler)
+    return () => { ipcRenderer.removeListener('loomie:crash-detected', handler) }
+  },
+
   // Preload progress
   onPreloadProgress: (callback: (data: { step: string; progress: number }) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, data: { step: string; progress: number }) => callback(data)
@@ -200,6 +206,14 @@ const electronAPI = {
     ipcRenderer.on('updater:status', handler)
     return () => ipcRenderer.removeListener('updater:status', handler)
   },
+
+  // Bedrock Edition
+  bedrockDetect: () => ipcRenderer.invoke('bedrock:detect'),
+  bedrockLaunch: (serverUrl?: string, serverPort?: number) => ipcRenderer.invoke('bedrock:launch', serverUrl, serverPort),
+  bedrockWorlds: () => ipcRenderer.invoke('bedrock:worlds'),
+  bedrockPacks: (type: string) => ipcRenderer.invoke('bedrock:packs', type),
+  bedrockInstallAddon: (filePath: string) => ipcRenderer.invoke('bedrock:installAddon', filePath),
+  bedrockOpenFolder: (type: string) => ipcRenderer.invoke('bedrock:openFolder', type),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

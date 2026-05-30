@@ -31,6 +31,14 @@ let activeProcess: ChildProcess | null = null
 let currentStatus: LaunchStatus = { running: false, progress: 0, task: '' }
 let mainWindow: BrowserWindow | null = null
 let cancelRequested = false
+let currentLaunchInstanceId: string | null = null
+
+const gameLogBuffer: string[] = []
+const GAME_LOG_MAX_LINES = 200
+
+export function getGameLogBuffer(): string[] {
+  return gameLogBuffer
+}
 
 // Version manifest cache — avoid re-fetching from Mojang every launch
 let cachedMojangVersions: any = null
@@ -200,6 +208,128 @@ function broadcastStatus(status: Partial<LaunchStatus>) {
 function broadcastLog(message: string) {
   if (mainWindow && !mainWindow.isDestroyed()) {
     mainWindow.webContents.send('launch:log', message)
+  }
+  const lines = message.split('\n').filter(l => l.length > 0)
+  for (const line of lines) {
+    gameLogBuffer.push(line)
+    // Immediate per-line crash check
+    if (!crashAlreadyFired) {
+      checkLineForCrash(line)
+    }
+  }
+  while (gameLogBuffer.length > GAME_LOG_MAX_LINES) {
+    gameLogBuffer.shift()
+  }
+}
+
+let crashAlreadyFired = false
+
+// Critical error patterns — checked on every log line
+const CRASH_LINE_PATTERNS: Array<{ test: RegExp; type: string; getDetails: (line: string, allLogs: string[]) => string }> = [
+  {
+    test: /broken mod state/i,
+    type: 'incompatible_mods',
+    getDetails: (_line, allLogs) => {
+      const full = allLogs.join('\n')
+      const m = full.match(/Mod\s+'?(\w+)'?\s+is\s+incompatible\s+with\s+'?(\w+)'?/i)
+      if (m) return `Mod '${m[1]}' is incompatible with '${m[2]}'. One of them needs to be removed.`
+      return 'A mod is in a broken state. There are incompatible or conflicting mods.'
+    }
+  },
+  {
+    test: /Crash report saved to/i,
+    type: 'generic_crash',
+    getDetails: (_line, allLogs) => {
+      const full = allLogs.join('\n')
+      const m = full.match(/Mod\s+'?(\w+)'?\s+is\s+incompatible\s+with\s+'?(\w+)'?/i)
+      if (m) return `Mod '${m[1]}' is incompatible with '${m[2]}'. One of them needs to be removed.`
+      const desc = full.match(/Description:\s*(.+)/)
+      if (desc) return `Crash: ${desc[1].trim()}`
+      return 'The game crashed. A crash report was saved.'
+    }
+  },
+  {
+    test: /Error loading mods|fml\.modloadingissue/i,
+    type: 'incompatible_mods',
+    getDetails: (_line, allLogs) => {
+      const full = allLogs.join('\n')
+      const m = full.match(/Mod\s+'?(\w+)'?\s+is\s+incompatible\s+with\s+'?(\w+)'?/i)
+      if (m) return `Mod '${m[1]}' is incompatible with '${m[2]}'. One of them needs to be removed.`
+      return 'Mod loading errors detected. There are incompatible or broken mods.'
+    }
+  },
+  {
+    test: /\[.+?\/FATAL\]/,
+    type: 'generic_crash',
+    getDetails: (line, allLogs) => {
+      const full = allLogs.join('\n')
+      const m = full.match(/Mod\s+'?(\w+)'?\s+is\s+incompatible\s+with\s+'?(\w+)'?/i)
+      if (m) return `Mod '${m[1]}' is incompatible with '${m[2]}'. One of them needs to be removed.`
+      const errMsg = line.match(/FATAL\]\s*(?:\[[^\]]+\]:?)?\s*(.+)/)
+      return errMsg ? `Fatal error: ${errMsg[1].trim().slice(0, 120)}` : 'A fatal error occurred.'
+    }
+  },
+  {
+    test: /java\.lang\.OutOfMemoryError/,
+    type: 'out_of_memory',
+    getDetails: () => 'The game ran out of memory. Try increasing the allocated RAM in instance settings.'
+  },
+  {
+    test: /ModResolutionException/,
+    type: 'mod_resolution',
+    getDetails: (line) => {
+      const m = line.match(/ModResolutionException:\s*(.+)/)
+      return m ? `Mod resolution failed: ${m[1].trim()}` : 'Mod resolution failed — there may be conflicting or incompatible mods.'
+    }
+  },
+  {
+    test: /Incompatible mods found/i,
+    type: 'incompatible_mods',
+    getDetails: () => 'Incompatible mods were detected. Some installed mods conflict with each other.'
+  },
+  {
+    test: /requires version.*which is missing/i,
+    type: 'missing_dependency',
+    getDetails: (line) => {
+      const m = line.match(/Mod\s+'([^']+)'.*?requires.*?'([^']+)'.*?version\s+([^\s,]+).*?missing/i)
+      return m ? `Mod '${m[1]}' requires '${m[2]}' version ${m[3]}, which is not installed.` : 'A mod is missing a required dependency.'
+    }
+  },
+  {
+    test: /incompatible with/i,
+    type: 'incompatible_mods',
+    getDetails: (line) => {
+      const m = line.match(/Mod\s+'?(\w+)'?\s+is\s+incompatible\s+with\s+'?(\w+)'?/i)
+      return m ? `Mod '${m[1]}' is incompatible with '${m[2]}'. One of them needs to be removed.` : 'A mod incompatibility was detected.'
+    }
+  },
+]
+
+function checkLineForCrash(line: string) {
+  for (const pattern of CRASH_LINE_PATTERNS) {
+    if (pattern.test.test(line)) {
+      crashAlreadyFired = true
+      const details = pattern.getDetails(line, gameLogBuffer)
+      console.log(`[Launcher] CRASH DETECTED in log line: "${line.slice(0, 120)}"`)
+      console.log(`[Launcher] Type: ${pattern.type} — ${details}`)
+
+      // Small delay to collect a few more log lines for context
+      setTimeout(() => {
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('loomie:crash-detected', {
+            type: pattern.type,
+            instanceId: currentLaunchInstanceId,
+            details,
+            rawLogs: gameLogBuffer.slice(-50),
+          })
+
+        } else {
+
+        }
+      }, 500)
+      break
+    }
   }
 }
 
@@ -408,6 +538,9 @@ export async function launchInstance(id: string) {
     throw new Error('Not logged into Minecraft')
   }
 
+  gameLogBuffer.length = 0
+  crashAlreadyFired = false
+  currentLaunchInstanceId = id
   broadcastStatus({ running: true, progress: 0, task: 'Preparing...', error: '' })
   cancelRequested = false
   const startTime = Date.now()
@@ -573,7 +706,18 @@ export async function launchInstance(id: string) {
           const xml = await res.text()
           const versionMatches = xml.match(/<version>([^<]+)<\/version>/g) || []
           const allVersions = versionMatches.map((m: string) => m.replace(/<\/?version>/g, ''))
-          const compatible = allVersions.filter((v: string) => v.startsWith(neoPrefix + '.')).sort().reverse()
+          const compatible = allVersions
+            .filter((v: string) => v.startsWith(neoPrefix + '.'))
+            .sort((a: string, b: string) => {
+              // Numeric version comparison: 21.1.172 > 21.1.99
+              const aParts = a.split('.').map(Number)
+              const bParts = b.split('.').map(Number)
+              for (let i = 0; i < Math.max(aParts.length, bParts.length); i++) {
+                const diff = (bParts[i] || 0) - (aParts[i] || 0)
+                if (diff !== 0) return diff
+              }
+              return 0
+            })
           if (compatible.length === 0) {
             throw new Error(`No NeoForge versions found for MC ${instance.version}`)
           }
@@ -897,6 +1041,30 @@ export async function launchInstance(id: string) {
         broadcastLog('[Launcher] Power plan set to High Performance.\n')
       }
 
+      // Watch the game's latest.log file for crash patterns not caught by stdout
+      const logFilePath = join(instancePath, 'logs', 'latest.log')
+
+      const logWatcher = setInterval(() => {
+        if (crashAlreadyFired) { clearInterval(logWatcher); return }
+        try {
+          if (!existsSync(logFilePath)) return
+          const content = readFileSync(logFilePath, 'utf-8')
+          const lines = content.split('\n')
+
+          // Scan the last 100 lines for error patterns
+          const tail = lines.slice(-100)
+          for (const line of tail) {
+            if (!crashAlreadyFired && line.length > 0) {
+              checkLineForCrash(line)
+            }
+          }
+
+        } catch { /* ignore log read errors */ }
+      }, 3000)
+
+      // Clean up watcher when process exits
+      activeProcess?.on('exit', () => clearInterval(logWatcher))
+
       // Set Discord Rich Presence
       setPlayingMinecraft(instance.name, instance.version, instance.loader || 'Vanilla')
       // Start Dynamic Island overlay server (WebSocket for mod)
@@ -916,6 +1084,10 @@ export async function launchInstance(id: string) {
       if (perfPowerPlan) {
         restoreDefaultPowerPlan()
         broadcastLog('[Launcher] Power plan restored.\n')
+      }
+      // Auto-diagnose crashes on non-zero exit
+      if (code !== null && code !== 0) {
+        detectCrash()
       }
     })
 
@@ -945,4 +1117,62 @@ export function killInstance() {
 
 export function getLaunchStatus() {
   return currentStatus
+}
+
+function detectCrash(): void {
+  if (crashAlreadyFired) return
+  const logs = gameLogBuffer.join('\n')
+  let type: string | null = null
+  let details = ''
+
+  if (logs.includes('java.lang.OutOfMemoryError')) {
+    type = 'out_of_memory'
+    details = 'The game ran out of memory. Try increasing the allocated RAM in instance settings.'
+  } else if (logs.includes('Error loading mods') || logs.includes('fml.modloadingissue')) {
+    type = 'incompatible_mods'
+    // Try to extract which mod is incompatible (NeoForge format)
+    const incompMatch = logs.match(/Mod\s+(\w+)\s+is\s+incompatible\s+with\s+(\w+)/i)
+    if (incompMatch) {
+      details = `Mod '${incompMatch[1]}' is incompatible with '${incompMatch[2]}'. One of them needs to be removed.`
+    } else {
+      const errorMatch = logs.match(/(\d+)\s+error(?:s)?\s+(?:has|have)\s+occurred/i)
+      details = errorMatch
+        ? `${errorMatch[1]} mod loading error(s) occurred. There are incompatible or broken mods.`
+        : 'Mod loading errors detected. There are incompatible or broken mods.'
+    }
+  } else if (logs.includes('ModResolutionException')) {
+    type = 'mod_resolution'
+    const match = logs.match(/ModResolutionException:(.+)/)
+    details = match ? `Mod resolution failed: ${match[1].trim()}` : 'Mod resolution failed — there may be conflicting or incompatible mods.'
+  } else if (logs.includes('Incompatible mods found')) {
+    type = 'incompatible_mods'
+    details = 'Incompatible mods were detected. Some installed mods conflict with each other.'
+  } else if (logs.includes('requires version') && logs.includes('which is missing')) {
+    type = 'missing_dependency'
+    const match = logs.match(/Mod\s+'([^']+)'\s+requires.*?mod\s+'([^']+)'.*?version\s+([^\s,]+).*?which is missing/i)
+    if (match) {
+      details = `Mod '${match[1]}' requires '${match[2]}' version ${match[3]}, which is not installed.`
+    } else {
+      details = 'A mod is missing a required dependency.'
+    }
+  } else if (logs.includes('requires version') && logs.includes('wrong version is present')) {
+    type = 'wrong_java'
+    details = 'A mod requires a different Java version than what is currently being used.'
+  } else if (logs.includes('CrashReport') || logs.includes('crash-reports')) {
+    type = 'generic_crash'
+    const match = logs.match(/Description:\s*(.+)/)
+    details = match ? `Crash: ${match[1].trim()}` : 'The game crashed. Check the crash report for details.'
+  }
+
+  if (type && mainWindow && !mainWindow.isDestroyed()) {
+    crashAlreadyFired = true
+    const rawLogs = gameLogBuffer.slice(-50)
+    mainWindow.webContents.send('loomie:crash-detected', {
+      type,
+      instanceId: currentLaunchInstanceId,
+      details,
+      rawLogs,
+    })
+    console.log(`[Launcher] Crash detected: ${type} — ${details}`)
+  }
 }

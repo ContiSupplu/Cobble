@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Changelog — Loom</title>
+  <meta name="description" content="See what's new in every version of Loom — the all-in-one Minecraft launcher." />
+  <meta name="theme-color" content="#0a0a0a" />
+  <link rel="icon" href="assets/loom-icon.png" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+
+  <!-- ═══════════════════ NAVIGATION ═══════════════════ -->
+  <nav class="nav" id="nav">
+    <div class="container nav-inner">
+      <a href="index.html" class="nav-brand">
+        <img src="assets/loom-icon.png" alt="Loom" class="nav-logo" />
+        <span class="nav-wordmark">Loom</span>
+      </a>
+
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+      </button>
+
+      <ul class="nav-links" id="navLinks">
+        <li><a href="index.html" class="nav-link">Home</a></li>
+        <li><a href="index.html#features" class="nav-link">Features</a></li>
+        <li><a href="changelog.html" class="nav-link active">Changelog</a></li>
+        <li><a href="download.html" class="nav-cta">Download</a></li>
+      </ul>
+    </div>
+  </nav>
+
+
+  <!-- ═══════════════════ CHANGELOG ═══════════════════ -->
+  <main class="changelog-page">
+    <div class="container">
+
+      <div class="changelog-hero reveal">
+        <div class="section-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="12 8 12 12 14 14"/><circle cx="12" cy="12" r="10"/></svg>
+          Changelog
+        </div>
+        <h1 class="section-title">What's new in Loom</h1>
+        <p class="section-sub" style="margin: 0 auto;">
+          Every update, every improvement, every fix — documented here.
+        </p>
+      </div>
+
+
+      <div class="changelog-timeline">
+
+        <!-- ═══ v1.5 Obsidian ═══ -->
+        <div class="changelog-entry latest reveal">
+          <div class="changelog-dot"></div>
+          <div class="changelog-version">
+            <span class="changelog-ver">v1.5</span>
+            <span class="changelog-codename">Obsidian</span>
+          </div>
+          <div class="changelog-date">May 29, 2026</div>
+          <div class="changelog-body">
+            <div class="changelog-category new">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Features
+            </div>
+            <ul class="changelog-list">
+              <li>Bedrock Edition support — detect, launch, and manage Minecraft Bedrock from Loom</li>
+              <li>Built-in add-on browser with MCPEDL, CurseForge, ModBay, and Planet Minecraft</li>
+              <li>Smart downloads — .mcaddon, .mcpack, and .mcworld files auto-download and auto-install</li>
+              <li>Fullscreen browsing mode for the embedded add-on browser</li>
+              <li>Dedicated Bedrock sidebar tab with world, resource pack, and behavior pack management</li>
+              <li>Browse worlds with icons, sizes, and last-played dates</li>
+              <li>Quick-access folder buttons for worlds, resources, and behaviors</li>
+            </ul>
+
+            <div class="changelog-category improve">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>
+              Improvements
+            </div>
+            <ul class="changelog-list">
+              <li>Webview popup windows are now intercepted and handled in-place</li>
+              <li>Download interception prevents save dialogs for Bedrock add-ons</li>
+              <li>SVG icons replace emojis throughout the Bedrock interface</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ═══ v1.4 Diamond ═══ -->
+        <div class="changelog-entry reveal">
+          <div class="changelog-dot"></div>
+          <div class="changelog-version">
+            <span class="changelog-ver">v1.4</span>
+            <span class="changelog-codename">Diamond</span>
+          </div>
+          <div class="changelog-date">May 29, 2026</div>
+          <div class="changelog-body">
+            <div class="changelog-category new">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Features
+            </div>
+            <ul class="changelog-list">
+              <li>Loomie crash detection — detects game crashes and mod errors in real time</li>
+              <li>One-click "Fix with Loomie" — automatically removes conflicting mods</li>
+              <li>Smart blacklist prevents removed mods from being reinstalled</li>
+              <li>Loader-aware performance mods — Fabric mods no longer installed on NeoForge</li>
+              <li>Dependency-aware installation — skips Iris when Sodium is unavailable</li>
+              <li>Loomie auto-diagnoses all errors, not just the first one</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ═══ v1.3 Redstone ═══ -->
+        <div class="changelog-entry reveal">
+          <div class="changelog-dot"></div>
+          <div class="changelog-version">
+            <span class="changelog-ver">v1.3</span>
+            <span class="changelog-codename">Redstone</span>
+          </div>
+          <div class="changelog-date">May 28, 2026</div>
+          <div class="changelog-body">
+            <div class="changelog-category new">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Features
+            </div>
+            <ul class="changelog-list">
+              <li>Dynamic Island — a floating HUD overlay with health, coordinates, and Spotify</li>
+              <li>Loomie AI companion powered by Gemini — voice and text</li>
+              <li>Spotify integration with playback controls in the Dynamic Island</li>
+              <li>Discord Rich Presence showing game status</li>
+              <li>Player lookup with Crafatar skin previews</li>
+              <li>Changing Room — skin management and preview</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ═══ v1.2 Gold ═══ -->
+        <div class="changelog-entry reveal">
+          <div class="changelog-dot"></div>
+          <div class="changelog-version">
+            <span class="changelog-ver">v1.2</span>
+            <span class="changelog-codename">Gold</span>
+          </div>
+          <div class="changelog-date">May 27, 2026</div>
+          <div class="changelog-body">
+            <div class="changelog-category new">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Features
+            </div>
+            <ul class="changelog-list">
+              <li>Mod browser with Modrinth integration</li>
+              <li>One-click mod, shader, and resource pack installation</li>
+              <li>Automatic dependency resolution</li>
+              <li>Instance file explorer with drag-and-drop support</li>
+              <li>Incognito mode for private sessions</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ═══ v1.1 Iron ═══ -->
+        <div class="changelog-entry reveal">
+          <div class="changelog-dot"></div>
+          <div class="changelog-version">
+            <span class="changelog-ver">v1.1</span>
+            <span class="changelog-codename">Iron</span>
+          </div>
+          <div class="changelog-date">May 27, 2026</div>
+          <div class="changelog-body">
+            <div class="changelog-category new">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              New Features
+            </div>
+            <ul class="changelog-list">
+              <li>Instance management — create, clone, and delete instances</li>
+              <li>Fabric, NeoForge, and Quilt mod loader support</li>
+              <li>Auto-update system via GitHub Releases</li>
+              <li>Multi-account support with Microsoft authentication</li>
+              <li>Game log viewer with real-time output</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- ═══ v1.0 Cobblestone ═══ -->
+        <div class="changelog-entry reveal">
+          <div class="changelog-dot"></div>
+          <div class="changelog-version">
+            <span class="changelog-ver">v1.0</span>
+            <span class="changelog-codename">Cobblestone</span>
+          </div>
+          <div class="changelog-date">May 26, 2026</div>
+          <div class="changelog-body">
+            <div class="changelog-category new">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Initial Release
+            </div>
+            <ul class="changelog-list">
+              <li>Loom launcher — the all-in-one Minecraft launcher</li>
+              <li>Java Edition game launching with version management</li>
+              <li>Glassmorphism UI with dark theme</li>
+              <li>Setup wizard for first-time configuration</li>
+              <li>Automatic Java runtime detection and download</li>
+              <li>Microsoft account authentication</li>
+            </ul>
+          </div>
+        </div>
+
+      </div><!-- /timeline -->
+    </div>
+  </main>
+
+
+  <!-- ═══════════════════ FOOTER ═══════════════════ -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <div class="footer-brand-row">
+            <img src="assets/loom-icon.png" alt="Loom" />
+            <span>Loom</span>
+          </div>
+          <p class="footer-tagline">The all-in-one Minecraft launcher for Java and Bedrock Edition. Built with care by _jackoboy.</p>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Product</div>
+          <a href="index.html#features">Features</a>
+          <a href="download.html">Download</a>
+          <a href="changelog.html">Changelog</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Resources</div>
+          <a href="https://github.com/ContiSupplu/Cobble" target="_blank">GitHub</a>
+          <a href="https://github.com/ContiSupplu/Cobble/issues" target="_blank">Report a Bug</a>
+          <a href="https://github.com/ContiSupplu/Cobble/releases" target="_blank">All Releases</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Community</div>
+          <a href="https://github.com/ContiSupplu/Cobble/discussions" target="_blank">Discussions</a>
+          <a href="https://github.com/ContiSupplu/Cobble" target="_blank">Contribute</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>&copy; 2026 Loom. Not affiliated with Mojang or Microsoft.</span>
+        <div class="footer-socials">
+          <a href="https://github.com/ContiSupplu/Cobble" target="_blank" aria-label="GitHub">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          </a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="js/main.js"></script>
+</body>
+</html>

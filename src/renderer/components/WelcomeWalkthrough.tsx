@@ -9,7 +9,7 @@ export interface WalkthroughSlide {
   title: string
   subtitle?: string
   bullets?: string[]
-  emoji?: string
+  icon?: React.ReactNode  // SVG icon element
   gradient?: string
 }
 
@@ -164,9 +164,9 @@ function SlideView({
   return (
     <div className={className}>
       <div className="wk-slide-content">
-        {slide.emoji && (
-          <div className="wk-emoji" key={`emoji-${slideKey}`}>
-            {slide.emoji}
+        {slide.icon && (
+          <div className="wk-icon" key={`icon-${slideKey}`}>
+            {slide.icon}
           </div>
         )}
 

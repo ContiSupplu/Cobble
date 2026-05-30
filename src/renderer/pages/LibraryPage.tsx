@@ -666,12 +666,22 @@ export default function LibraryPage() {
 
   // Modpack import
   const [showModpackBrowser, setShowModpackBrowser] = useState(false)
+  const [modpackClosing, setModpackClosing] = useState(false)
   const [modpackSearch, setModpackSearch] = useState('')
   const [modpackResults, setModpackResults] = useState<any[]>([])
   const [modpackSearching, setModpackSearching] = useState(false)
   const [modpackInstalling, setModpackInstalling] = useState<string | null>(null)
   const [modpackProgress, setModpackProgress] = useState<any>(null)
   const modpackFileRef = useRef<HTMLInputElement>(null)
+
+  const closeModpackBrowser = useCallback(() => {
+    if (modpackInstalling) return
+    setModpackClosing(true)
+    setTimeout(() => {
+      setShowModpackBrowser(false)
+      setModpackClosing(false)
+    }, 250)
+  }, [modpackInstalling])
 
   // ── Load Instances ──
 
@@ -1467,11 +1477,15 @@ export default function LibraryPage() {
 
       {/* ── Modpack Browser Modal ── */}
       {showModpackBrowser && (
-        <div className="modal-backdrop" onClick={() => !modpackInstalling && setShowModpackBrowser(false)}>
-          <div className="modal library-modpack-browser" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Import Modpack</h2>
-              <button className="modal-close" onClick={() => !modpackInstalling && setShowModpackBrowser(false)}>×</button>
+        <div className={`library-modpack-backdrop${modpackClosing ? ' closing' : ''}`} onClick={closeModpackBrowser}>
+          <div className="library-modpack-browser" onClick={(e) => e.stopPropagation()}>
+            <div className="library-modpack-header">
+              <span className="library-modpack-title">Import Modpack</span>
+              <button className="library-modpack-close" onClick={closeModpackBrowser}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
             </div>
 
             <div className="library-modpack-actions">

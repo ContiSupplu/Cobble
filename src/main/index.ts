@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, net, session } from 'electron'
 import { join } from 'path'
 // Spotify auth is handled inline below
-import { setLauncherWindow, launchInstance, killInstance, getLaunchStatus, preloadEssentials } from './launcher'
-import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync } from 'fs'
+import { setLauncherWindow, launchInstance, killInstance, getLaunchStatus, preloadEssentials, getGameLogBuffer } from './launcher'
+import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, statSync } from 'fs'
 import { getAllInstances, createInstance, deleteInstance, updateInstance, cloneInstance, openInstanceFolder, listInstanceDir, deleteInstanceFile, renameInstanceFile, openInstanceFile, copyFilesToInstance, getInstancePath, getTrashedInstances, recoverInstance, permanentlyDeleteInstance, migrateOrphanInstances } from './instances'
 import { microsoftLogin, getCachedAccount, clearCachedAccount, restoreSession, getAllAccounts, getActiveUuid, switchAccount, removeAccount, updateDisplayName, updateIncognitoPrefs } from './auth'
 import { getAllRegions } from './proxy-config'
@@ -94,7 +94,8 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: false,
-      webSecurity: false
+      webSecurity: false,
+      webviewTag: true
     }
   })
 
@@ -158,6 +159,81 @@ function createWindow(): void {
   } else {
     mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  // ── Intercept webview popups & downloads (Bedrock browser) ──
+  // Track webview webContents so we can redirect popup URLs back into them
+  const webviewContents = new Set<Electron.WebContents>()
+
+  app.on('web-contents-created', (_event, contents) => {
+    const type = contents.getType()
+
+    if (type === 'webview') {
+      webviewContents.add(contents)
+      contents.on('destroyed', () => webviewContents.delete(contents))
+
+      // Prevent popups from webview — navigate in-place instead
+      contents.setWindowOpenHandler(({ url }) => {
+        if (url && url !== 'about:blank') {
+          contents.loadURL(url)
+        }
+        return { action: 'deny' }
+      })
+    }
+
+    // Intercept downloads from ANY webContents (webview, popup, etc.)
+    contents.session.on('will-download', (_e, item) => {
+      const filename = item.getFilename()
+      const ext = (filename.split('.').pop() || '').toLowerCase()
+      const bedrockExts = ['mcaddon', 'mcpack', 'mcworld']
+
+      if (bedrockExts.includes(ext)) {
+        // Save to Downloads folder — UWP apps can't access temp due to sandboxing
+        const downloadsDir = app.getPath('downloads')
+        const savePath = join(downloadsDir, filename)
+        item.setSavePath(savePath)
+
+        console.log(`[Bedrock] Downloading addon: ${filename} → ${savePath}`)
+
+        item.on('done', async (_doneEvent, state) => {
+          if (state === 'completed') {
+            // Verify the file exists and has content
+            try {
+              const fileSize = statSync(savePath).size
+              console.log(`[Bedrock] Download complete (${(fileSize / 1024).toFixed(1)} KB): ${savePath}`)
+
+              if (fileSize < 100) {
+                console.log('[Bedrock] File too small, likely not a valid addon')
+                return
+              }
+
+              // Open the file with its default handler (Minecraft Bedrock)
+              // This triggers Minecraft's built-in addon importer
+              console.log('[Bedrock] Opening addon with Minecraft importer...')
+              const err = await shell.openPath(savePath)
+              if (err) {
+                console.log('[Bedrock] shell.openPath error:', err)
+              } else {
+                console.log('[Bedrock] Addon opened successfully — Minecraft should import it')
+              }
+
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('bedrock:addon-installed', {
+                  filename,
+                  success: !err,
+                  message: err || 'Addon sent to Minecraft for import',
+                  type: ext
+                })
+              }
+            } catch (err: any) {
+              console.log('[Bedrock] Auto-install failed:', err.message)
+            }
+          } else {
+            console.log(`[Bedrock] Download failed: ${state}`)
+          }
+        })
+      }
+    })
+  })
 }
 
 // ============================================================
@@ -1782,7 +1858,7 @@ ipcMain.handle('mods:uninstall', (_event, instanceId: string, modId: string) => 
 ipcMain.handle('mods:toggle', () => null)
 
 // Install performance mods on demand (also called automatically before launch)
-import { installPerformanceMods } from './performance-mods'
+import { installPerformanceMods, blacklistPerfMod } from './performance-mods'
 ipcMain.handle('mods:installEssentials', async (_event, instanceId: string, gameVersion: string, loader: string) => {
   try {
     const perfEnabled = !!storeGet('perf_modpack')
@@ -1971,6 +2047,31 @@ ipcMain.handle('friends:remove', (_event, uuid: string) => removeFriend(uuid))
 ipcMain.handle('friends:updateNote', (_event, uuid: string, note: string) => updateFriendNote(uuid, note))
 
 // ============================================================
+// IPC Handlers — Bedrock Edition
+// ============================================================
+
+import { detectBedrock, launchBedrock, getBedrockWorlds, getBedrockPacks, installAddon, openBedrockFolder } from './bedrock'
+
+ipcMain.handle('bedrock:detect', async () => {
+  try { return await detectBedrock() } catch (e: any) { return { installed: false, version: null, error: e.message } }
+})
+ipcMain.handle('bedrock:launch', async (_e, serverUrl?: string, serverPort?: number) => {
+  try { await launchBedrock(serverUrl, serverPort); return { success: true } } catch (e: any) { return { error: e.message } }
+})
+ipcMain.handle('bedrock:worlds', async () => {
+  try { return await getBedrockWorlds() } catch (e: any) { return [] }
+})
+ipcMain.handle('bedrock:packs', async (_e, type: string) => {
+  try { return await getBedrockPacks(type as any) } catch (e: any) { return [] }
+})
+ipcMain.handle('bedrock:installAddon', async (_e, filePath: string) => {
+  try { return await installAddon(filePath) } catch (e: any) { return { success: false, message: e.message } }
+})
+ipcMain.handle('bedrock:openFolder', async (_e, type: string) => {
+  try { await openBedrockFolder(type as any); return { success: true } } catch (e: any) { return { error: e.message } }
+})
+
+// ============================================================
 // IPC Handlers — Gemini AI Chatbot
 // ============================================================
 
@@ -2106,7 +2207,22 @@ const GEMINI_SYSTEM_PROMPT = `You are Loomie, a friendly and knowledgeable Minec
 9. If asked a non-Minecraft question, warmly redirect to Minecraft topics
 
 ## Launcher Actions
-You can perform actions in the Loom Launcher. When someone asks you to do something (skip a song, download a mod, create an instance, etc.), use the available tools. Always confirm what you did afterward.`
+You can perform actions in the Loom Launcher. When someone asks you to do something (skip a song, download a mod, create an instance, etc.), use the available tools. Always confirm what you did afterward.
+
+## Auto-Diagnosis
+When the user reports a crash or you detect issues:
+1. Use get_game_logs to read recent output
+2. Analyze ALL errors — identify every incompatible mod, missing dependency, or Java issue
+3. Use remove_mod with just the mod name/slug to remove ALL incompatible mods (e.g. remove_mod with modName "embeddium" — it auto-finds the jar file)
+4. Use install_dependency to install missing dependencies
+5. Tell the user what you fixed and suggest relaunching
+CRITICAL RULES:
+- NEVER ask the user for filenames. The remove_mod tool finds files automatically by name.
+- Fix ALL issues at once, not just the first one. If there are 5 incompatible mods, remove all 5.
+- When mods conflict (e.g. Sodium vs Embeddium), remove the one that was added as a performance optimization, NOT the one from the modpack.
+- Performance mods we install: sodium, embeddium, iris, scalablelux, lithium, starlight, lazydfu, modmenu, fabric-api, enhanced-block-entities, moreculling, cull-less-leaves, sodium-extra, krypton, dynamic-fps, debugify, noisium, modernfix, notenoughcrashes, clumps, immediatelyfast, entityculling, ferritecore, badoptimizations, cloth-config
+- If a perf mod conflicts with a modpack mod, always remove the perf mod.
+- Always take action to fix issues, don't just describe what's wrong.`
 
 ipcMain.handle('gemini:chat', async (_event, apiKey: string, messages: Array<{ role: string; parts: Array<{ text: string }> }>) => {
   if (!apiKey) return { error: 'No API key configured. Go to Settings → Connected Apps → Gemini to add one.' }
@@ -2337,6 +2453,26 @@ const LOOMIE_TOOLS = [{
       name: 'get_mod_details',
       description: 'Get detailed info about a specific mod by slug or ID',
       parameters: { type: 'OBJECT', properties: { slugOrId: { type: 'STRING' } }, required: ['slugOrId'] }
+    },
+    {
+      name: 'get_game_logs',
+      description: 'Get the most recent game log output. Use this to diagnose crashes and errors.',
+      parameters: { type: 'OBJECT', properties: { lines: { type: 'NUMBER', description: 'Number of recent lines to return (default 100, max 200)' } } }
+    },
+    {
+      name: 'remove_mod',
+      description: 'Remove a mod from an instance by its name/slug. Automatically finds and deletes the matching jar file(s). Use when a mod is incompatible or causing crashes.',
+      parameters: { type: 'OBJECT', properties: { instanceId: { type: 'STRING', description: 'Instance ID' }, modName: { type: 'STRING', description: 'The mod name or slug to remove (e.g. "sodium", "iris", "embeddium", "scalablelux"). Case insensitive.' } }, required: ['instanceId', 'modName'] }
+    },
+    {
+      name: 'list_mod_files',
+      description: 'List all mod jar files in an instance mods folder. Useful for finding exact filenames.',
+      parameters: { type: 'OBJECT', properties: { instanceId: { type: 'STRING', description: 'Instance ID' } }, required: ['instanceId'] }
+    },
+    {
+      name: 'install_dependency',
+      description: 'Install a specific mod dependency by its Modrinth slug. Use to fix missing dependency errors.',
+      parameters: { type: 'OBJECT', properties: { instanceId: { type: 'STRING', description: 'Instance ID' }, slug: { type: 'STRING', description: 'Modrinth mod slug (e.g. "cloth-config")' }, gameVersion: { type: 'STRING', description: 'Minecraft version' }, loader: { type: 'STRING', description: 'Mod loader (fabric, forge, neoforge, quilt)' } }, required: ['instanceId', 'slug', 'gameVersion', 'loader'] }
     }
   ]
 }]
@@ -2435,6 +2571,78 @@ async function executeLoomieTool(name: string, args: Record<string, any>): Promi
         const response = await net.fetch(url, { headers: { 'User-Agent': MODRINTH_UA } })
         if (!response.ok) return null
         return await response.json()
+      }
+      case 'get_game_logs': {
+        const buffer = getGameLogBuffer()
+        const count = Math.min(Math.max(args.lines || 100, 1), 200)
+        const lines = buffer.slice(-count)
+        return { lines: lines.join('\n'), count: lines.length }
+      }
+      case 'remove_mod': {
+        const { instanceId, modName } = args
+        const modsDir = getInstanceModsDir(instanceId)
+        const slug = (modName || '').toLowerCase().trim()
+        if (!slug) return { error: 'No mod name provided' }
+        // Scan mods folder for jars matching the slug
+        const allFiles = existsSync(modsDir) ? readdirSync(modsDir).filter(f => f.endsWith('.jar')) : []
+        const matches = allFiles.filter(f => {
+          const lower = f.toLowerCase()
+          return lower.startsWith(slug + '-') || lower.startsWith(slug + '_') || lower === slug + '.jar' || lower.includes(slug)
+        })
+        if (matches.length === 0) {
+          return { error: `No mod files matching '${slug}' found in mods folder. Available files: ${allFiles.slice(0, 20).join(', ')}` }
+        }
+        const removed: string[] = []
+        for (const file of matches) {
+          const filePath = join(modsDir, file)
+          if (existsSync(filePath)) {
+            unlinkSync(filePath)
+            removed.push(file)
+          }
+        }
+        let mods = readInstanceMods(instanceId)
+        mods = mods.filter((m: any) => !removed.includes(m.fileName))
+        writeInstanceMods(instanceId, mods)
+        // Blacklist so the perf mod installer doesn't re-add it
+        blacklistPerfMod(instanceId, slug)
+        return { success: true, message: `Removed ${removed.length} file(s): ${removed.join(', ')}` }
+      }
+      case 'list_mod_files': {
+        const modsDir = getInstanceModsDir(args.instanceId)
+        const files = existsSync(modsDir) ? readdirSync(modsDir).filter(f => f.endsWith('.jar')) : []
+        return { files, count: files.length }
+      }
+      case 'install_dependency': {
+        const { instanceId, slug, gameVersion, loader } = args
+        const projectUrl = `https://api.modrinth.com/v2/project/${slug}`
+        const projectRes = await net.fetch(projectUrl, { headers: { 'User-Agent': MODRINTH_UA } })
+        if (!projectRes.ok) return { error: `Mod '${slug}' not found on Modrinth` }
+        const projectInfo = await projectRes.json()
+        const version = await getCompatibleVersion(slug, gameVersion, loader)
+        if (!version || !version.files || version.files.length === 0) {
+          return { error: `No compatible version of '${slug}' found for ${gameVersion} (${loader})` }
+        }
+        const modsDir = getInstanceModsDir(instanceId)
+        const primaryFile = version.files.find((f: any) => f.primary) || version.files[0]
+        const destPath = join(modsDir, primaryFile.filename)
+        await downloadFile(primaryFile.url, destPath)
+        const mods = readInstanceMods(instanceId)
+        if (!mods.find((m: any) => m.id === slug || m.slug === slug)) {
+          mods.push({
+            id: slug,
+            name: projectInfo.title,
+            description: projectInfo.description || '',
+            version: version.version_number,
+            icon_url: projectInfo.icon_url,
+            slug: slug,
+            fileName: primaryFile.filename,
+            projectId: version.project_id,
+            isDependency: true,
+            installedAt: Date.now(),
+          })
+          writeInstanceMods(instanceId, mods)
+        }
+        return { success: true, message: `Installed ${projectInfo.title} (${version.version_number})`, fileName: primaryFile.filename }
       }
       default:
         return { error: `Unknown function: ${name}` }
