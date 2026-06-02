@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "id": "loom-optimizer",
+  "version": "${version}",
+  "name": "Loom Optimizer",
+  "description": "Launch-time performance optimizations for Loom Launcher: asset pre-loading, resource reload caching, and deferred initialization.",
+  "authors": ["Loom Launcher"],
+  "contact": {},
+  "license": "All Rights Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.loom.optimizer.LoomOptimizerMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.5",
+    "minecraft": "~1.21.11",
+    "java": ">=21",
+    "fabric-api": "*"
+  },
+  "mixins": [
+    "loom-optimizer.mixins.json"
+  ]
+}

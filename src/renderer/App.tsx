@@ -16,13 +16,16 @@ import AccountPage from './pages/AccountPage'
 import GeminiPage from './pages/GeminiPage'
 import ChangingRoomPage from './pages/ChangingRoomPage'
 import BedrockPage from './pages/BedrockPage'
+import GalleryPage from './pages/GalleryPage'
+import QuickServersPage from './pages/QuickServersPage'
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage'
 import GameLogsWindow from './components/GameLogsWindow'
 import SplashScreen from './components/SplashScreen'
 import SetupWizard, { type WizardSettings } from './components/SetupWizard'
 import WelcomeWalkthrough, { type WalkthroughSlide } from './components/WelcomeWalkthrough'
 
 /* ── Versioning — codenames + simplified display ── */
-const CURRENT_VERSION = '1.5.0'
+const CURRENT_VERSION = '1.6.0'
 
 // Minecraft-themed codenames for each minor release
 const VERSION_CODENAMES: Record<string, string> = {
@@ -32,7 +35,8 @@ const VERSION_CODENAMES: Record<string, string> = {
   '1.3': 'Redstone',
   '1.4': 'Diamond',
   '1.5': 'Obsidian',
-  // Future: 'Netherite', 'Amethyst', 'Beacon', 'Ender'
+  '1.6': 'Netherite',
+  // Future: 'Amethyst', 'Beacon', 'Ender'
 }
 
 // "1.3.0" → "1.3", "1.3.1" → "1.3.1"
@@ -51,53 +55,53 @@ const CODENAME = getCodename(CURRENT_VERSION)
 const WALKTHROUGH_SLIDES: WalkthroughSlide[] = [
   {
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.7 2.3L22 18l-2.3.7L19 21l-.7-2.3L16 18l2.3-.7L19 15z"/></svg>,
-    title: `Loom ${DISPLAY_VER} — "${CODENAME}"`,
-    subtitle: 'The biggest update yet. A whole new edition joins the family.',
-    gradient: 'linear-gradient(135deg, #0c0c1a 0%, #1a0533 20%, #7c3aed 50%, #c026d3 75%, #0c0c1a 100%)',
+    title: `Loom ${DISPLAY_VER} \u2014 "${CODENAME}"`,
+    subtitle: 'Forged in the Nether. Built for speed.',
+    gradient: 'linear-gradient(135deg, #0c0c1a 0%, #4a1520 20%, #b91c1c 50%, #f97316 75%, #0c0c1a 100%)',
   },
   {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>,
-    title: 'Bedrock Edition',
-    subtitle: 'Introducing Bedrock support — a new member of the Loom family.',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="2" width="20" height="20" rx="5"/><path d="M8 12h8M12 8v8"/></svg>,
+    title: 'Quick Servers',
+    subtitle: 'Your own Minecraft server is coming to Loom.',
     bullets: [
-      'Detect, launch, and manage Minecraft Bedrock from Loom',
-      'Browse your worlds, resource packs, and behavior packs',
-      'Dedicated sidebar tab — Bedrock gets its own home',
+      'One-click server hosting, managed entirely from the launcher',
+      'Full file manager, plugin browser, and player controls',
+      'Bedrock crossplay support built in',
     ],
-    gradient: 'linear-gradient(135deg, #020617 0%, #064e3b 30%, #10b981 55%, #059669 75%, #020617 100%)',
+    gradient: 'linear-gradient(135deg, #020617 0%, #1e3a5f 30%, #3b82f6 55%, #06b6d4 80%, #020617 100%)',
   },
   {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>,
-    title: 'Built-In Add-On Browser',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>,
+    title: 'Cache & Skip',
     bullets: [
-      'Browse MCPEDL, CurseForge, ModBay, and Planet Minecraft right inside Loom',
-      'Download add-ons with one click — auto-installed into Bedrock',
-      'Fullscreen mode for a seamless browsing experience',
+      'Caches baked models and textures after your first launch',
+      'Repeat launches load from cache instead of recomputing',
+      'Toggle on or off in Settings under Advanced',
     ],
-    gradient: 'linear-gradient(135deg, #0c0c1a 0%, #1e3a5f 30%, #3b82f6 55%, #6366f1 80%, #0c0c1a 100%)',
+    gradient: 'linear-gradient(135deg, #0c0c1a 0%, #064e3b 30%, #10b981 55%, #059669 75%, #0c0c1a 100%)',
   },
   {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>,
-    title: 'Smart Downloads',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>,
+    title: 'Under the Hood',
     bullets: [
-      '.mcaddon, .mcpack, and .mcworld files downloaded automatically',
-      'No save dialogs — Loom handles everything behind the scenes',
-      'Addons are sent to Minecraft\'s importer instantly',
+      'New Advanced settings section with granular performance controls',
+      'Improved mod auto-installer for Fabric instances',
+      'Stability improvements and bug fixes across the board',
     ],
     gradient: 'linear-gradient(135deg, #1a0a2e 0%, #7c3aed 35%, #a855f7 60%, #0d0d1a 100%)',
   },
   {
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>,
-    title: 'Two Editions. One Launcher.',
-    subtitle: 'Java and Bedrock, together at last. Welcome to the new Loom.',
-    gradient: 'linear-gradient(135deg, #0c0c0c 0%, #b45309 25%, #f59e0b 50%, #10b981 75%, #0c0c0c 100%)',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>,
+    title: 'Stronger Than Diamond.',
+    subtitle: 'Loom Netherite. The toughest update yet.',
+    gradient: 'linear-gradient(135deg, #0c0c0c 0%, #78350f 25%, #d97706 50%, #b91c1c 75%, #0c0c0c 100%)',
   },
 ]
 
-function AppShell() {
+function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
   const {
     isAuthenticated,
-    incognitoEnabled,
+    privacyEnabled,
     user,
     accounts,
     activeUuid,
@@ -150,6 +154,63 @@ function AppShell() {
     setSetupDone(true)
   }, [])
 
+  // ── Quick Launch mode ──
+  // Triggered from the splash screen's Quick Launch button
+  const [quickLaunchAttempted, setQuickLaunchAttempted] = useState(false)
+
+  useEffect(() => {
+    if (quickLaunched && isAuthenticated && setupDone && !quickLaunchAttempted) {
+      setQuickLaunchAttempted(true)
+      // Skip profile screen — use last active account
+      setProfileDone(true)
+      // Only skip walkthrough if it was already seen
+      const alreadySeen = localStorage.getItem('loom_last_seen_version') === CURRENT_VERSION
+      if (alreadySeen) {
+        setWalkthroughDone(true)
+      }
+
+      // Auto-launch: try last played, then favorite, then first instance
+      const api = (window as any).electronAPI
+      const lastInstance = localStorage.getItem('loom_last_played_instance')
+
+      const tryLaunch = async () => {
+        if (!api?.launch) {
+          console.log('[QuickLaunch] launch API not available')
+          return
+        }
+
+        // Try last played instance first
+        if (lastInstance) {
+          console.log('[QuickLaunch] Launching last played instance:', lastInstance)
+          try {
+            await api.launch(lastInstance)
+            return
+          } catch (e: any) {
+            console.log('[QuickLaunch] Last played launch failed:', e.message)
+          }
+        }
+
+        // Fallback: try favorite or first instance
+        try {
+          const instances = await api.getInstances?.()
+          if (instances && instances.length > 0) {
+            const favorite = instances.find((i: any) => i.favorite)
+            const target = favorite || instances[0]
+            console.log('[QuickLaunch] Fallback launching:', target.name)
+            localStorage.setItem('loom_last_played_instance', target.id)
+            await api.launch(target.id)
+          } else {
+            console.log('[QuickLaunch] No instances to launch')
+          }
+        } catch (e: any) {
+          console.log('[QuickLaunch] Fallback launch failed:', e.message)
+        }
+      }
+
+      setTimeout(tryLaunch, 500)
+    }
+  }, [quickLaunched, isAuthenticated, setupDone, quickLaunchAttempted])
+
   // Login page — not authenticated yet
   if (!isAuthenticated) {
     return (
@@ -164,7 +225,7 @@ function AppShell() {
     return <SetupWizard onComplete={handleWizardComplete} />
   }
 
-  // Profile select on launch — after auth, before main app
+  // Profile select on launch — after auth, before main app (skipped in Quick Launch)
   if (!profileDone) {
     return (
       <div>
@@ -184,7 +245,7 @@ function AppShell() {
     )
   }
 
-  // Post-update walkthrough — shown once per version, after profile select
+  // Post-update walkthrough — shown once per version, after profile select (skipped in Quick Launch)
   if (!walkthroughDone) {
     return (
       <WelcomeWalkthrough
@@ -198,7 +259,7 @@ function AppShell() {
   // Main app — profile screen can be re-opened from sidebar
   return (
     <HashRouter>
-      <div className="app-layout" data-incognito={incognitoEnabled ? 'true' : undefined}>
+      <div className="app-layout" data-privacy={privacyEnabled ? 'true' : undefined}>
         <Titlebar onOpenLogs={openLogs} />
         <div className="app-body" style={{ position: 'relative', overflow: 'hidden' }}>
           <Sidebar
@@ -214,6 +275,9 @@ function AppShell() {
               <Route path="/account" element={<AccountPage />} />
               <Route path="/changing-room" element={<ChangingRoomPage />} />
               <Route path="/bedrock" element={<BedrockPage />} />
+              <Route path="/gallery" element={<GalleryPage />} />
+              <Route path="/servers" element={<QuickServersPage />} />
+              <Route path="/privacy" element={<PrivacyPolicyPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </main>
@@ -241,17 +305,31 @@ function AppShell() {
 }
 
 export default function App() {
-  const [splashDone, setSplashDone] = useState(false)
+  const quickLaunchEnabled = localStorage.getItem('loom_quick_launch') === 'true'
+  const [splashDone, setSplashDone] = useState(false) // Splash always plays
+  const [quickLaunched, setQuickLaunched] = useState(false)
+
+  const handleQuickLaunch = useCallback(() => {
+    setQuickLaunched(true)
+    setSplashDone(true)
+    // The actual instance launch happens in AppShell via quickLaunched prop
+  }, [])
 
   if (!splashDone) {
-    return <SplashScreen onComplete={() => setSplashDone(true)} />
+    return (
+      <SplashScreen
+        onComplete={() => setSplashDone(true)}
+        quickLaunchEnabled={quickLaunchEnabled}
+        onQuickLaunch={handleQuickLaunch}
+      />
+    )
   }
 
   return (
     <AuthProvider>
       <CustomizationProvider>
         <LoomieProvider>
-          <AppShell />
+          <AppShell quickLaunched={quickLaunched} />
         </LoomieProvider>
       </CustomizationProvider>
     </AuthProvider>

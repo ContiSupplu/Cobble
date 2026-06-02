@@ -54,7 +54,48 @@ export default function BedrockPage() {
   const [fullscreen, setFullscreen] = useState(false)
   const webviewRef = useRef<any>(null)
 
+  // ── Download queue state ──
+  const [queueCount, setQueueCount] = useState(0)
+  const [installing, setInstalling] = useState(false)
+  const [lastToast, setLastToast] = useState<string | null>(null)
+  const [adBlockEnabled, setAdBlockEnabled] = useState(() => localStorage.getItem('loom_adblock') === 'true')
+
   useEffect(() => { loadBedrockData() }, [])
+
+  // Sync ad blocker state with main process on mount
+  useEffect(() => {
+    const saved = localStorage.getItem('loom_adblock') === 'true'
+    api?.bedrockSetAdBlock?.(saved)
+  }, [])
+
+  const toggleAdBlock = useCallback(async () => {
+    const newVal = !adBlockEnabled
+    setAdBlockEnabled(newVal)
+    localStorage.setItem('loom_adblock', String(newVal))
+    await api?.bedrockSetAdBlock?.(newVal)
+    setLastToast(newVal ? 'Ad blocker enabled' : 'Ad blocker disabled')
+    setTimeout(() => setLastToast(null), 2500)
+    // Reload the webview to apply
+    webviewRef.current?.reload?.()
+  }, [adBlockEnabled])
+
+  // Listen for queued downloads
+  useEffect(() => {
+    const unsub = api?.onBedrockAddonQueued?.((data: any) => {
+      setQueueCount(data.queueLength)
+      setLastToast(`Added to queue: ${data.filename}`)
+      setTimeout(() => setLastToast(null), 3000)
+    })
+    const unsub2 = api?.onBedrockQueueInstalled?.((data: any) => {
+      setQueueCount(0)
+      setInstalling(false)
+      setLastToast(`Installed ${data.installed} add-on${data.installed !== 1 ? 's' : ''}`)
+      setTimeout(() => setLastToast(null), 4000)
+    })
+    // Load initial queue count
+    api?.bedrockGetQueue?.().then((q: any[]) => setQueueCount(q?.length || 0))
+    return () => { unsub?.(); unsub2?.() }
+  }, [])
 
   async function loadBedrockData() {
     setLoading(true)
@@ -70,10 +111,60 @@ export default function BedrockPage() {
   }
 
   async function handleLaunch() {
+    // If there are queued addons, install them all first then launch
+    if (queueCount > 0) {
+      setInstalling(true)
+      await api.bedrockInstallQueue()
+      // Small delay for Minecraft to start processing
+      await new Promise(r => setTimeout(r, 1000))
+    }
     setLaunching(true)
     await api.bedrockLaunch()
     setTimeout(() => setLaunching(false), 3000)
   }
+
+  async function handleInstallQueue() {
+    if (queueCount === 0 || installing) return
+    setInstalling(true)
+    await api.bedrockInstallQueue()
+  }
+
+  // ── Queue review panel state ──
+  const [showQueueReview, setShowQueueReview] = useState(false)
+  const [queueItems, setQueueItems] = useState<any[]>([])
+
+  const openQueueReview = useCallback(async () => {
+    const items = await api?.bedrockGetQueue?.()
+    setQueueItems(items || [])
+    setShowQueueReview(true)
+  }, [])
+
+  const removeFromQueue = useCallback(async (index: number) => {
+    await api?.bedrockRemoveFromQueue?.(index)
+    const items = await api?.bedrockGetQueue?.()
+    setQueueItems(items || [])
+    setQueueCount(items?.length || 0)
+    if (!items || items.length === 0) {
+      setShowQueueReview(false)
+    }
+  }, [])
+
+  const confirmInstall = useCallback(async () => {
+    setShowQueueReview(false)
+    setInstalling(true)
+    await api.bedrockInstallQueue()
+  }, [])
+
+  // ── Queue dismiss with slide-down ──
+  const [dismissingQueue, setDismissingQueue] = useState(false)
+
+  const closeQueueReview = useCallback(() => {
+    setDismissingQueue(true)
+    setTimeout(() => {
+      setShowQueueReview(false)
+      setDismissingQueue(false)
+    }, 280)
+  }, [])
 
   const openSite = useCallback((site: typeof BEDROCK_SITES[0]) => {
     setActiveSite(site)
@@ -85,7 +176,7 @@ export default function BedrockPage() {
     return (
       <div className={`bedrock-page${fullscreen ? ' fullscreen' : ''}`}>
         <div className="bedrock-browser-bar">
-          <button className="bedrock-back-btn" onClick={() => { setView('home'); setFullscreen(false) }}>
+          <button className="bedrock-back-btn" onClick={() => { setView('home'); setFullscreen(false); setShowQueueReview(false) }}>
             <IconBack width={16} height={16} />
           </button>
           <div className="bedrock-browser-tabs">
@@ -99,10 +190,68 @@ export default function BedrockPage() {
               </button>
             ))}
           </div>
-          <button className="bedrock-fullscreen-btn" onClick={() => setFullscreen(f => !f)} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
-            {fullscreen ? <IconMinimize width={14} height={14} /> : <IconMaximize width={14} height={14} />}
-          </button>
+
+          {/* Right-side controls: queue badge, back/forward nav, fullscreen */}
+          <div className="bedrock-browser-controls">
+            {/* Queue badge */}
+            {queueCount > 0 && (
+              <button
+                className="bedrock-queue-badge-btn"
+                onClick={openQueueReview}
+                title={`${queueCount} add-on${queueCount !== 1 ? 's' : ''} queued`}
+              >
+                <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                </svg>
+                <span className="bedrock-queue-count">{queueCount}</span>
+              </button>
+            )}
+
+            {/* Ad blocker toggle */}
+            <button
+              className={`bedrock-nav-btn${adBlockEnabled ? ' active' : ''}`}
+              onClick={toggleAdBlock}
+              title={adBlockEnabled ? 'Disable ad blocker' : 'Enable ad blocker'}
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+              </svg>
+            </button>
+
+            {/* Webview back */}
+            <button
+              className="bedrock-nav-btn"
+              onClick={() => webviewRef.current?.goBack?.()}
+              title="Go back"
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6"/>
+              </svg>
+            </button>
+
+            {/* Webview forward */}
+            <button
+              className="bedrock-nav-btn"
+              onClick={() => webviewRef.current?.goForward?.()}
+              title="Go forward"
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6"/>
+              </svg>
+            </button>
+
+            {/* Fullscreen */}
+            <button className="bedrock-nav-btn" onClick={() => setFullscreen(f => !f)} title={fullscreen ? 'Exit fullscreen' : 'Fullscreen'}>
+              {fullscreen ? <IconMinimize width={14} height={14} /> : <IconMaximize width={14} height={14} />}
+            </button>
+          </div>
         </div>
+
+        {/* Toast notification */}
+        {lastToast && (
+          <div className="bedrock-toast">{lastToast}</div>
+        )}
+
         <div className="bedrock-browser-content">
           <webview
             key={activeSite.id}
@@ -113,6 +262,65 @@ export default function BedrockPage() {
             allowpopups="true"
           />
         </div>
+
+        {/* Queue review panel — slides up from bottom */}
+        {showQueueReview && (
+          <div className={`bedrock-queue-overlay${dismissingQueue ? ' dismissing' : ''}`} onClick={closeQueueReview}>
+            <div className={`bedrock-queue-panel${dismissingQueue ? ' dismissing' : ''}`} onClick={e => e.stopPropagation()}>
+              <div className="bedrock-queue-panel-header">
+                <div className="bedrock-queue-panel-title">
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  Download Queue ({queueItems.length})
+                </div>
+                <button className="bedrock-queue-panel-close" onClick={closeQueueReview}>
+                  <svg width={16} height={16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+
+              <div className="bedrock-queue-list">
+                {queueItems.map((item, i) => (
+                  <div key={`${item.filename}-${i}`} className="bedrock-queue-item">
+                    <div className="bedrock-queue-item-icon">
+                      <IconCube width={16} height={16} />
+                    </div>
+                    <div className="bedrock-queue-item-info">
+                      <div className="bedrock-queue-item-name">{item.filename}</div>
+                      <div className="bedrock-queue-item-meta">
+                        {item.type.toUpperCase()} · {(item.size / 1024).toFixed(0)} KB
+                      </div>
+                    </div>
+                    <button
+                      className="bedrock-queue-item-remove"
+                      onClick={() => removeFromQueue(i)}
+                      title="Remove from queue"
+                    >
+                      <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              <div className="bedrock-queue-panel-footer">
+                <button
+                  className="bedrock-queue-confirm"
+                  onClick={confirmInstall}
+                  disabled={installing || queueItems.length === 0}
+                >
+                  <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+                  </svg>
+                  {installing ? 'Installing...' : `Install ${queueItems.length} Add-on${queueItems.length !== 1 ? 's' : ''}`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

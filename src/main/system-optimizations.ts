@@ -7,9 +7,14 @@ import { exec, execSync } from 'child_process'
 // Windows Defender Exclusion
 // ============================================================
 
-export async function addDefenderExclusion(): Promise<boolean> {
+export async function addDefenderExclusion(userConsented: boolean = false): Promise<boolean> {
+  if (!userConsented) {
+    console.log('[System] Defender exclusion skipped — user consent required. Enable in Settings > Performance.')
+    return false
+  }
   if (process.platform !== 'win32') return false
 
+  console.log('[System] Adding Defender exclusions (user-approved)...')
   const mcDataPath = join(app.getPath('userData'), 'minecraft_data')
   const instancesPath = join(app.getPath('userData'), 'instances')
 
@@ -37,9 +42,14 @@ export async function addDefenderExclusion(): Promise<boolean> {
 let savedPowerPlanGuid: string | null = null
 const HIGH_PERF_GUID = '8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c'
 
-export function setHighPerformancePowerPlan(): void {
+export function setHighPerformancePowerPlan(userConsented: boolean = false): void {
+  if (!userConsented) {
+    console.log('[System] Power plan change skipped — user consent required. Enable in Settings > Performance.')
+    return
+  }
   if (process.platform !== 'win32') return
 
+  console.log('[System] Setting High Performance power plan (user-approved)...')
   try {
     // Save current power plan
     const output = execSync('powercfg /getactivescheme', { encoding: 'utf8' })
@@ -117,11 +127,11 @@ export function writeOptimizedGameSettings(instancePath: string): void {
 }
 
 // ============================================================
-// Network Optimization (TCP + DNS)
+// Network Optimization (TCP only — DNS modification removed)
 // ============================================================
 
 /**
- * Apply TCP and DNS optimizations for lower latency gaming.
+ * Apply TCP optimizations for lower latency gaming.
  * Requires UAC elevation for registry changes.
  * 
  * Tweaks applied:
@@ -130,12 +140,20 @@ export function writeOptimizedGameSettings(instancePath: string): void {
  * - TcpDelAckTicks=0   (reinforces TcpAckFrequency)
  * - NetworkThrottlingIndex=0xFFFFFFFF (removes packet throttling)
  * - SystemResponsiveness=0 (max CPU to foreground)
- * - DNS → Cloudflare 1.1.1.1 (faster initial connections)
+ * 
+ * NOTE: DNS modification has been removed — changing system DNS
+ * without explicit user consent is inappropriate for a game launcher.
  */
-export async function applyNetworkOptimizations(): Promise<boolean> {
+export async function applyNetworkOptimizations(userConsented: boolean = false): Promise<boolean> {
+  if (!userConsented) {
+    console.log('[System] Network optimizations skipped — user consent required. Enable in Settings > Performance.')
+    return false
+  }
   if (process.platform !== 'win32') return false
 
-  // PowerShell script to apply all network tweaks
+  console.log('[System] Applying TCP network optimizations (user-approved)...')
+
+  // PowerShell script to apply TCP tweaks only (no DNS modification)
   const script = `
     # --- TCP Tweaks (per-adapter) ---
     $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and ($_.InterfaceType -eq 6 -or $_.InterfaceType -eq 71) }
@@ -160,14 +178,6 @@ export async function applyNetworkOptimizations(): Promise<boolean> {
     Set-ItemProperty -Path $mmPath -Name 'NetworkThrottlingIndex' -Value 0xFFFFFFFF -Type DWord -Force
     Set-ItemProperty -Path $mmPath -Name 'SystemResponsiveness' -Value 0 -Type DWord -Force
     Write-Host 'Network throttling disabled'
-
-    # --- DNS (Cloudflare) ---
-    $activeAdapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-    foreach ($a in $activeAdapters) {
-      Set-DnsClientServerAddress -InterfaceIndex $a.InterfaceIndex -ServerAddresses ('1.1.1.1','1.0.0.1') -ErrorAction SilentlyContinue
-    }
-    Clear-DnsClientCache
-    Write-Host 'DNS set to Cloudflare 1.1.1.1'
   `.replace(/\n/g, '; ').replace(/;(\s*;)+/g, ';')
 
   try {
@@ -178,7 +188,7 @@ export async function applyNetworkOptimizations(): Promise<boolean> {
         else resolve()
       })
     })
-    console.log('[Perf] Network optimizations applied (TCP + DNS)')
+    console.log('[Perf] Network optimizations applied (TCP only)')
     return true
   } catch (err: any) {
     console.warn('[Perf] Network optimization failed:', err.message)
@@ -187,34 +197,12 @@ export async function applyNetworkOptimizations(): Promise<boolean> {
 }
 
 /**
- * Restore DNS to automatic (DHCP) defaults.
- * TCP registry changes require a reboot to fully revert,
- * so we only restore DNS here.
+ * Restore network settings.
+ * Since DNS is no longer modified, this is a no-op placeholder.
+ * TCP registry changes require a reboot to fully revert.
  */
 export async function restoreNetworkSettings(): Promise<boolean> {
   if (process.platform !== 'win32') return false
-
-  try {
-    const script = `
-      $adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
-      foreach ($a in $adapters) {
-        Set-DnsClientServerAddress -InterfaceIndex $a.InterfaceIndex -ResetServerAddresses -ErrorAction SilentlyContinue
-      }
-      Clear-DnsClientCache
-      Write-Host 'DNS restored to defaults'
-    `.replace(/\n/g, '; ').replace(/;(\s*;)+/g, ';')
-
-    const cmd = `powershell -Command "Start-Process powershell -Verb RunAs -ArgumentList '-Command','${script.replace(/'/g, "''")}' -Wait"`
-    await new Promise<void>((resolve, reject) => {
-      exec(cmd, { timeout: 30000 }, (err) => {
-        if (err) reject(err)
-        else resolve()
-      })
-    })
-    console.log('[Perf] Network settings restored')
-    return true
-  } catch (err: any) {
-    console.warn('[Perf] Network restore failed:', err.message)
-    return false
-  }
+  console.log('[Perf] Network restore: TCP registry changes require a reboot to fully revert.')
+  return true
 }

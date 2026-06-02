@@ -3,12 +3,15 @@ import './SplashScreen.css'
 
 interface SplashScreenProps {
   onComplete: () => void
+  quickLaunchEnabled?: boolean
+  onQuickLaunch?: () => void
 }
 
-export default function SplashScreen({ onComplete }: SplashScreenProps) {
+export default function SplashScreen({ onComplete, quickLaunchEnabled, onQuickLaunch }: SplashScreenProps) {
   const [progress, setProgress] = useState(0)
   const [step, setStep] = useState('Starting up...')
   const [fadeOut, setFadeOut] = useState(false)
+  const [loadingDone, setLoadingDone] = useState(false)
   const smoothProgress = useRef(0)
   const animFrame = useRef<number | null>(null)
 
@@ -37,8 +40,12 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       smoothProgress.current = 100
 
       setTimeout(() => {
-        setFadeOut(true)
-        setTimeout(onComplete, 800)
+        setLoadingDone(true)
+        // Always auto-proceed after loading completes
+        setTimeout(() => {
+          setFadeOut(true)
+          setTimeout(onComplete, 800)
+        }, 400)
       }, remaining + 400) // 400ms extra to show full bar
     }
 
@@ -139,6 +146,22 @@ export default function SplashScreen({ onComplete }: SplashScreenProps) {
       </div>
 
       <div className="splash-credit">Credit: Roburrito DX</div>
+
+      {/* Quick Launch button — visible immediately when enabled */}
+      {quickLaunchEnabled && !fadeOut && (
+        <button
+          className="splash-quick-launch"
+          onClick={() => {
+            setFadeOut(true)
+            setTimeout(() => onQuickLaunch?.(), 800)
+          }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          Quick Launch
+        </button>
+      )}
     </div>
   )
 }

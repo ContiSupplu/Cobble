@@ -1,7 +1,10 @@
 import { app } from 'electron'
 import { net } from 'electron'
 import { join } from 'path'
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, unlinkSync } from 'fs'
+import { createHash } from 'crypto'
+import { storeGet } from './settings-store'
+import { storeAndLink } from './mod-store'
 
 // ============================================================
 // Performance Mods — Auto-installer
@@ -14,6 +17,10 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 
 const INSTANCES_DIR = join(app.getPath('userData'), 'instances')
 const MODRINTH_UA = 'loom-launcher/1.0.0'
+const PERF_CHECK_CACHE_TTL = 6 * 60 * 60 * 1000 // 6 hours
+
+// In-memory cache of last perf mod check per instance
+const lastPerfCheckCache = new Map<string, { time: number; version: string; loader: string }>()
 
 /**
  * The performance mods to auto-install.
@@ -41,8 +48,9 @@ const PERFORMANCE_MODS: PerfModEntry[] = [
   { slug: 'immediatelyfast', name: 'ImmediatelyFast', description: 'UI/text rendering optimization' },
   { slug: 'entityculling', name: 'Entity Culling', description: 'Skip rendering hidden entities' },
   { slug: 'enhanced-block-entities', name: 'Enhanced Block Entities', description: 'Block entity rendering optimization (chests, signs, beds)', loaders: ['fabric', 'quilt'] },
-  { slug: 'moreculling', name: 'More Culling', description: 'Additional culling for entities, tiles, and sky', loaders: ['fabric', 'quilt'] },
-  { slug: 'cull-less-leaves', name: 'Cull Less Leaves', description: 'Configurable leaf rendering optimization', loaders: ['fabric', 'quilt'] },
+  // Note: moreculling and cull-less-leaves removed — they have strict Sodium version
+  // requirements (e.g. Sodium 0.6.x only) and cause crashes when Sodium updates.
+  // Their performance benefit is marginal compared to Sodium/Lithium.
   { slug: 'sodium-extra', name: 'Sodium Extra', description: 'Extra optimization toggles for Sodium', loaders: ['fabric', 'quilt'] },
   { slug: 'badoptimizations', name: 'BadOptimizations', description: 'Non-rendering logic optimizations' },
 
@@ -152,11 +160,33 @@ export function blacklistPerfMod(instanceId: string, slug: string): void {
   }
 }
 
-async function downloadFile(url: string, destPath: string): Promise<void> {
+async function downloadFile(url: string, destPath: string, expectedSha512?: string): Promise<void> {
   const response = await net.fetch(url)
   if (!response.ok) throw new Error(`Download failed: ${response.status}`)
   const buffer = Buffer.from(await response.arrayBuffer())
-  writeFileSync(destPath, buffer)
+
+  // Verify SHA-512 hash if provided
+  if (expectedSha512) {
+    const actualHash = createHash('sha512').update(buffer).digest('hex')
+    if (actualHash !== expectedSha512) {
+      throw new Error(`Hash mismatch for ${destPath}! Expected: ${expectedSha512.substring(0, 16)}... Got: ${actualHash.substring(0, 16)}...`)
+    }
+    console.log(`[Security] Hash verified: ${destPath}`)
+  }
+
+  // Route through mod store for deduplication
+  const { basename, dirname } = require('path')
+  const fileName = basename(destPath)
+  const modsDir = dirname(destPath)
+  try {
+    const result = storeAndLink(buffer, fileName, modsDir)
+    if (result.alreadyExisted) {
+      console.log(`[ModStore] Dedup hit: ${fileName} (hard-linked from store)`)
+    }
+  } catch {
+    // Fallback: write directly if mod store fails
+    writeFileSync(destPath, buffer)
+  }
 }
 
 async function getCompatibleVersion(
@@ -169,7 +199,28 @@ async function getCompatibleVersion(
     const response = await net.fetch(url, { headers: { 'User-Agent': MODRINTH_UA } })
     if (response.ok) {
       const versions = await response.json()
-      if (versions.length > 0) return versions[0]
+      if (versions.length === 0) return null
+
+      // Prefer stable releases over pre-releases.
+      // Modrinth returns version_type: 'release' | 'beta' | 'alpha'.
+      // Installing alpha/beta mods (e.g. Sodium 0.8.x-alpha) breaks
+      // dependent mods (Iris, Sodium Extra) that only support stable APIs.
+      const stableVersions = versions.filter((v: any) => v.version_type === 'release')
+      if (stableVersions.length > 0) {
+        console.log(`[PerfMods] ${slug}: picked stable v${stableVersions[0].version_number} (${stableVersions.length} stable, ${versions.length} total)`)
+        return stableVersions[0]
+      }
+
+      // Fallback: prefer beta over alpha
+      const betaVersions = versions.filter((v: any) => v.version_type === 'beta')
+      if (betaVersions.length > 0) {
+        console.log(`[PerfMods] ${slug}: no stable release, using beta v${betaVersions[0].version_number}`)
+        return betaVersions[0]
+      }
+
+      // Last resort: use whatever is available (alpha)
+      console.log(`[PerfMods] ${slug}: no stable/beta, using alpha v${versions[0].version_number}`)
+      return versions[0]
     }
   } catch { /* ignore */ }
   return null
@@ -207,13 +258,57 @@ export async function installPerformanceMods(
   }
 
   console.log(`[PerfMods] Installing performance mods for ${instanceId} (MC ${gameVersion}, ${loader})`)
+
+  // Check cache — skip if we checked recently with same version/loader
+  const cached = lastPerfCheckCache.get(instanceId)
+  if (cached && cached.version === gameVersion && cached.loader === loader
+      && Date.now() - cached.time < PERF_CHECK_CACHE_TTL) {
+    console.log(`[PerfMods] Skipping check — last verified ${Math.round((Date.now() - cached.time) / 60000)}min ago`)
+    return
+  }
+
   const modsDir = getInstanceModsDir(instanceId)
   const existingMods = readInstanceMods(instanceId)
   const blacklist = readBlacklist(instanceId)
 
-  // Build the mod list — include Iris if its separate toggle is on
-  const { storeGet } = require('./settings-store')
+  // ── Cleanup: Remove perf mods we previously installed that are no longer in our list ──
+  // This handles mods we've removed from the curated set (e.g., moreculling, cull-less-leaves)
   const irisEnabled = storeGet?.('perf_iris_shaders') ?? false
+  const allModSlugs = new Set([...PERFORMANCE_MODS.map(m => m.slug), ...(irisEnabled ? [IRIS_MOD.slug] : [])])
+  
+  const removedMods = existingMods.filter(
+    (m: any) => m.isPerfMod && !allModSlugs.has(m.slug)
+  )
+  for (const rm of removedMods) {
+    try {
+      const rmPath = join(modsDir, rm.fileName)
+      if (existsSync(rmPath)) {
+        unlinkSync(rmPath)
+        console.log(`[PerfMods] Removed deprecated mod: ${rm.slug} (${rm.fileName})`)
+      }
+    } catch { /* ignore */ }
+  }
+  // Also scan for known problematic files that might have been installed before tracking
+  const DEPRECATED_MODS = ['moreculling', 'cull-less-leaves']
+  try {
+    const modFiles = readdirSync(modsDir) as string[]
+    for (const file of modFiles) {
+      const lower = file.toLowerCase()
+      if (DEPRECATED_MODS.some(d => lower.includes(d.replace('-', '')))) {
+        unlinkSync(join(modsDir, file))
+        console.log(`[PerfMods] Removed deprecated mod file: ${file}`)
+      }
+    }
+  } catch { /* ignore */ }
+  // Update mods.json to remove entries for deprecated mods
+  const cleanedMods = existingMods.filter(
+    (m: any) => !removedMods.some((rm: any) => rm.slug === m.slug)
+  )
+  if (cleanedMods.length !== existingMods.length) {
+    writeInstanceMods(instanceId, cleanedMods)
+  }
+
+  // Build the mod list — include Iris if its separate toggle is on
   const allMods = irisEnabled ? [...PERFORMANCE_MODS, IRIS_MOD] : PERFORMANCE_MODS
 
   const applicableMods = allMods.filter(mod => {
@@ -255,6 +350,14 @@ export async function installPerformanceMods(
 
   if (modsToInstall.length === 0) {
     console.log('[PerfMods] All performance mods already installed.')
+    // Bulk update check — single API call instead of 20+ individual ones
+    try {
+      await checkBulkPerfModUpdates(instanceId, modsDir, existingMods, gameVersion, loader)
+    } catch (err: any) {
+      console.log(`[PerfMods] Bulk update check skipped: ${err.message}`)
+    }
+    // Cache successful check
+    lastPerfCheckCache.set(instanceId, { time: Date.now(), version: gameVersion, loader })
     return
   }
 
@@ -279,7 +382,8 @@ export async function installPerformanceMods(
         return null
       }
 
-      await downloadFile(primaryFile.url, destPath)
+      const expectedHash = primaryFile.hashes?.sha512 || undefined
+      await downloadFile(primaryFile.url, destPath, expectedHash)
       console.log(`[PerfMods] ${mod.slug} v${version.version_number} downloaded.`)
 
       return {
@@ -318,5 +422,166 @@ export async function installPerformanceMods(
     console.log(`[PerfMods] ${newEntries.length} performance mod(s) installed and tracked.`)
   } else {
     console.log('[PerfMods] No new mods were installed.')
+  }
+
+  // Cache successful check
+  lastPerfCheckCache.set(instanceId, { time: Date.now(), version: gameVersion, loader })
+
+  // Ship optimized ModernFix config
+  ensureModernFixConfig(instanceId)
+}
+
+/**
+ * Ship a ModernFix config with `dynamic_resources` enabled.
+ * This is the single biggest startup optimization — defers model baking
+ * and atlas stitching to on-demand loading so the title screen appears faster.
+ *
+ * Only writes if the config doesn't exist yet (preserves user customizations).
+ */
+export function ensureModernFixConfig(instanceId: string): void {
+  const instanceDir = join(INSTANCES_DIR, instanceId)
+  const configDir = join(instanceDir, 'config')
+  const configFile = join(configDir, 'modernfix-mixins.properties')
+
+  // Don't overwrite if user already has a config
+  if (existsSync(configFile)) return
+
+  try {
+    if (!existsSync(configDir)) {
+      mkdirSync(configDir, { recursive: true })
+    }
+
+    // Enable dynamic_resources — defers model baking to on-demand loading
+    // This dramatically cuts time-to-title-screen on modded instances
+    const config = [
+      '# ModernFix config — shipped by Loom Launcher for faster startup',
+      '# dynamic_resources defers model baking/atlas stitching to on-demand',
+      '# Delete this file to regenerate with defaults',
+      '',
+      'mixin.perf.dynamic_resources=true',
+      'mixin.perf.deduplicate_location=true',
+      'mixin.perf.blast_search_trees=true',
+      'mixin.perf.faster_item_rendering=true',
+      'mixin.feature.measure_time=true',
+      '',
+    ].join('\n')
+
+    writeFileSync(configFile, config, 'utf-8')
+    console.log('[PerfMods] ModernFix config shipped with dynamic_resources=true')
+  } catch (err: any) {
+    console.log(`[PerfMods] ModernFix config skip: ${err.message}`)
+  }
+}
+
+// ============================================================
+// Bulk Update Check — Single API call for all installed perf mods
+// ============================================================
+
+/**
+ * Check all installed perf mods for updates using a single Modrinth API call
+ * (POST /v2/version_files/update) instead of 20+ individual lookups.
+ */
+async function checkBulkPerfModUpdates(
+  instanceId: string,
+  modsDir: string,
+  existingMods: any[],
+  gameVersion: string,
+  loader: string
+): Promise<void> {
+  // Collect SHA-512 hashes of installed perf mod JARs
+  const hashToFile = new Map<string, { filename: string; slug: string }>()
+
+  for (const mod of existingMods) {
+    if (!mod.filename) continue
+    const filePath = join(modsDir, mod.filename)
+    if (!existsSync(filePath)) continue
+    try {
+      const buffer = readFileSync(filePath)
+      const hash = createHash('sha512').update(buffer).digest('hex')
+      hashToFile.set(hash, { filename: mod.filename, slug: mod.slug })
+    } catch { /* skip */ }
+  }
+
+  if (hashToFile.size === 0) {
+    console.log('[PerfMods] No installed perf mod JARs found for bulk check')
+    return
+  }
+
+  console.log(`[PerfMods] Bulk update check: ${hashToFile.size} mod(s) in 1 API call`)
+
+  const response = await net.fetch('https://api.modrinth.com/v2/version_files/update', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': MODRINTH_UA,
+    },
+    body: JSON.stringify({
+      hashes: [...hashToFile.keys()],
+      algorithm: 'sha512',
+      loaders: [loader.toLowerCase()],
+      game_versions: [gameVersion],
+    }),
+  })
+
+  if (!response.ok) {
+    console.log(`[PerfMods] Bulk update API returned ${response.status}`)
+    return
+  }
+
+  const updates = await response.json() as Record<string, any>
+  let updatedCount = 0
+
+  for (const [hash, latestVersion] of Object.entries(updates)) {
+    const installed = hashToFile.get(hash)
+    if (!installed) continue
+
+    // Check if the latest version is different from what's installed
+    const latestFile = latestVersion.files?.find((f: any) => f.primary) || latestVersion.files?.[0]
+    if (!latestFile) continue
+
+    // If the hash matches, it's already the latest
+    if (latestFile.hashes?.sha512 === hash) continue
+
+    // Update available — download it
+    console.log(`[PerfMods] Update available for ${installed.slug}: ${latestVersion.version_number}`)
+    try {
+      const dlRes = await net.fetch(latestFile.url)
+      if (!dlRes.ok) continue
+      const buffer = Buffer.from(await dlRes.arrayBuffer())
+
+      // Verify hash
+      if (latestFile.hashes?.sha512) {
+        const actualHash = createHash('sha512').update(buffer).digest('hex')
+        if (actualHash !== latestFile.hashes.sha512) {
+          console.log(`[PerfMods] Hash mismatch for ${installed.slug} update, skipping`)
+          continue
+        }
+      }
+
+      // Remove old file, write new one
+      try { unlinkSync(join(modsDir, installed.filename)) } catch { /* ignore */ }
+      const newFilename = latestFile.filename || `${installed.slug}-${latestVersion.version_number}.jar`
+      writeFileSync(join(modsDir, newFilename), buffer)
+
+      // Update mods.json entry
+      const currentMods = readInstanceMods(instanceId)
+      const modEntry = currentMods.find((m: any) => m.slug === installed.slug)
+      if (modEntry) {
+        modEntry.filename = newFilename
+        modEntry.version = latestVersion.version_number
+        writeInstanceMods(instanceId, currentMods)
+      }
+
+      console.log(`[PerfMods] Updated ${installed.slug} to v${latestVersion.version_number}`)
+      updatedCount++
+    } catch (err: any) {
+      console.log(`[PerfMods] Failed to update ${installed.slug}: ${err.message}`)
+    }
+  }
+
+  if (updatedCount > 0) {
+    console.log(`[PerfMods] Bulk update: ${updatedCount} mod(s) updated`)
+  } else {
+    console.log('[PerfMods] All perf mods are up-to-date')
   }
 }

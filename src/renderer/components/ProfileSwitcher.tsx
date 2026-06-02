@@ -8,7 +8,7 @@ interface ProfileSwitcherProps {
   onAddAccount: () => void
   onRemoveAccount: (uuid: string) => void
   onEditDisplayName: (uuid: string, newName: string) => void
-  incognitoActive?: boolean
+  privacyActive?: boolean
 }
 
 export default function ProfileSwitcher({
@@ -18,7 +18,7 @@ export default function ProfileSwitcher({
   onAddAccount,
   onRemoveAccount,
   onEditDisplayName,
-  incognitoActive,
+  privacyActive,
 }: ProfileSwitcherProps) {
   const [open, setOpen] = useState(false)
   const [contextUuid, setContextUuid] = useState<string | null>(null)
@@ -129,8 +129,8 @@ export default function ProfileSwitcher({
         ) : (
           <div className="profile-switcher-head-placeholder">?</div>
         )}
-        {incognitoActive && (
-          <span className="profile-switcher-incognito">
+        {privacyActive && (
+          <span className="profile-switcher-privacy">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
             </svg>

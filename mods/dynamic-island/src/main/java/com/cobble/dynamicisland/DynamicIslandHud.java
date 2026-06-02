@@ -5,10 +5,18 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.render.Tessellator;
+import net.minecraft.client.render.VertexFormat;
+import net.minecraft.client.render.VertexFormats;
+import net.minecraft.client.render.BufferRenderer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.texture.NativeImageBackedTexture;
+import net.minecraft.client.texture.AbstractTexture;
+import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import net.minecraft.item.ItemStack;
+import com.mojang.blaze3d.systems.RenderSystem;
+import org.lwjgl.opengl.GL11;
 
 import java.io.InputStream;
 import java.net.URI;
@@ -27,6 +35,23 @@ public class DynamicIslandHud implements HudRenderCallback {
     private float notifCenterProgress = 0f;
     private float settingsProgress = 0f;
     private float combatProgress = 0f;
+    private float mediaProgress = 0f;
+
+    // Browser texture wrapper for MCEF rendering
+    private static final Identifier BROWSER_TEX_ID = Identifier.of("cobble", "mcef_browser");
+    private static int lastBrowserTexId = 0;
+    private static int browserGlTexId = 0;
+    private static final AbstractTexture BROWSER_TEXTURE = new AbstractTexture() {
+        @Override public void load(ResourceManager mgr) {}
+        @Override public int getGlId() { return browserGlTexId; }
+        @Override public void close() {} // Don't delete MCEF's texture
+    };
+    private long browserFrameCount = 0; // Frame counter for skipping
+
+    // App Drawer state
+    public static boolean isAppDrawerOpen = false;
+    public static float appDrawerProgress = 0f;
+    public static int mouseX = 0, mouseY = 0;
 
     // Coord copy/share feedback
     private String coordFeedback = null;
@@ -110,6 +135,13 @@ public class DynamicIslandHud implements HudRenderCallback {
         } else if (combatActive) {
             // Combat HUD
             showCombat = true;
+            // Auto-close media panel when entering combat (audio keeps playing)
+            if (DynamicIslandMod.isMediaOpen) {
+                DynamicIslandMod.isMediaOpen = false;
+                if (MinecraftClient.getInstance().currentScreen instanceof TwitchScreen) {
+                    MinecraftClient.getInstance().setScreen(null);
+                }
+            }
             if (CombatTracker.isCelebrating()) {
                 String killText = "✦ Eliminated " + CombatTracker.killedPlayerName;
                 targetW = Math.max(160, font.getWidth(killText) + 32);
@@ -237,15 +269,55 @@ public class DynamicIslandHud implements HudRenderCallback {
         }
 
         // Biome footnote expands pill slightly
-        if (showBiome && !hasNotif && !showCombat && !DynamicIslandMod.isPebbleOpen && !DynamicIslandMod.isNotifCenterOpen && !DynamicIslandMod.isSettingsOpen) targetH += 12f;
+        if (showBiome && !hasNotif && !showCombat && !DynamicIslandMod.isPebbleOpen && !DynamicIslandMod.isNotifCenterOpen && !DynamicIslandMod.isSettingsOpen && !DynamicIslandMod.isMediaOpen) targetH += 12f;
 
-        // Panel overrides
+        // Panel overrides — unique sizes per panel
         boolean pebbleOpen = DynamicIslandMod.isPebbleOpen;
         boolean notifOpen = DynamicIslandMod.isNotifCenterOpen;
         boolean settingsOpen = DynamicIslandMod.isSettingsOpen;
-        if (pebbleOpen) { targetW = 300f; targetH = 220f; }
-        if (notifOpen) { targetW = 300f; targetH = 260f; }
-        if (settingsOpen) { targetW = 320f; targetH = 280f; }
+        boolean mediaOpen = DynamicIslandMod.isMediaOpen;
+        boolean drawerOpen = isAppDrawerOpen;
+        if (pebbleOpen) { targetW = 280f; targetH = 200f; }
+        if (notifOpen) { targetW = 260f; targetH = 220f; }
+        if (settingsOpen) { targetW = 300f; targetH = 260f; }
+        if (mediaOpen) {
+            if (InGameBrowser.isActive) {
+                // Browser mode — large panel for desktop YouTube/Twitch
+                int scaledH = client.getWindow().getScaledHeight();
+                targetW = Math.min(screenW - 6, 560f);
+                targetH = Math.min(scaledH * 0.82f, scaledH - 50f);
+            } else {
+                boolean isPlaying = !"SEARCH".equals(MediaViewer.activeTab);
+                if (isPlaying) { targetW = 360f; targetH = 260f; }
+                else {
+                    int resultCount = MediaViewer.searchResults.isEmpty() ? 0 : MediaViewer.getPageResults().size();
+                    if (resultCount == 0 && !MediaViewer.isSearching) {
+                        targetW = 300f; targetH = 50f;
+                    } else if (resultCount == 0 && MediaViewer.isSearching) {
+                        targetW = 300f; targetH = 70f;
+                    } else {
+                        targetW = 350f;
+                        targetH = Math.min(40 + resultCount * 36 + 30, 300f);
+                    }
+                }
+            }
+        }
+        if (drawerOpen) { targetW = 220f; targetH = 180f; } // 3x2 grid
+        // Background media playback — wider pill to show title + EQ bars
+        if (!mediaOpen && !pebbleOpen && !notifOpen && !settingsOpen && !drawerOpen && !showCombat) {
+            if (MediaViewer.isPlayingInBackground()) {
+                String bgTitle = MediaViewer.currentTitle;
+                int titleW = font.getWidth(bgTitle);
+                targetW = Math.max(220, Math.min(titleW + 60, 320));
+                targetH = 34f;
+            } else if (InGameBrowser.isPlayingInBackground()) {
+                String bgTitle = InGameBrowser.pageTitle;
+                if (bgTitle.isEmpty()) bgTitle = "Browser";
+                int titleW = font.getWidth(bgTitle);
+                targetW = Math.max(220, Math.min(titleW + 60, 320));
+                targetH = 34f;
+            }
+        }
 
         // ── Animation ──────────────────────────────
         float lerp = 0.12f;
@@ -276,6 +348,16 @@ public class DynamicIslandHud implements HudRenderCallback {
         combatProgress += (combatTarget - combatProgress) * 0.12f;
         if (combatProgress < 0.005f) combatProgress = 0f;
         if (combatProgress > 0.995f) combatProgress = 1f;
+
+        float mediaTarget = mediaOpen ? 1f : 0f;
+        mediaProgress += (mediaTarget - mediaProgress) * 0.1f;
+        if (mediaProgress < 0.005f) mediaProgress = 0f;
+        if (mediaProgress > 0.995f) mediaProgress = 1f;
+
+        float drawerTarget = drawerOpen ? 1f : 0f;
+        appDrawerProgress += (drawerTarget - appDrawerProgress) * 0.12f;
+        if (appDrawerProgress < 0.005f) appDrawerProgress = 0f;
+        if (appDrawerProgress > 0.995f) appDrawerProgress = 1f;
 
         int x = (int)(screenW / 2f - currentWidth / 2f);
         int y = (int) currentY;
@@ -331,7 +413,7 @@ public class DynamicIslandHud implements HudRenderCallback {
         // CONTENT (hidden when Pebble is taking over)
         // ══════════════════════════════════════════════
 
-      if (pebbleProgress < 0.3f && notifCenterProgress < 0.3f && settingsProgress < 0.3f) {
+      if (pebbleProgress < 0.3f && notifCenterProgress < 0.3f && settingsProgress < 0.3f && mediaProgress < 0.3f && appDrawerProgress < 0.3f) {
 
         if (hasNotif) {
             int textAlpha = (int)(0xDD * notifAlpha);
@@ -358,6 +440,23 @@ public class DynamicIslandHud implements HudRenderCallback {
                 ctx.drawTextWithShadow(font, center, startX + headSize + 4, textY, textColor);
             } else {
                 ctx.drawTextWithShadow(font, center, screenW / 2 - font.getWidth(center) / 2, textY, textColor);
+            }
+        } else if (!com.cobble.dynamicisland.protection.LoomShield.recentBlocks.isEmpty() && !showCombat) {
+            // ── LOOM SHIELD ALERT ──
+            com.cobble.dynamicisland.protection.LoomShield.recentBlocks.removeIf(
+                com.cobble.dynamicisland.protection.LoomShield.BlockedEvent::isExpired);
+            if (!com.cobble.dynamicisland.protection.LoomShield.recentBlocks.isEmpty()) {
+                var latest = com.cobble.dynamicisland.protection.LoomShield.recentBlocks.get(
+                    com.cobble.dynamicisland.protection.LoomShield.recentBlocks.size() - 1);
+                float age = (System.currentTimeMillis() - latest.timestamp) / 4000f;
+                int shieldAlpha = (int)(0xDD * (1f - age));
+                if (shieldAlpha > 0) {
+                    String shieldText = "\u26E8 " + latest.type;
+                    int shieldColor = (shieldAlpha << 24) | 0x55FF55;
+                    ctx.drawTextWithShadow(font, shieldText,
+                        screenW / 2 - font.getWidth(shieldText) / 2,
+                        y + (h - 7) / 2, shieldColor);
+                }
             }
         } else if (showCombat) {
             // ── COMBAT HUD ──
@@ -523,6 +622,123 @@ public class DynamicIslandHud implements HudRenderCallback {
             ctx.drawTextWithShadow(font, center, screenW / 2 - font.getWidth(center) / 2, y + 16, 0xFFFFFF);
             ctx.drawTextWithShadow(font, coords, screenW / 2 - font.getWidth(coords) / 2, y + 28, 0x555555);
 
+        // Background media playback indicator — styled like music player (BEFORE idle text!)
+        } else if (MediaViewer.isPlayingInBackground() && !mediaOpen && !hasNotif && !showCombat) {
+            int compactH = 34;
+            int sourceColor = MediaViewer.mediaType == MediaViewer.MediaType.TWITCH ? 0x9146FF : 0xFF0000;
+            boolean isPlaying = MediaViewer.isPlaying();
+
+            // Source logo (pixel art icon)
+            boolean isTwitch = MediaViewer.mediaType == MediaViewer.MediaType.TWITCH;
+            int badgeW = 14;
+            int badgeH = 10;
+            int badgeX = x + 6;
+            int badgeY = y + (compactH - badgeH) / 2;
+            if (!isTwitch) {
+                // YouTube logo: red rounded rect + white play triangle
+                drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 3, 0xFFFF0000);
+                ctx.fill(badgeX + 5, badgeY + 2, badgeX + 6, badgeY + 8, 0xFFFFFFFF);
+                ctx.fill(badgeX + 6, badgeY + 3, badgeX + 7, badgeY + 7, 0xFFFFFFFF);
+                ctx.fill(badgeX + 7, badgeY + 3, badgeX + 8, badgeY + 7, 0xFFFFFFFF);
+                ctx.fill(badgeX + 8, badgeY + 4, badgeX + 9, badgeY + 6, 0xFFFFFFFF);
+                ctx.fill(badgeX + 9, badgeY + 4, badgeX + 10, badgeY + 6, 0xFFFFFFFF);
+            } else {
+                // Twitch logo: purple speech bubble with eyes
+                drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 3, 0xFF9146FF);
+                ctx.fill(badgeX + 4, badgeY + 3, badgeX + 5, badgeY + 6, 0xFFFFFFFF);
+                ctx.fill(badgeX + 8, badgeY + 3, badgeX + 9, badgeY + 6, 0xFFFFFFFF);
+            }
+
+            // Title + source label
+            int textX = badgeX + badgeW + 5;
+            String bgTitle = MediaViewer.currentTitle;
+            int titleMaxW3 = w - badgeW - 42;
+            if (font.getWidth(bgTitle) > titleMaxW3) {
+                while (font.getWidth(bgTitle + "...") > titleMaxW3 && bgTitle.length() > 1)
+                    bgTitle = bgTitle.substring(0, bgTitle.length() - 1);
+                bgTitle += "...";
+            }
+            ctx.drawTextWithShadow(font, bgTitle, textX, y + 7, 0xFFDDDDDD);
+            String sourceLabel2 = MediaViewer.mediaType == MediaViewer.MediaType.TWITCH ? "Twitch" : "YouTube";
+            ctx.drawTextWithShadow(font, sourceLabel2, textX, y + 18, 0xFF888888);
+
+            // EQ bars (like music player)
+            int eqX = x + w - 18;
+            int eqY = y + 8;
+            long nowMs = System.currentTimeMillis();
+            if (isPlaying) {
+                int eqColor = 0xFF000000 | sourceColor;
+                drawEqBar(ctx, eqX,     eqY, 3, 14, eqColor, nowMs, 1.0, 0.0);
+                drawEqBar(ctx, eqX + 4, eqY, 3, 14, eqColor, nowMs, 1.4, 1.5);
+                drawEqBar(ctx, eqX + 8, eqY, 3, 14, eqColor, nowMs, 0.9, 3.0);
+            } else {
+                ctx.fill(eqX, eqY + 7, eqX + 3, eqY + 14, 0xFF666666);
+                ctx.fill(eqX + 4, eqY + 4, eqX + 7, eqY + 14, 0xFF666666);
+                ctx.fill(eqX + 8, eqY + 9, eqX + 11, eqY + 14, 0xFF666666);
+            }
+
+            // Progress bar at bottom (like music player)
+            long pos = MediaViewer.getPosition();
+            long dur = MediaViewer.getDuration();
+            int barY3 = y + compactH - 4;
+            int barX3 = x + 14;
+            int barW3 = w - 28;
+            ctx.fill(barX3, barY3, barX3 + barW3, barY3 + 2, 0x30FFFFFF);
+            if (dur > 0) {
+                int filled = (int)(barW3 * pos / (float) dur);
+                if (filled > 0) ctx.fill(barX3, barY3, barX3 + filled, barY3 + 2, 0xFF000000 | sourceColor);
+            }
+
+        // Browser background playback indicator
+        } else if (InGameBrowser.isPlayingInBackground() && !mediaOpen && !hasNotif && !showCombat) {
+            int compactH = 34;
+            String currentUrl = InGameBrowser.getCurrentUrl();
+            boolean isTwitch = currentUrl.contains("twitch.tv");
+            int sourceColor = isTwitch ? 0x9146FF : 0xFF0000;
+
+            // Source logo (pixel art YouTube/Twitch icon)
+            int badgeW = 14;
+            int badgeH = 10;
+            int badgeX = x + 6;
+            int badgeY = y + (compactH - badgeH) / 2;
+            if (!isTwitch) {
+                // YouTube logo: red rounded rect + white play triangle
+                drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 3, 0xFFFF0000);
+                ctx.fill(badgeX + 5, badgeY + 2, badgeX + 6, badgeY + 8, 0xFFFFFFFF);
+                ctx.fill(badgeX + 6, badgeY + 3, badgeX + 7, badgeY + 7, 0xFFFFFFFF);
+                ctx.fill(badgeX + 7, badgeY + 3, badgeX + 8, badgeY + 7, 0xFFFFFFFF);
+                ctx.fill(badgeX + 8, badgeY + 4, badgeX + 9, badgeY + 6, 0xFFFFFFFF);
+                ctx.fill(badgeX + 9, badgeY + 4, badgeX + 10, badgeY + 6, 0xFFFFFFFF);
+            } else {
+                // Twitch logo: purple speech bubble with eyes
+                drawRoundedRect(ctx, badgeX, badgeY, badgeW, badgeH, 3, 0xFF9146FF);
+                ctx.fill(badgeX + 4, badgeY + 3, badgeX + 5, badgeY + 6, 0xFFFFFFFF);
+                ctx.fill(badgeX + 8, badgeY + 3, badgeX + 9, badgeY + 6, 0xFFFFFFFF);
+            }
+
+            // Title
+            int textX = badgeX + badgeW + 5;
+            String bgTitle = InGameBrowser.pageTitle;
+            if (bgTitle.isEmpty()) bgTitle = isTwitch ? "Twitch" : "YouTube";
+            int titleMaxW3 = w - badgeW - 42;
+            if (font.getWidth(bgTitle) > titleMaxW3) {
+                while (font.getWidth(bgTitle + "...") > titleMaxW3 && bgTitle.length() > 1)
+                    bgTitle = bgTitle.substring(0, bgTitle.length() - 1);
+                bgTitle += "...";
+            }
+            ctx.drawTextWithShadow(font, bgTitle, textX, y + 7, 0xFFDDDDDD);
+            String sourceLabel = isTwitch ? "Twitch" : "YouTube";
+            ctx.drawTextWithShadow(font, sourceLabel, textX, y + 18, 0xFF888888);
+
+            // Animated EQ bars
+            int eqX = x + w - 18;
+            int eqY = y + 8;
+            long nowMs = System.currentTimeMillis();
+            int eqColor = 0xFF000000 | sourceColor;
+            drawEqBar(ctx, eqX,     eqY, 3, 14, eqColor, nowMs, 1.0, 0.0);
+            drawEqBar(ctx, eqX + 4, eqY, 3, 14, eqColor, nowMs, 1.4, 1.5);
+            drawEqBar(ctx, eqX + 8, eqY, 3, 14, eqColor, nowMs, 0.9, 3.0);
+
         } else if (!center.isEmpty() && !showMusic) {
             int textY = y + ((h - (showBiome ? 12 : 0)) - 7) / 2;
             int textColor = theme.textColor;
@@ -532,7 +748,6 @@ public class DynamicIslandHud implements HudRenderCallback {
             if (coordFeedback != null) {
                 ctx.drawTextWithShadow(font, coordFeedback, x + w - font.getWidth(coordFeedback) - 8, textY, 0xFF44DD44);
             }
-
         } else if (showMusic) {
             int compactH = 34;
             int artSize = 22;
@@ -682,7 +897,7 @@ public class DynamicIslandHud implements HudRenderCallback {
         }
 
         // Biome footnote
-        if (showBiome && !hasNotif && pebbleProgress < 0.1f && notifCenterProgress < 0.1f && settingsProgress < 0.1f && GameAlerts.biomeSubtitle != null) {
+        if (showBiome && !hasNotif && pebbleProgress < 0.1f && notifCenterProgress < 0.1f && settingsProgress < 0.1f && mediaProgress < 0.1f && GameAlerts.biomeSubtitle != null) {
             String biome = GameAlerts.biomeSubtitle;
             ctx.drawTextWithShadow(font, biome, screenW / 2 - font.getWidth(biome) / 2, y + h - 10, 0x666666);
         }
@@ -693,7 +908,7 @@ public class DynamicIslandHud implements HudRenderCallback {
         if (pebbleOpen && pebbleProgress > 0.01f) {
             int pa = (int)(0xFF * pebbleProgress);
 
-            // Header: "Pebble AI" with purple cross accent
+            // Header: "Loomie AI" with purple cross accent
             int headerY = y + 6;
             int accentColor = (pa << 24) | 0x9B7DFF;
             int titleColor = (pa << 24) | 0xFFFFFF;
@@ -702,8 +917,8 @@ public class DynamicIslandHud implements HudRenderCallback {
             // Purple cross icon
             ctx.fill(x + 10, headerY + 1, x + 17, headerY + 6, accentColor);
             ctx.fill(x + 12, headerY - 1, x + 15, headerY + 8, accentColor);
-            ctx.drawTextWithShadow(font, "Pebble", x + 20, headerY, titleColor);
-            ctx.drawTextWithShadow(font, "AI", x + 20 + font.getWidth("Pebble "), headerY, subtitleColor);
+            ctx.drawTextWithShadow(font, "Loomie", x + 20, headerY, titleColor);
+            ctx.drawTextWithShadow(font, "AI", x + 20 + font.getWidth("Loomie "), headerY, subtitleColor);
 
             // Separator
             int sepY = headerY + 12;
@@ -1243,14 +1458,15 @@ public class DynamicIslandHud implements HudRenderCallback {
             if (DynamicIslandMod.settingsTab == 0) {
                 // KEYBINDS TAB
                 String[][] keys = {
-                    {"P", "Pebble AI"},
+                    {"L", "Loomie AI"},
                     {"M", "Expand Music"},
                     {"K", "Lyrics"},
                     {"`", "Play/Pause"},
                     {"[", "Previous Track"},
                     {"]", "Next Track"},
                     {"N", "Notifications"},
-                    {"G", "Settings"}
+                    {"G", "Settings"},
+                    {"T", "Media Viewer"}
                 };
                 int ky = contentY + 2;
                 for (String[] pair : keys) {
@@ -1357,6 +1573,7 @@ public class DynamicIslandHud implements HudRenderCallback {
                         int cy = DynamicIslandMod.settingsClickY;
                         if (cx >= swatchX && cx <= swatchX + 180 && cy >= ty - 2 && cy <= ty + 14) {
                             ThemeManager.setTheme(i);
+                            DynamicIslandConfig.save();
                         }
                     }
                     ty += 16;
@@ -1367,6 +1584,664 @@ public class DynamicIslandHud implements HudRenderCallback {
 
             // Consume click
             DynamicIslandMod.settingsClickPending = false;
+        }
+
+        // ════════════════════════════════════════════════
+        // MEDIA VIEWER PANEL (Redesigned — Mouse-First)
+        // ════════════════════════════════════════════════
+        if (mediaOpen && mediaProgress > 0.01f) {
+            int ma = (int)(0xFF * mediaProgress);
+            int mx = mouseX, my = mouseY;
+
+            // ══ IN-GAME BROWSER MODE ══
+            if (InGameBrowser.isActive) {
+                // Update panel coordinates for the browser
+                InGameBrowser.panelX = x;
+                InGameBrowser.panelY = y;
+                InGameBrowser.panelW = w;
+                InGameBrowser.panelH = h;
+
+                int tabBarH = 16;
+                int pad = 4;
+
+                // Browser area (inside the panel, below tab bar)
+                int bx = x + pad;
+                int by = y + tabBarH + pad;
+                int bw = w - pad * 2;
+                int bh = h - tabBarH - pad * 2;
+                InGameBrowser.browserX = bx;
+                InGameBrowser.browserY = by;
+                InGameBrowser.browserW = bw;
+                InGameBrowser.browserH = bh;
+
+                // Tab bar
+                if (InGameBrowser.activeMode == InGameBrowser.Mode.MEDIA) {
+                    int tabY = y + 3;
+
+                    // YouTube tab with logo
+                    int ytLogoW = 14; // logo + padding
+                    int ytLabelW = font.getWidth("YouTube");
+                    int ytW = ytLogoW + ytLabelW + 8;
+                    int ytX = x + 6;
+                    boolean ytActive = "youtube".equals(InGameBrowser.activeTab);
+                    drawRoundedRect(ctx, ytX, tabY, ytW, 12, 4, (ma << 24) | (ytActive ? 0xCC0000 : 0x333333));
+                    // Draw mini YouTube logo (red rounded rect + white triangle)
+                    int logoX = ytX + 3;
+                    int logoY = tabY + 2;
+                    drawRoundedRect(ctx, logoX, logoY, 10, 8, 2, (ma << 24) | 0xFF0000);
+                    // White play triangle (3 fill calls approximating triangle)
+                    ctx.fill(logoX + 4, logoY + 2, logoX + 5, logoY + 6, (ma << 24) | 0xFFFFFF);
+                    ctx.fill(logoX + 5, logoY + 3, logoX + 6, logoY + 5, (ma << 24) | 0xFFFFFF);
+                    ctx.fill(logoX + 6, logoY + 3, logoX + 7, logoY + 5, (ma << 24) | 0xFFFFFF);
+                    ctx.drawTextWithShadow(font, "YouTube", ytX + ytLogoW + 2, tabY + 2, (ma << 24) | 0xFFFFFF);
+
+                    // Twitch tab with logo
+                    int twLabelW = font.getWidth("Twitch");
+                    int twLogoW = 12;
+                    int twW = twLogoW + twLabelW + 8;
+                    int twX = ytX + ytW + 3;
+                    boolean twActive = "twitch".equals(InGameBrowser.activeTab);
+                    drawRoundedRect(ctx, twX, tabY, twW, 12, 4, (ma << 24) | (twActive ? 0x9146FF : 0x333333));
+                    // Mini Twitch icon (speech bubble shape)
+                    int tLogoX = twX + 3;
+                    int tLogoY = tabY + 2;
+                    ctx.fill(tLogoX + 1, tLogoY, tLogoX + 7, tLogoY + 6, (ma << 24) | 0x9146FF);
+                    ctx.fill(tLogoX, tLogoY + 1, tLogoX + 8, tLogoY + 5, (ma << 24) | 0x9146FF);
+                    ctx.fill(tLogoX + 2, tLogoY + 6, tLogoX + 4, tLogoY + 8, (ma << 24) | 0x9146FF);
+                    // White eyes on twitch logo
+                    ctx.fill(tLogoX + 2, tLogoY + 2, tLogoX + 3, tLogoY + 4, (ma << 24) | 0xFFFFFF);
+                    ctx.fill(tLogoX + 5, tLogoY + 2, tLogoX + 6, tLogoY + 4, (ma << 24) | 0xFFFFFF);
+                    ctx.drawTextWithShadow(font, "Twitch", twX + twLogoW + 2, tabY + 2, (ma << 24) | 0xFFFFFF);
+
+                    // Tab click handling
+                    boolean hasClick = TwitchScreen.clickPending;
+                    if (hasClick) {
+                        int clickX = TwitchScreen.clickX, clickY = TwitchScreen.clickY;
+                        if (clickY >= tabY && clickY < tabY + 12) {
+                            if (clickX >= ytX && clickX < ytX + ytW) InGameBrowser.switchTab("youtube");
+                            else if (clickX >= twX && clickX < twX + twW) InGameBrowser.switchTab("twitch");
+                        }
+                        TwitchScreen.clickPending = false;
+                    }
+
+                    // ESC hint
+                    String hint = "ESC";
+                    ctx.drawTextWithShadow(font, hint, x + w - font.getWidth(hint) - 6, tabY + 2, (ma << 24) | 0x666666);
+                } else {
+                    // General browser tab
+                    int tabY = y + 3;
+                    ctx.drawTextWithShadow(font, "Browser", x + 8, tabY + 2, (ma << 24) | 0x4285F4);
+                    String hint = "ESC to close";
+                    ctx.drawTextWithShadow(font, hint, x + w - font.getWidth(hint) - 6, tabY + 2, (ma << 24) | 0x666666);
+                }
+
+                // Render browser texture or status
+                int texId = InGameBrowser.getTextureID();
+                if (texId != 0 && bw > 0 && bh > 0) {
+                    browserFrameCount++;
+                    if (texId != lastBrowserTexId) {
+                        lastBrowserTexId = texId;
+                        browserGlTexId = texId;
+                        MinecraftClient.getInstance().getTextureManager()
+                            .registerTexture(BROWSER_TEX_ID, BROWSER_TEXTURE);
+                    } else {
+                        browserGlTexId = texId;
+                    }
+
+                    RenderSystem.enableBlend();
+                    RenderSystem.defaultBlendFunc();
+                    ctx.drawTexture(BROWSER_TEX_ID, bx, by, bw, bh, 0f, 0f, bw, bh, bw, bh);
+                    RenderSystem.disableBlend();
+
+                    InGameBrowser.resizeBrowser();
+                } else if (InGameBrowser.statusMessage != null) {
+                    int msgY = by + bh / 2 - 10;
+                    ctx.drawCenteredTextWithShadow(font, InGameBrowser.statusMessage, x + w / 2, msgY, (ma << 24) | 0xFFAAAA);
+                    if (!InGameBrowser.isMcefAvailable) {
+                        ctx.drawCenteredTextWithShadow(font, "Install from modrinth.com/mod/mcef", x + w / 2, msgY + 12, (ma << 24) | 0x888888);
+                    } else if (!InGameBrowser.isMcefInitialized) {
+                        ctx.drawCenteredTextWithShadow(font, "Please wait...", x + w / 2, msgY + 12, (ma << 24) | 0x888888);
+                    }
+                } else {
+                    ctx.drawCenteredTextWithShadow(font, "Loading...", x + w / 2, by + bh / 2, (ma << 24) | 0xCCCCCC);
+                }
+
+                // Blocked site toast
+                if (InGameBrowser.blockedMessage != null && System.currentTimeMillis() < InGameBrowser.blockedMessageUntil) {
+                    int msgW2 = font.getWidth(InGameBrowser.blockedMessage) + 14;
+                    int msgX2 = x + (w - msgW2) / 2;
+                    int msgY2 = y + h - 18;
+                    drawRoundedRect(ctx, msgX2, msgY2, msgW2, 14, 4, (ma << 24) | 0xCC0000);
+                    ctx.drawCenteredTextWithShadow(font, InGameBrowser.blockedMessage, x + w / 2, msgY2 + 3, (ma << 24) | 0xFFFFFF);
+                }
+
+            // ══ ORIGINAL MEDIA VIEWER (search + player) ══
+            } else {
+
+            boolean isSearchTab = "SEARCH".equals(MediaViewer.activeTab);
+
+            // Consume scroll
+            double scroll = TwitchScreen.scrollDelta;
+            TwitchScreen.scrollDelta = 0;
+
+            // Check for pending click
+            boolean hasClick = TwitchScreen.clickPending;
+            int cx = TwitchScreen.clickX, cy = TwitchScreen.clickY;
+
+            if (isSearchTab) {
+                // ══ SEARCH VIEW — Card Layout ══
+                int headerY = y + 6;
+
+                // Source filter tabs (clickable pills)
+                String[] sources = {"All", "YouTube", "Twitch"};
+                String[] sourceKeys = {"all", "youtube", "twitch"};
+                int[] sourceColors = {0xCCCCCC, 0xFF0000, 0x9146FF};
+                int tabX = x + 8;
+                for (int si = 0; si < sources.length; si++) {
+                    int tw = font.getWidth(sources[si]) + 10;
+                    int tabH = 12;
+                    boolean isActive = MediaViewer.searchSource.equals(sourceKeys[si]);
+                    boolean hovered = mx >= tabX && mx < tabX + tw && my >= headerY && my < headerY + tabH;
+
+                    // Tab pill background
+                    if (isActive) {
+                        drawRoundedRect(ctx, tabX, headerY, tw, tabH, 6, (ma << 24) | sourceColors[si]);
+                        ctx.drawTextWithShadow(font, sources[si], tabX + 5, headerY + 2, (ma << 24) | 0xFFFFFF);
+                    } else {
+                        int tabBgAlpha = hovered ? 0x30 : 0x15;
+                        drawRoundedRect(ctx, tabX, headerY, tw, tabH, 6, ((int)(tabBgAlpha * mediaProgress) << 24) | 0xFFFFFF);
+                        int textAlpha = hovered ? 0xBB : 0x77;
+                        ctx.drawTextWithShadow(font, sources[si], tabX + 5, headerY + 2, ((int)(textAlpha * mediaProgress) << 24) | 0xCCCCCC);
+                    }
+
+                    // Tab click
+                    if (hasClick && cx >= tabX && cx < tabX + tw && cy >= headerY && cy < headerY + tabH) {
+                        MediaViewer.searchSource = sourceKeys[si];
+                        hasClick = false;
+                    }
+                    tabX += tw + 4;
+                }
+
+                // Search input field
+                int inY = headerY + 16;
+                int inX = x + 8;
+                int inW = w - 16;
+                int inputH = 16;
+                boolean searchHovered = mx >= inX && mx < inX + inW && my >= inY && my < inY + inputH;
+                int searchBg = searchHovered ? 0x222222 : 0x1A1A1A;
+                drawRoundedRect(ctx, inX, inY, inW, inputH, 8, ((int)(0xCC * mediaProgress) << 24) | searchBg);
+                // Light border
+                drawRoundedRectOutline(ctx, inX, inY, inW, inputH, 8, ((int)(0x10 * mediaProgress) << 24) | 0xFFFFFF);
+
+                String searchText = MediaViewer.searchQuery;
+                if (searchText.isEmpty()) {
+                    ctx.drawTextWithShadow(font, "Search YouTube & Twitch...", inX + 8, inY + 4, ((int)(0x44 * mediaProgress) << 24) | 0x666666);
+                } else {
+                    int maxSW = inW - 20;
+                    String display = searchText;
+                    if (font.getWidth(display) > maxSW) {
+                        display = "..." + searchText.substring(searchText.length() - 25);
+                    }
+                    ctx.drawTextWithShadow(font, display, inX + 8, inY + 4, (ma << 24) | 0xFFFFFF);
+                    if (System.currentTimeMillis() % 1000 < 500) {
+                        int cursorXp = inX + 8 + font.getWidth(display);
+                        ctx.fill(cursorXp, inY + 3, cursorXp + 1, inY + 13, (ma << 24) | 0xFFFFFF);
+                    }
+                }
+
+                // Results area
+                int resultsTop = inY + inputH + 6;
+                int resultsBottom = y + h - 22;
+
+                if (MediaViewer.isSearching) {
+                    String loadText = "Searching" + ".".repeat((int)(System.currentTimeMillis() / 400 % 4));
+                    ctx.drawTextWithShadow(font, loadText,
+                        x + w / 2 - font.getWidth(loadText) / 2,
+                        resultsTop + 30,
+                        (ma << 24) | 0x888888);
+                } else if (MediaViewer.searchResults.isEmpty() && !MediaViewer.searchQuery.isEmpty()) {
+                    ctx.drawTextWithShadow(font, "No results found",
+                        x + w / 2 - font.getWidth("No results found") / 2,
+                        resultsTop + 10,
+                        ((int)(0x66 * mediaProgress) << 24) | 0x888888);
+                } else if (MediaViewer.searchResults.isEmpty()) {
+                    // Empty state — no hint text, just a clean search bar
+                } else {
+                    // Render paginated search results as cards
+                    ctx.enableScissor(x + 2, resultsTop, x + w - 2, resultsBottom);
+                    java.util.List<MediaViewer.SearchResult> pageResults = MediaViewer.getPageResults();
+                    int thumbW = 48;
+                    int thumbH = 27; // 16:9
+                    int itemH = thumbH + 9;
+                    int ry = resultsTop;
+
+                    for (int ri = 0; ri < pageResults.size(); ri++) {
+                        if (ry + itemH > resultsBottom + 10) break;
+                        MediaViewer.SearchResult item = pageResults.get(ri);
+                        int absIdx = MediaViewer.absoluteIndex(ri);
+
+                        // Card background with hover
+                        boolean cardHovered = mx >= x + 6 && mx < x + w - 6 && my >= ry && my < ry + itemH - 2;
+                        if (cardHovered) {
+                            drawRoundedRect(ctx, x + 6, ry, w - 12, itemH - 2, 6, ((int)(0x18 * mediaProgress) << 24) | 0xFFFFFF);
+                            // Left accent bar on hover
+                            int accentColor = "twitch".equals(item.source) ? 0x9146FF : 0xFF0000;
+                            ctx.fill(x + 6, ry + 2, x + 8, ry + itemH - 4, (ma << 24) | accentColor);
+                        }
+
+                        // Click to select
+                        if (hasClick && cx >= x + 6 && cx < x + w - 6 && cy >= ry && cy < ry + itemH - 2) {
+                            MediaViewer.selectResult(absIdx);
+                            hasClick = false;
+                        }
+
+                        // Thumbnail
+                        int thumbX = x + 12;
+                        int thumbY2 = ry + 3;
+                        Identifier thumbId = ThumbnailCache.get(item.thumbnail);
+                        if (thumbId != null) {
+                            ctx.drawTexture(thumbId, thumbX, thumbY2, 0, 0, thumbW, thumbH, thumbW, thumbH);
+                        } else {
+                            // Gradient placeholder
+                            int dotColor = "twitch".equals(item.source) ? 0x9146FF : 0xFF0000;
+                            drawRoundedRect(ctx, thumbX, thumbY2, thumbW, thumbH, 3, ((int)(0x40 * mediaProgress) << 24) | 0x181820);
+                            drawFilledCircle(ctx, thumbX + thumbW / 2, thumbY2 + thumbH / 2, 3, (ma << 24) | dotColor);
+                        }
+
+                        // Title
+                        int textX = thumbX + thumbW + 6;
+                        String itemTitle = item.title;
+                        int maxTitleW = (x + w) - textX - 50;
+                        if (font.getWidth(itemTitle) > maxTitleW) {
+                            while (font.getWidth(itemTitle + "...") > maxTitleW && itemTitle.length() > 1)
+                                itemTitle = itemTitle.substring(0, itemTitle.length() - 1);
+                            itemTitle += "...";
+                        }
+                        int titleColor = cardHovered ? ((ma << 24) | 0xFFFFFF) : ((int)(0xCC * mediaProgress) << 24) | 0xDDDDDD;
+                        ctx.drawTextWithShadow(font, itemTitle, textX, ry + 4, titleColor);
+
+                        // Channel name
+                        String meta = item.channel != null && !item.channel.isEmpty() ? item.channel : "";
+                        if (font.getWidth(meta) > maxTitleW) {
+                            meta = meta.substring(0, Math.min(meta.length(), 20)) + "...";
+                        }
+                        ctx.drawTextWithShadow(font, meta, textX, ry + 15, ((int)(0x55 * mediaProgress) << 24) | 0x888888);
+
+                        // Duration badge
+                        if (item.duration != null && !item.duration.isEmpty()) {
+                            int badgeColor = "LIVE".equals(item.duration) ? 0xFF0000 : 0x333333;
+                            String badge = item.duration;
+                            int bw = font.getWidth(badge) + 6;
+                            drawRoundedRect(ctx, x + w - bw - 10, ry + 5, bw, 10, 4, (ma << 24) | badgeColor);
+                            ctx.drawTextWithShadow(font, badge, x + w - bw - 7, ry + 6, (ma << 24) | 0xFFFFFF);
+                        }
+
+                        ry += itemH;
+                    }
+                    ctx.disableScissor();
+
+                    // Pagination footer
+                    int totalPages = MediaViewer.getTotalPages();
+                    if (totalPages > 1) {
+                        int footY = y + h - 18;
+                        String pageText = "Page " + (MediaViewer.searchPage + 1) + " of " + totalPages;
+                        int ptw = font.getWidth(pageText);
+                        ctx.drawTextWithShadow(font, pageText, x + w / 2 - ptw / 2, footY, ((int)(0x88 * mediaProgress) << 24) | 0xAAAAAA);
+
+                        // Prev button
+                        String prev = "<";
+                        int prevX = x + w / 2 - ptw / 2 - 16;
+                        boolean prevHover = mx >= prevX && mx < prevX + 10 && my >= footY - 1 && my < footY + 10;
+                        boolean prevEnabled = MediaViewer.searchPage > 0;
+                        int prevColor = prevEnabled ? (prevHover ? 0xFFFFFF : 0xAAAAAA) : 0x444444;
+                        ctx.drawTextWithShadow(font, prev, prevX, footY, ((int)((prevEnabled ? 0xFF : 0x44) * mediaProgress) << 24) | prevColor);
+                        if (hasClick && prevEnabled && cx >= prevX && cx < prevX + 10 && cy >= footY - 1 && cy < footY + 10) {
+                            MediaViewer.prevPage();
+                            hasClick = false;
+                        }
+
+                        // Next button
+                        String next = ">";
+                        int nextX = x + w / 2 + ptw / 2 + 8;
+                        boolean nextHover = mx >= nextX && mx < nextX + 10 && my >= footY - 1 && my < footY + 10;
+                        boolean nextEnabled = MediaViewer.searchPage < totalPages - 1;
+                        int nextColor = nextEnabled ? (nextHover ? 0xFFFFFF : 0xAAAAAA) : 0x444444;
+                        ctx.drawTextWithShadow(font, next, nextX, footY, ((int)((nextEnabled ? 0xFF : 0x44) * mediaProgress) << 24) | nextColor);
+                        if (hasClick && nextEnabled && cx >= nextX && cx < nextX + 10 && cy >= footY - 1 && cy < footY + 10) {
+                            MediaViewer.nextPage();
+                            hasClick = false;
+                        }
+                    }
+                }
+
+            } else {
+                // ══ PLAYER VIEW — Clickable Controls ══
+                boolean isTwitch = MediaViewer.mediaType == MediaViewer.MediaType.TWITCH;
+                boolean isYoutube = MediaViewer.mediaType == MediaViewer.MediaType.YOUTUBE;
+                int headerColor = isTwitch ? 0x9146FF : isYoutube ? 0xFF0000 : 0xCCCCCC;
+
+                int headerY = y + 6;
+
+                // Back button (clickable)
+                String backBtn = "< Back";
+                int backW = font.getWidth(backBtn) + 8;
+                boolean backHover = mx >= x + 6 && mx < x + 6 + backW && my >= headerY - 1 && my < headerY + 11;
+                int backBg = backHover ? 0x30 : 0x15;
+                drawRoundedRect(ctx, x + 6, headerY - 1, backW, 12, 6, ((int)(backBg * mediaProgress) << 24) | 0xFFFFFF);
+                ctx.drawTextWithShadow(font, backBtn, x + 10, headerY + 1, ((int)((backHover ? 0xFF : 0x99) * mediaProgress) << 24) | 0xCCCCCC);
+                if (hasClick && cx >= x + 6 && cx < x + 6 + backW && cy >= headerY - 1 && cy < headerY + 11) {
+                    MediaViewer.stopStream();
+                    DynamicIslandMod.isMediaOpen = true;
+                    MediaViewer.activeTab = "SEARCH";
+                    hasClick = false;
+                }
+
+                // Source badge
+                String sourceLabel = isTwitch ? "TWITCH" : isYoutube ? "YOUTUBE" : "MEDIA";
+                int slW = font.getWidth(sourceLabel) + 8;
+                drawRoundedRect(ctx, x + 6 + backW + 4, headerY - 1, slW, 12, 6, (ma << 24) | headerColor);
+                ctx.drawTextWithShadow(font, sourceLabel, x + 6 + backW + 8, headerY + 1, (ma << 24) | 0xFFFFFF);
+
+                // Title
+                String title = MediaViewer.currentTitle.isEmpty() ? MediaViewer.currentSource : MediaViewer.currentTitle;
+                int titleStartX = x + 6 + backW + 4 + slW + 6;
+                int titleMaxW2 = (x + w - 8) - titleStartX;
+                if (font.getWidth(title) > titleMaxW2) {
+                    while (font.getWidth(title + "...") > titleMaxW2 && title.length() > 1)
+                        title = title.substring(0, title.length() - 1);
+                    title += "...";
+                }
+                ctx.drawTextWithShadow(font, title, titleStartX, headerY + 1, (ma << 24) | 0xFFFFFF);
+
+                // Video area
+                int videoTop = headerY + 16;
+                int videoW = w - 20;
+                int videoH = (int)(videoW * 9f / 16f);
+                int videoX = x + 10;
+
+                MediaViewer.preRender();
+
+                if (MediaViewer.hasTexture() && MediaViewer.getTextureIdentifier() != null) {
+                    ctx.drawTexture(MediaViewer.getTextureIdentifier(), videoX, videoTop, 0, 0, videoW, videoH, videoW, videoH);
+                } else {
+                    drawRoundedRect(ctx, videoX, videoTop, videoW, videoH, 4, (ma << 24) | 0x111111);
+                    String placeholder = MediaViewer.watermediaAvailable ? "Loading stream..." : "Install WATERMeDIA mod";
+                    ctx.drawTextWithShadow(font, placeholder,
+                        videoX + videoW / 2 - font.getWidth(placeholder) / 2,
+                        videoTop + videoH / 2 - 4,
+                        ((int)(0x88 * mediaProgress) << 24) | 0x888888);
+                }
+
+                if (isYoutube) {
+                    long pos = MediaViewer.getPosition();
+                    long dur = MediaViewer.getDuration();
+                    boolean playing = MediaViewer.isPlaying();
+
+                    // Progress bar (clickable + scrubbable)
+                    int barY = videoTop + videoH + 4;
+                    int barX2 = x + 10;
+                    int barW = w - 20;
+                    int barH = 4;
+
+                    // Bar track
+                    drawRoundedRect(ctx, barX2, barY, barW, barH, 2, ((int)(0x30 * mediaProgress) << 24) | 0xFFFFFF);
+                    // Filled portion
+                    if (dur > 0) {
+                        int filled = (int)(barW * pos / (float) dur);
+                        if (filled > 0) drawRoundedRect(ctx, barX2, barY, filled, barH, 2, (ma << 24) | 0xFF0000);
+                        // Scrub dot
+                        drawFilledCircle(ctx, barX2 + filled, barY + 2, 3, (ma << 24) | 0xFFFFFF);
+                    }
+
+                    // Progress bar click to seek (strict Y bounds: only within bar ± 3px)
+                    if (hasClick && cx >= barX2 && cx < barX2 + barW && cy >= barY - 3 && cy < barY + barH + 3 && dur > 0) {
+                        float ratio = (float)(cx - barX2) / barW;
+                        ratio = Math.max(0, Math.min(1, ratio));
+                        MediaViewer.seekTo((long)(ratio * dur));
+                        hasClick = false;
+                    }
+                    // Drag scrubbing (strict Y bounds)
+                    if (TwitchScreen.isDragging && TwitchScreen.dragX >= barX2 && TwitchScreen.dragX < barX2 + barW
+                        && TwitchScreen.dragY >= barY - 3 && TwitchScreen.dragY < barY + barH + 3 && dur > 0) {
+                        float ratio = (float)(TwitchScreen.dragX - barX2) / barW;
+                        ratio = Math.max(0, Math.min(1, ratio));
+                        MediaViewer.seekTo((long)(ratio * dur));
+                    }
+
+                    // Time display (row 1 — under progress bar)
+                    int timeY = barY + barH + 3;
+                    String timeStr = formatMs(pos) + " / " + formatMs(dur);
+                    ctx.drawTextWithShadow(font, timeStr, x + 10, timeY, ((int)(0x88 * mediaProgress) << 24) | 0xAAAAAA);
+
+                    // Control buttons row (row 2 — under time)
+                    int ctrlY = timeY + 12;
+                    int btnH = 14;
+                    int btnSpacing = 4;
+
+                    // << 5s button
+                    String rewBtn = "<< 5s";
+                    int rewW = font.getWidth(rewBtn) + 10;
+                    int rewX = x + 10;
+                    boolean rewHover = mx >= rewX && mx < rewX + rewW && my >= ctrlY && my < ctrlY + btnH;
+                    drawRoundedRect(ctx, rewX, ctrlY, rewW, btnH, 6, ((int)((rewHover ? 0x30 : 0x18) * mediaProgress) << 24) | 0xFFFFFF);
+                    ctx.drawTextWithShadow(font, rewBtn, rewX + 5, ctrlY + 3, ((int)((rewHover ? 0xFF : 0xAA) * mediaProgress) << 24) | 0xCCCCCC);
+                    if (hasClick && cx >= rewX && cx < rewX + rewW && cy >= ctrlY && cy < ctrlY + btnH) {
+                        MediaViewer.seek(-5000);
+                        hasClick = false;
+                    }
+
+                    // Play/Pause button
+                    String playBtn = playing ? " || " : "  >  ";
+                    int playW = font.getWidth(playBtn) + 10;
+                    int playX = rewX + rewW + btnSpacing;
+                    boolean playHover = mx >= playX && mx < playX + playW && my >= ctrlY && my < ctrlY + btnH;
+                    drawRoundedRect(ctx, playX, ctrlY, playW, btnH, 6, ((int)((playHover ? 0x40 : 0x25) * mediaProgress) << 24) | 0xFFFFFF);
+                    ctx.drawTextWithShadow(font, playBtn, playX + 5, ctrlY + 3, (ma << 24) | 0xFFFFFF);
+                    if (hasClick && cx >= playX && cx < playX + playW && cy >= ctrlY && cy < ctrlY + btnH) {
+                        MediaViewer.togglePause();
+                        hasClick = false;
+                    }
+
+                    // >> 5s button
+                    String fwdBtn = "5s >>";
+                    int fwdW = font.getWidth(fwdBtn) + 10;
+                    int fwdX = playX + playW + btnSpacing;
+                    boolean fwdHover = mx >= fwdX && mx < fwdX + fwdW && my >= ctrlY && my < ctrlY + btnH;
+                    drawRoundedRect(ctx, fwdX, ctrlY, fwdW, btnH, 6, ((int)((fwdHover ? 0x30 : 0x18) * mediaProgress) << 24) | 0xFFFFFF);
+                    ctx.drawTextWithShadow(font, fwdBtn, fwdX + 5, ctrlY + 3, ((int)((fwdHover ? 0xFF : 0xAA) * mediaProgress) << 24) | 0xCCCCCC);
+                    if (hasClick && cx >= fwdX && cx < fwdX + fwdW && cy >= ctrlY && cy < ctrlY + btnH) {
+                        MediaViewer.seek(5000);
+                        hasClick = false;
+                    }
+
+                    // Volume (right side of control row)
+                    String volIcon = MediaViewer.isMuted() ? "Mx" : "Vol";
+                    int volLabelW = font.getWidth(volIcon);
+                    int vBarW = 40;
+                    int totalVolW = volLabelW + 4 + vBarW;
+                    int volX = x + w - totalVolW - 10;
+                    boolean volIconHover = mx >= volX && mx < volX + volLabelW + 4 && my >= ctrlY && my < ctrlY + btnH;
+                    ctx.drawTextWithShadow(font, volIcon, volX, ctrlY + 3, ((int)((volIconHover ? 0xFF : 0x88) * mediaProgress) << 24) | 0xAAAAAA);
+                    if (hasClick && cx >= volX && cx < volX + volLabelW + 4 && cy >= ctrlY && cy < ctrlY + btnH) {
+                        MediaViewer.toggleMute();
+                        hasClick = false;
+                    }
+
+                    // Volume bar (inline with volume label)
+                    int vBarX = volX + volLabelW + 4;
+                    int vBarY = ctrlY + 5;
+                    drawRoundedRect(ctx, vBarX, vBarY, vBarW, 4, 2, ((int)(0x30 * mediaProgress) << 24) | 0xFFFFFF);
+                    int volFilled = (int)(vBarW * MediaViewer.getVolume() / 100f);
+                    if (volFilled > 0) drawRoundedRect(ctx, vBarX, vBarY, volFilled, 4, 2, (ma << 24) | 0xFFFFFF);
+                    // Volume bar click
+                    if (hasClick && cx >= vBarX && cx < vBarX + vBarW && cy >= vBarY - 4 && cy < vBarY + 8) {
+                        int newVol = (int)(100f * (cx - vBarX) / vBarW);
+                        MediaViewer.setVolume(Math.max(0, Math.min(100, newVol)));
+                        hasClick = false;
+                    }
+
+                } else if (isTwitch) {
+                    // Twitch chat area (below video)
+                    int chatSepY = videoTop + videoH + 4;
+                    ctx.fill(x + 8, chatSepY, x + w - 8, chatSepY + 1, ((int)(0x15 * mediaProgress) << 24) | 0xFFFFFF);
+
+                    int chatTop = chatSepY + 3;
+                    int inputH2 = 18;
+                    int chatBottom = y + h - inputH2 - 6;
+
+                    ctx.enableScissor(x + 2, chatTop, x + w - 2, chatBottom);
+                    java.util.List<TwitchChat.ChatMsg> msgs = TwitchChat.messages;
+                    int lineH = 10;
+                    int my2 = chatBottom - 2;
+
+                    for (int idx = 0; idx < msgs.size() && my2 > chatTop - lineH; idx++) {
+                        TwitchChat.ChatMsg msg = msgs.get(idx);
+                        int msgColor;
+                        try {
+                            msgColor = (ma << 24) | Integer.parseInt(msg.color.replace("#", ""), 16);
+                        } catch (Exception e) {
+                            msgColor = (ma << 24) | 0xFFFFFF;
+                        }
+
+                        String prefix = msg.username + ": ";
+                        String fullMsg = prefix + msg.message;
+                        int maxMsgW = w - 24;
+                        if (font.getWidth(fullMsg) > maxMsgW) {
+                            while (font.getWidth(fullMsg + "...") > maxMsgW && fullMsg.length() > prefix.length())
+                                fullMsg = fullMsg.substring(0, fullMsg.length() - 1);
+                            fullMsg += "...";
+                        }
+
+                        my2 -= lineH;
+                        ctx.drawTextWithShadow(font, prefix, x + 10, my2, msgColor);
+                        String msgText = msg.message;
+                        int maxBodyLen = fullMsg.length() - prefix.length();
+                        if (maxBodyLen < msgText.length()) msgText = msgText.substring(0, Math.max(0, maxBodyLen));
+                        ctx.drawTextWithShadow(font, msgText,
+                            x + 10 + font.getWidth(prefix), my2, (ma << 24) | 0xDDDDDD);
+                    }
+                    ctx.disableScissor();
+
+                    int inY3 = y + h - inputH2 - 3;
+                    int inX3 = x + 8;
+                    int inW3 = w - 16;
+                    drawRoundedRect(ctx, inX3, inY3, inW3, inputH2, 9, ((int)(0xDD * mediaProgress) << 24) | 0x2A2A2A);
+
+                    String inputText = TwitchChat.inputText;
+                    if (inputText.isEmpty()) {
+                        ctx.drawTextWithShadow(font, "Type a message...", inX3 + 8, inY3 + 5, ((int)(0x44 * mediaProgress) << 24) | 0x666666);
+                    } else {
+                        int maxInputW = inW3 - 20;
+                        String display = inputText;
+                        if (font.getWidth(display) > maxInputW) {
+                            display = "..." + inputText.substring(inputText.length() - 20);
+                        }
+                        ctx.drawTextWithShadow(font, display, inX3 + 8, inY3 + 5, (ma << 24) | 0xFFFFFF);
+                        if (System.currentTimeMillis() % 1000 < 500) {
+                            int cursorX2 = inX3 + 8 + font.getWidth(display);
+                            ctx.fill(cursorX2, inY3 + 4, cursorX2 + 1, inY3 + 14, (ma << 24) | 0xFFFFFF);
+                        }
+                    }
+                }
+            }
+
+            // Consume click
+            TwitchScreen.clickPending = false;
+            } // end of else (original media viewer)
+        }
+
+        // ════════════════════════════════════════════════
+        // APP DRAWER (Control Center)
+        // ════════════════════════════════════════════════
+        if (isAppDrawerOpen && appDrawerProgress > 0.01f) {
+            int da = (int)(0xFF * appDrawerProgress);
+
+            // 3x2 grid of app tiles
+            String[] appNames = {"Media", "Loomie", "Notifs", "Waypoints", "Timers", "Settings"};
+            int[] appColors = {0xFF0000, 0x66FCF1, 0xFFB800, 0x4CAF50, 0xAB47BC, 0x78909C};
+            // Text-based pixel icons
+            String[] appIcons = {">", "?", "!", "@", "~", "*"};
+
+            int cols = 3;
+            int tileW = 60;
+            int tileH = 54;
+            int gapX = 8;
+            int gapY = 6;
+            int gridW = cols * tileW + (cols - 1) * gapX;
+            int gridX = x + (w - gridW) / 2;
+            int gridY = y + 12;
+
+            int amx = mouseX, amy = mouseY;
+            boolean dClick = AppDrawerScreen.clickPending;
+            int dcx = AppDrawerScreen.clickX, dcy = AppDrawerScreen.clickY;
+
+            for (int i = 0; i < appNames.length; i++) {
+                int col = i % cols;
+                int row = i / cols;
+                int tx = gridX + col * (tileW + gapX);
+                int ty = gridY + row * (tileH + gapY);
+
+                boolean hover = amx >= tx && amx < tx + tileW && amy >= ty && amy < ty + tileH;
+                int tileBg = hover ? 0x20 : 0x10;
+                drawRoundedRect(ctx, tx, ty, tileW, tileH, 8, ((int)(tileBg * appDrawerProgress) << 24) | 0xFFFFFF);
+                // Tile border
+                if (hover) {
+                    drawRoundedRectOutline(ctx, tx, ty, tileW, tileH, 8, ((int)(0x20 * appDrawerProgress) << 24) | appColors[i]);
+                }
+
+                // Icon text symbol
+                String icon = appIcons[i];
+                int iconW = font.getWidth(icon);
+                ctx.drawTextWithShadow(font, icon, tx + (tileW - iconW) / 2, ty + 14, (da << 24) | appColors[i]);
+
+                // Label
+                int labelW = font.getWidth(appNames[i]);
+                ctx.drawTextWithShadow(font, appNames[i], tx + (tileW - labelW) / 2, ty + tileH - 14, ((int)((hover ? 0xFF : 0xAA) * appDrawerProgress) << 24) | 0xDDDDDD);
+
+                // Tile click handling
+                if (dClick && dcx >= tx && dcx < tx + tileW && dcy >= ty && dcy < ty + tileH) {
+                    // Close drawer first
+                    isAppDrawerOpen = false;
+                    DynamicIslandMod.isAppDrawerOpen = false;
+                    if (client.currentScreen instanceof AppDrawerScreen) {
+                        client.currentScreen.close();
+                    }
+
+                    // Open the corresponding panel
+                    switch (i) {
+                        case 0: // Media — opens in-game YouTube/Twitch browser
+                            DynamicIslandMod.isMediaOpen = true;
+                            InGameBrowser.openMedia();
+                            break;
+                        case 1: // Loomie AI
+                            DynamicIslandMod.isPebbleOpen = true;
+                            client.setScreen(new PebbleScreen());
+                            break;
+                        case 2: // Notifications
+                            DynamicIslandMod.notifCenterTab = 0;
+                            DynamicIslandMod.isNotifCenterOpen = true;
+                            client.setScreen(new NotifCenterScreen());
+                            break;
+                        case 3: // Waypoints
+                            DynamicIslandMod.notifCenterTab = 1;
+                            DynamicIslandMod.isNotifCenterOpen = true;
+                            client.setScreen(new NotifCenterScreen());
+                            break;
+                        case 4: // Timers
+                            DynamicIslandMod.notifCenterTab = 2;
+                            DynamicIslandMod.isNotifCenterOpen = true;
+                            client.setScreen(new NotifCenterScreen());
+                            break;
+                        case 5: // Settings
+                            DynamicIslandMod.isSettingsOpen = true;
+                            client.setScreen(new SettingsScreen());
+                            break;
+                    }
+                    dClick = false;
+                }
+            }
+
+            AppDrawerScreen.clickPending = false;
         }
 
         // ══════════════════════════════════════════════
@@ -1443,7 +2318,7 @@ public class DynamicIslandHud implements HudRenderCallback {
         }
     }
 
-    private void drawRoundedRect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
+    public static void drawRoundedRect(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
         if (r <= 0) { ctx.fill(x, y, x + w, y + h, color); return; }
         r = Math.min(r, Math.min(w / 2, h / 2));
         ctx.fill(x + r, y, x + w - r, y + h, color);
@@ -1456,6 +2331,39 @@ public class DynamicIslandHud implements HudRenderCallback {
             ctx.fill(x + w - r, y + row, x + w - dx, y + row + 1, color);
             ctx.fill(x + dx, y + h - 1 - row, x + r, y + h - row, color);
             ctx.fill(x + w - r, y + h - 1 - row, x + w - dx, y + h - row, color);
+        }
+    }
+
+    public static void drawRoundedRectOutline(DrawContext ctx, int x, int y, int w, int h, int r, int color) {
+        if (r <= 0) {
+            ctx.fill(x, y, x + w, y + 1, color); // top
+            ctx.fill(x, y + h - 1, x + w, y + h, color); // bottom
+            ctx.fill(x, y, x + 1, y + h, color); // left
+            ctx.fill(x + w - 1, y, x + w, y + h, color); // right
+            return;
+        }
+        r = Math.min(r, Math.min(w / 2, h / 2));
+        // Top edge
+        ctx.fill(x + r, y, x + w - r, y + 1, color);
+        // Bottom edge
+        ctx.fill(x + r, y + h - 1, x + w - r, y + h, color);
+        // Left edge
+        ctx.fill(x, y + r, x + 1, y + h - r, color);
+        // Right edge
+        ctx.fill(x + w - 1, y + r, x + w, y + h - r, color);
+        // Corner arcs (1px outline)
+        for (int row = 0; row < r; row++) {
+            int dy = r - row;
+            int dx = (int) Math.round(r - Math.sqrt((double) r * r - (double) dy * dy));
+            int dx2 = (int) Math.round(r - Math.sqrt((double) r * r - (double) (dy - 1) * (dy - 1)));
+            // Top-left
+            ctx.fill(x + dx, y + row, x + Math.max(dx + 1, dx2), y + row + 1, color);
+            // Top-right
+            ctx.fill(x + w - Math.max(dx + 1, dx2), y + row, x + w - dx, y + row + 1, color);
+            // Bottom-left
+            ctx.fill(x + dx, y + h - 1 - row, x + Math.max(dx + 1, dx2), y + h - row, color);
+            // Bottom-right
+            ctx.fill(x + w - Math.max(dx + 1, dx2), y + h - 1 - row, x + w - dx, y + h - row, color);
         }
     }
 
@@ -1617,6 +2525,7 @@ public class DynamicIslandHud implements HudRenderCallback {
             case "toggleBiome" -> DynamicIslandMod.toggleBiome = val;
             case "toggleInventoryFull" -> DynamicIslandMod.toggleInventoryFull = val;
         }
+        DynamicIslandConfig.save();
     }
 
     private void saveInventoryLayout() {

@@ -52,4 +52,14 @@ public class ThemeManager {
     public static int getThemeCount() {
         return themes.length;
     }
+
+    public static void setThemeByName(String name) {
+        if (name == null) return;
+        for (int i = 0; i < themes.length; i++) {
+            if (themes[i].name.equals(name)) {
+                setTheme(i);
+                return;
+            }
+        }
+    }
 }

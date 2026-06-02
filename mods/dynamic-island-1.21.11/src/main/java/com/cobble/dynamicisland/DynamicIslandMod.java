@@ -19,11 +19,13 @@ import java.util.List;
 public class DynamicIslandMod implements ClientModInitializer {
     private static final KeyBinding.Category CATEGORY = KeyBinding.Category.create(Identifier.of("cobble", "dynamic_island"));
     public static LauncherState currentState = null;
+    public static boolean isAppDrawerOpen = false;
     public static String currentNotification = null;
     private static long notificationStartTime = 0;
     private static long notificationEndTime = 0;
     private static KeyBinding pebbleKeyBinding;
     private static KeyBinding expandKeyBinding;
+    private static KeyBinding appDrawerKeyBinding;
     private static KeyBinding pauseKeyBinding;
     private static KeyBinding prevKeyBinding;
     private static KeyBinding nextKeyBinding;
@@ -31,8 +33,14 @@ public class DynamicIslandMod implements ClientModInitializer {
     private static KeyBinding networkStatsKeyBinding;
     public static boolean isExpanded = false;
     public static boolean isLyricsMode = false;
+    public static boolean privacyMode = false;
     private static long volumeRestoreTime = 0;
     private static String lastPersistentType = null;
+    private static KeyBinding privacyKeyBinding;
+
+    // ── Media Viewer Panel ────────────────────
+    public static boolean isMediaOpen = false;
+    public static float mediaProgress = 0f;
 
     // ── Pebble Chat (shared state) ────────────────
     public static boolean isPebbleOpen = false;
@@ -122,7 +130,15 @@ public class DynamicIslandMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         System.out.println("[DynamicIsland] Starting up...");
+        DynamicIslandConfig.load();
+        DynamicIslandConfig.apply();
         LauncherWebSocket.connectToServer();
+        MediaViewer.init();
+        InGameBrowser.preWarmMcef(); // Pre-warm MCEF for fast first browser open
+
+        // ── Loom Shield Protection System ──
+        com.cobble.dynamicisland.protection.LoomShield.init();
+        com.cobble.dynamicisland.protection.ChatSafety.init();
 
         HudRenderCallback.EVENT.register(new DynamicIslandHud());
 
@@ -137,13 +153,34 @@ public class DynamicIslandMod implements ClientModInitializer {
         WaypointManager.register();
         CombatTracker.register();
 
+        // ── Recording System ──
+        CaptureKeybinds.register();
+        CaptureManager.init();
+        System.out.println("[DynamicIsland] Recording system initialized");
+
+        // Track server connections for Loom Shield
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            String serverIp = "";
+            if (client.getCurrentServerEntry() != null) {
+                serverIp = client.getCurrentServerEntry().address;
+            }
+            com.cobble.dynamicisland.protection.LoomShield.onServerJoin(serverIp);
+            // Start replay buffer when entering a world
+            CaptureManager.enableReplayBuffer();
+        });
+
         // Clear world-specific state on disconnect (switching servers/worlds)
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            com.cobble.dynamicisland.protection.LoomShield.onServerDisconnect();
             GameAlerts.clearPersistent();
             WaypointManager.cancelNavigation();
             CombatTracker.endCombat();
             TimerManager.dismissFinishedTimer();
             NetworkStats.reset();
+            MediaViewer.cleanup();
+            TwitchChat.clear();
+            CaptureManager.shutdown(); // Stop recording/replay on disconnect
+            isMediaOpen = false;
             currentNotification = null;
             notificationEndTime = 0;
             System.out.println("[DynamicIsland] World state cleared on disconnect");
@@ -157,11 +194,19 @@ public class DynamicIslandMod implements ClientModInitializer {
             handleWhisperMessage(message.getString());
         });
 
-        // Press P to open Pebble AI chat
-        pebbleKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "Ask Pebble", 
+        // Press X to open App Drawer
+        appDrawerKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "App Drawer",
             InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_P,
+            GLFW.GLFW_KEY_X,
+            CATEGORY
+        ));
+
+        // Press L to open Loomie AI chat
+        pebbleKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Loomie AI", 
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_L,
             CATEGORY
         ));
 
@@ -216,6 +261,14 @@ public class DynamicIslandMod implements ClientModInitializer {
             CATEGORY
         ));
 
+        // Press P to toggle Privacy Mode
+        privacyKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Privacy Mode",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_P,
+            CATEGORY
+        ));
+
         // Press F7 to show network stats (ping + TPS)
         networkStatsKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "Network Stats",
@@ -224,7 +277,34 @@ public class DynamicIslandMod implements ClientModInitializer {
             CATEGORY
         ));
 
+        // Press T to open media viewer panel (ESC to close)
+        KeyBinding mediaKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Media Viewer",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_T,
+            CATEGORY
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            while (appDrawerKeyBinding.wasPressed()) {
+                if (isAppDrawerOpen) {
+                    // Close App Drawer
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
+                    if (client.currentScreen instanceof AppDrawerScreen) {
+                        client.setScreen(null);
+                    }
+                } else if (client.currentScreen == null) {
+                    // Open App Drawer
+                    isAppDrawerOpen = true;
+                    DynamicIslandHud.isAppDrawerOpen = true;
+                    isPebbleOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isMediaOpen = false;
+                    client.setScreen(new AppDrawerScreen());
+                }
+            }
             while (pebbleKeyBinding.wasPressed()) {
                 if (isPebbleOpen) {
                     // Close Pebble
@@ -235,6 +315,11 @@ public class DynamicIslandMod implements ClientModInitializer {
                 } else if (client.currentScreen == null) {
                     // Open Pebble
                     isPebbleOpen = true;
+                    isMediaOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
                     client.setScreen(new PebbleScreen());
                 }
             }
@@ -281,8 +366,62 @@ public class DynamicIslandMod implements ClientModInitializer {
                     client.setScreen(new SettingsScreen());
                 }
             }
+            while (privacyKeyBinding.wasPressed()) {
+                privacyMode = !privacyMode;
+                if (privacyMode) {
+                    // Reset aliases/skins so each toggle picks fresh randoms
+                    com.cobble.dynamicisland.privacy.PrivacyState.resetAlias();
+                    com.cobble.dynamicisland.privacy.PrivacyState.resetSkin();
+                    triggerSilentNotification("\uD83D\uDEE1 Privacy Mode ON", "general");
+                } else {
+                    triggerSilentNotification("\uD83D\uDEE1 Privacy Mode OFF", "general");
+                }
+                DynamicIslandConfig.save();
+            }
             while (networkStatsKeyBinding.wasPressed()) {
                 NetworkStats.sendNetworkStats();
+            }
+            // T only OPENS media browser, never closes (ESC closes)
+            while (mediaKeyBinding.wasPressed()) {
+                if (InGameBrowser.isPlayingInBackground() && client.currentScreen == null) {
+                    // Resume background browser
+                    isMediaOpen = true;
+                    isPebbleOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
+                    InGameBrowser.openMedia();
+                } else if (!isMediaOpen && client.currentScreen == null) {
+                    isMediaOpen = true;
+                    isPebbleOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
+                    // Open in-game browser (YouTube/Twitch)
+                    InGameBrowser.openMedia();
+                }
+            }
+
+            // ── Auto-close browser when game takes back control ──
+            // This handles respawn, teleport, death, etc. where Minecraft
+            // replaces our Screen without calling close().
+            if (isMediaOpen && client.currentScreen != null
+                    && !(client.currentScreen instanceof InGameBrowser)
+                    && !(client.currentScreen instanceof TwitchScreen)) {
+                // Game replaced our screen — close media
+                isMediaOpen = false;
+                // Let video keep playing in background if it was a video page
+                if (!InGameBrowser.isPlayingInBackground()) {
+                    InGameBrowser.destroyBrowser();
+                }
+                System.out.println("[DynamicIsland] Browser auto-closed: game screen changed");
+            }
+            // Also handle when screen goes to null while media flag is still set
+            if (isMediaOpen && client.currentScreen == null && !InGameBrowser.isPlayingInBackground()) {
+                isMediaOpen = false;
+                System.out.println("[DynamicIsland] Browser auto-closed: screen cleared");
             }
 
             // Tick TPS tracker

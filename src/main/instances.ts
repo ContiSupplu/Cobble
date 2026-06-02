@@ -35,6 +35,9 @@ export interface InstanceConfig {
   resolution?: { width: number; height: number }
   createdBy?: string         // Profile UUID for isolation
   customIcon?: string        // Path to custom icon image
+  // Launch speed optimization
+  launchReady?: boolean      // True after first successful launch — skips verification
+  modsHash?: string          // Hash of mods folder for cache invalidation
 }
 
 // ============================================================
@@ -529,4 +532,65 @@ export function copyFilesToInstance(
   }
 
   return { copied, errors }
+}
+
+// ============================================================
+// Launch Speed — Ready Flag Helpers
+// ============================================================
+
+import { createHash } from 'crypto'
+
+/**
+ * Compute a fast hash of the mods folder (filenames + sizes).
+ * Used to detect when mods change and invalidate the launch cache.
+ */
+export function computeModsHash(id: string): string {
+  const modsDir = join(INSTANCES_DIR, id, 'mods')
+  if (!existsSync(modsDir)) return 'empty'
+  try {
+    const files = readdirSync(modsDir)
+      .filter(f => f.endsWith('.jar'))
+      .sort()
+      .map(f => {
+        try {
+          const s = statSync(join(modsDir, f))
+          return `${f}:${s.size}`
+        } catch { return f }
+      })
+    return createHash('md5').update(files.join('|')).digest('hex').substring(0, 12)
+  } catch { return 'error' }
+}
+
+/**
+ * Mark an instance as launch-ready (all files verified, skip on next launch).
+ */
+export function markLaunchReady(id: string): void {
+  const dir = join(INSTANCES_DIR, id)
+  const config = readInstanceJson(dir)
+  if (config) {
+    config.launchReady = true
+    config.modsHash = computeModsHash(id)
+    writeInstanceJson(dir, config)
+  }
+}
+
+/**
+ * Invalidate launch-ready status (e.g. mod installed/removed, version changed).
+ * Also removes the AppCDS archive since the class list will be different.
+ */
+export function invalidateLaunchReady(id: string): void {
+  const dir = join(INSTANCES_DIR, id)
+  const config = readInstanceJson(dir)
+  if (config && config.launchReady) {
+    config.launchReady = false
+    config.modsHash = undefined
+    writeInstanceJson(dir, config)
+    // Delete AppCDS archive — class list is now stale
+    try {
+      const cdsPath = join(dir, 'mc.jsa')
+      const clsPath = join(dir, 'mc-classlist.txt')
+      if (existsSync(cdsPath)) { require('fs').unlinkSync(cdsPath); console.log('[Instances] AppCDS archive invalidated') }
+      if (existsSync(clsPath)) { require('fs').unlinkSync(clsPath) }
+    } catch { /* non-critical */ }
+  }
 }

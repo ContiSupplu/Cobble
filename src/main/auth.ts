@@ -17,8 +17,8 @@ export interface MinecraftAccount {
   accessToken: string
   msRefreshToken?: string
   expiresAt: number
-  incognitoRegion?: string   // per-profile incognito preference
-  incognitoEnabled?: boolean // per-profile incognito toggle
+  privacyRegion?: string   // per-profile privacy mode preference
+  privacyEnabled?: boolean // per-profile privacy mode toggle
 }
 
 interface AccountStore {
@@ -405,10 +405,10 @@ export async function microsoftLogin(parentWindow: BrowserWindow | null): Promis
   // Check if this account already exists (same UUID = update it)
   const idx = accountStore.accounts.findIndex(a => a.uuid === account.uuid)
   if (idx >= 0) {
-    // Preserve custom display name and incognito prefs
+    // Preserve custom display name and privacy mode prefs
     account.displayName = accountStore.accounts[idx].displayName
-    account.incognitoRegion = accountStore.accounts[idx].incognitoRegion
-    account.incognitoEnabled = accountStore.accounts[idx].incognitoEnabled
+    account.privacyRegion = accountStore.accounts[idx].privacyRegion
+    account.privacyEnabled = accountStore.accounts[idx].privacyEnabled
     accountStore.accounts[idx] = account
   } else {
     accountStore.accounts.push(account)
@@ -451,8 +451,8 @@ export async function restoreSession(): Promise<MinecraftAccount | null> {
       const refreshed = await fullAuthChain(newMs.accessToken, newMs.refreshToken)
       // Preserve custom fields
       refreshed.displayName = active.displayName
-      refreshed.incognitoRegion = active.incognitoRegion
-      refreshed.incognitoEnabled = active.incognitoEnabled
+      refreshed.privacyRegion = active.privacyRegion
+      refreshed.privacyEnabled = active.privacyEnabled
       // Update in store
       const idx = accountStore.accounts.findIndex(a => a.uuid === active!.uuid)
       if (idx >= 0) accountStore.accounts[idx] = refreshed
@@ -481,13 +481,13 @@ export function getCachedAccount(): MinecraftAccount | null {
 /**
  * Get all saved accounts
  */
-export function getAllAccounts(): Array<{ uuid: string; username: string; displayName: string; incognitoRegion?: string; incognitoEnabled?: boolean }> {
+export function getAllAccounts(): Array<{ uuid: string; username: string; displayName: string; privacyRegion?: string; privacyEnabled?: boolean }> {
   return accountStore.accounts.map(a => ({
     uuid: a.uuid,
     username: a.username,
     displayName: a.displayName,
-    incognitoRegion: a.incognitoRegion,
-    incognitoEnabled: a.incognitoEnabled,
+    privacyRegion: a.privacyRegion,
+    privacyEnabled: a.privacyEnabled,
   }))
 }
 
@@ -513,8 +513,8 @@ export async function switchAccount(uuid: string): Promise<MinecraftAccount | nu
       const newMs = await refreshMicrosoftToken(account.msRefreshToken)
       const refreshed = await fullAuthChain(newMs.accessToken, newMs.refreshToken)
       refreshed.displayName = account.displayName
-      refreshed.incognitoRegion = account.incognitoRegion
-      refreshed.incognitoEnabled = account.incognitoEnabled
+      refreshed.privacyRegion = account.privacyRegion
+      refreshed.privacyEnabled = account.privacyEnabled
       const idx = accountStore.accounts.findIndex(a => a.uuid === uuid)
       if (idx >= 0) accountStore.accounts[idx] = refreshed
       saveStoreToDisk()
@@ -553,13 +553,13 @@ export function updateDisplayName(uuid: string, displayName: string): void {
 }
 
 /**
- * Update incognito preferences for an account
+ * Update privacy mode preferences for an account
  */
-export function updateIncognitoPrefs(uuid: string, region?: string, enabled?: boolean): void {
+export function updatePrivacyPrefs(uuid: string, region?: string, enabled?: boolean): void {
   const account = accountStore.accounts.find(a => a.uuid === uuid)
   if (account) {
-    if (region !== undefined) account.incognitoRegion = region
-    if (enabled !== undefined) account.incognitoEnabled = enabled
+    if (region !== undefined) account.privacyRegion = region
+    if (enabled !== undefined) account.privacyEnabled = enabled
     saveStoreToDisk()
   }
 }

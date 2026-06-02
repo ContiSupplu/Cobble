@@ -3,7 +3,14 @@
   "package": "com.cobble.dynamicisland.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "BossBarHudMixin"
+    "BossBarHudMixin",
+    "ClientPlayNetworkHandlerMixin",
+    "ItemRendererMixin",
+    "PlayerHiderMixin",
+    "SkinRandomizerMixin",
+    "PlayerListHudMixin",
+    "SplashOverlayMixin",
+    "GameRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

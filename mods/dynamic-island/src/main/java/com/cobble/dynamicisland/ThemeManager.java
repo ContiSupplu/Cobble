@@ -37,6 +37,14 @@ public class ThemeManager {
         currentTheme = themes[index];
     }
 
+    public static void setThemeByName(String name) {
+        if (name == null) { setTheme(0); return; }
+        for (int i = 0; i < themes.length; i++) {
+            if (themes[i].name.equalsIgnoreCase(name)) { setTheme(i); return; }
+        }
+        setTheme(0); // fallback to default
+    }
+
     public static void nextTheme() {
         setTheme((currentIndex + 1) % themes.length);
     }

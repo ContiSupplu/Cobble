@@ -12,6 +12,8 @@ base {
 
 repositories {
     mavenCentral()
+    maven { url = "https://api.modrinth.com/maven" }
+    maven { url = uri('https://maven.dimaskama.net/releases') }
 }
 
 dependencies {
@@ -26,6 +28,12 @@ dependencies {
 
     // Embed Fabric API so users don't need to manually download it
     include(modImplementation("net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"))
+
+    // WATERMeDIA — compile-only, users install as a separate mod
+    modCompileOnly "maven.modrinth:watermedia:2.1.37"
+
+    // MCEF — in-game Chromium browser (compile-only, installed as separate mod)
+    modCompileOnly "maven.modrinth:mcef:2.1.6-1.21.1"
 }
 
 processResources {

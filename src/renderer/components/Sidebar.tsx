@@ -16,7 +16,7 @@ const I = {
 }
 
 export default function Sidebar({ onOpenProfiles }: SidebarProps) {
-  const { user, incognitoEnabled } = useAuth()
+  const { user, privacyEnabled } = useAuth()
   const navigate = useNavigate()
   const [skinDataUrl, setSkinDataUrl] = useState<string | null>(null)
 
@@ -38,9 +38,11 @@ export default function Sidebar({ onOpenProfiles }: SidebarProps) {
         <NavLink to="/browse" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Browse">
           <svg {...I}><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
         </NavLink>
+        {/* Players tab hidden until we have more users
         <NavLink to="/players" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Players">
           <svg {...I}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
         </NavLink>
+        */}
         <NavLink to="/changing-room" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Changing Room">
           <svg {...I}><path d="M20.38 3.46L16 2 12 5.5 8 2 3.62 3.46a2 2 0 00-1.34 2.23l.58 3.47a1 1 0 00.99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 002-2V10h2.15a1 1 0 00.99-.84l.58-3.47a2 2 0 00-1.34-2.23z" /></svg>
         </NavLink>
@@ -56,6 +58,12 @@ export default function Sidebar({ onOpenProfiles }: SidebarProps) {
         </NavLink>
         <NavLink to="/bedrock" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Bedrock">
           <svg {...I}><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+        </NavLink>
+        <NavLink to="/servers" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Quick Servers">
+          <svg {...I}><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+        </NavLink>
+        <NavLink to="/gallery" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Content">
+          <svg {...I}><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
         </NavLink>
       </nav>
 
@@ -78,8 +86,8 @@ export default function Sidebar({ onOpenProfiles }: SidebarProps) {
           ) : (
             <div className="sidebar-avatar-placeholder" />
           )}
-          {incognitoEnabled && (
-            <span className="sidebar-incognito-dot" />
+          {privacyEnabled && (
+            <span className="sidebar-privacy-dot" title="Privacy Mode" />
           )}
         </button>
       </div>

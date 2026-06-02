@@ -195,18 +195,19 @@
 
 .settings-toggle-dot {
   position: absolute;
-  top: 3px;
-  left: 3px;
+  top: 50%;
+  left: 2px;
   width: 16px;
   height: 16px;
   border-radius: 50%;
   background: #fff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
   transition: transform 150ms;
+  transform: translateY(-50%);
 }
 
 .settings-toggle.on .settings-toggle-dot {
-  transform: translateX(18px);
+  transform: translateX(18px) translateY(-50%);
 }
 
 /* ═══════════════════════════════════════════════════

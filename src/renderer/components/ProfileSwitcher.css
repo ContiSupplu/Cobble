@@ -57,8 +57,8 @@
   flex-shrink: 0;
 }
 
-/* Incognito badge */
-.profile-switcher-incognito {
+/* Privacy Mode badge */
+.profile-switcher-privacy {
   position: absolute;
   bottom: 4px;
   right: 0px;

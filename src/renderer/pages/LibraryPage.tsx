@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext'
 import { useCustomization } from '../context/CustomizationContext'
 import { useProxiedImage } from '../hooks/useProxiedImage'
 import SpotifyWidget from '../components/SpotifyWidget'
-import IncognitoCard from '../components/IncognitoCard'
+import PrivacyCard from '../components/PrivacyCard'
 import FileExplorer from '../components/FileExplorer'
 import defaultInstanceIcon from '../assets/default-instance-icon.png'
 import './LibraryPage.css'
@@ -617,7 +617,7 @@ function EditInstanceModal({ instance, instanceIconUrl, onCancel, onSave, onDele
 // ─── Main Library Page ─────────────────────────────────────────────────────────
 
 export default function LibraryPage() {
-  const { user, accounts, incognitoEnabled, incognitoRegion, setIncognitoEnabled, setIncognitoRegion } = useAuth()
+  const { user, accounts, privacyEnabled, privacyRegion, setPrivacyEnabled, setPrivacyRegion } = useAuth()
   const { settings } = useCustomization()
   const headUrl = useProxiedImage(user ? `https://mc-heads.net/avatar/${user.uuid}/48` : null)
 
@@ -1051,6 +1051,7 @@ export default function LibraryPage() {
                   className="library-play"
                   onClick={() => {
                     if (user) {
+                      localStorage.setItem('loom_last_played_instance', selected.id)
                       window.electronAPI?.launch?.(selected.id).catch(() => {})
                     }
                   }}
@@ -1085,7 +1086,11 @@ export default function LibraryPage() {
             <button
               key={inst.id}
               className={`library-inst${inst.id === selectedId ? ' selected' : ''}${inst.favorite ? ' favorite' : ''}`}
-              onClick={() => setSelectedId(inst.id)}
+              onClick={() => {
+                setSelectedId(inst.id)
+                // Pre-warm OS page cache — read JARs/mods into RAM before Play
+                window.electronAPI?.prewarmInstance?.(inst.id)
+              }}
               style={inst.backgroundImage
                 ? { background: `url(${inst.backgroundImage}) center/cover no-repeat`, backdropFilter: 'none' }
                 : inst.color
@@ -1306,14 +1311,14 @@ export default function LibraryPage() {
           )}
         </div>
 
-        {/* ── Incognito Card ── */}
-        <IncognitoCard
-          enabled={incognitoEnabled}
-          onToggle={setIncognitoEnabled}
-          selectedRegion={incognitoRegion}
-          onRegionChange={setIncognitoRegion}
+        {/* ── Privacy Mode Card ── */}
+        <PrivacyCard
+          enabled={privacyEnabled}
+          onToggle={setPrivacyEnabled}
+          selectedRegion={privacyRegion}
+          onRegionChange={setPrivacyRegion}
           disabled={selected ? selected.loader === 'Vanilla' : false}
-          disabledReason="Incognito requires Fabric or Forge"
+          disabledReason="Privacy Mode requires Fabric or Forge"
         />
 
         {/* ── Create Instance Form ── */}

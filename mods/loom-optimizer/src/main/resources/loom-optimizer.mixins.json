@@ -1,0 +1,12 @@
+{
+  "required": true,
+  "package": "com.loom.optimizer.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "MinecraftClientTickMixin",
+    "SimpleResourceReloadMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

@@ -17,11 +17,12 @@ import java.util.List;
 
 public class DynamicIslandMod implements ClientModInitializer {
     public static LauncherState currentState = null;
+    public static boolean isAppDrawerOpen = false;
     public static String currentNotification = null;
     private static long notificationStartTime = 0;
     private static long notificationEndTime = 0;
-    private static KeyBinding pebbleKeyBinding;
     private static KeyBinding expandKeyBinding;
+    private static KeyBinding appDrawerKeyBinding;
     private static KeyBinding pauseKeyBinding;
     private static KeyBinding prevKeyBinding;
     private static KeyBinding nextKeyBinding;
@@ -29,8 +30,10 @@ public class DynamicIslandMod implements ClientModInitializer {
     private static KeyBinding networkStatsKeyBinding;
     public static boolean isExpanded = false;
     public static boolean isLyricsMode = false;
+    public static boolean privacyMode = false;
     private static long volumeRestoreTime = 0;
     private static String lastPersistentType = null;
+    private static KeyBinding privacyKeyBinding;
 
     // ── Pebble Chat (shared state) ────────────────
     public static boolean isPebbleOpen = false;
@@ -59,6 +62,10 @@ public class DynamicIslandMod implements ClientModInitializer {
     public static boolean isSettingsOpen = false;
     public static int settingsTab = 0; // 0=Keybinds, 1=Notifications, 2=Inventory, 3=Themes
     public static int settingsScroll = 0;
+
+    // ── Media Viewer Panel ────────────────────
+    public static boolean isMediaOpen = false;
+    public static float mediaProgress = 0f;
 
     // Notification toggles
     public static boolean toggleLowHealth = true;
@@ -120,7 +127,15 @@ public class DynamicIslandMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         System.out.println("[DynamicIsland] Starting up...");
+        DynamicIslandConfig.load();
+        DynamicIslandConfig.apply();
         LauncherWebSocket.connectToServer();
+        MediaViewer.init();
+        InGameBrowser.preWarmMcef(); // Pre-warm MCEF for fast first browser open
+
+        // ── Loom Shield Protection System ──
+        com.cobble.dynamicisland.protection.LoomShield.init();
+        com.cobble.dynamicisland.protection.ChatSafety.init();
 
         HudRenderCallback.EVENT.register(new DynamicIslandHud());
 
@@ -135,13 +150,26 @@ public class DynamicIslandMod implements ClientModInitializer {
         WaypointManager.register();
         CombatTracker.register();
 
+        // Track server connections for Loom Shield
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            String serverIp = "";
+            if (client.getCurrentServerEntry() != null) {
+                serverIp = client.getCurrentServerEntry().address;
+            }
+            com.cobble.dynamicisland.protection.LoomShield.onServerJoin(serverIp);
+        });
+
         // Clear world-specific state on disconnect (switching servers/worlds)
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            com.cobble.dynamicisland.protection.LoomShield.onServerDisconnect();
             GameAlerts.clearPersistent();
             WaypointManager.cancelNavigation();
             CombatTracker.endCombat();
             TimerManager.dismissFinishedTimer();
             NetworkStats.reset();
+            MediaViewer.cleanup();
+            TwitchChat.clear();
+            isMediaOpen = false;
             currentNotification = null;
             notificationEndTime = 0;
             System.out.println("[DynamicIsland] World state cleared on disconnect");
@@ -155,11 +183,11 @@ public class DynamicIslandMod implements ClientModInitializer {
             handleWhisperMessage(message.getString());
         });
 
-        // Press P to open Pebble AI chat
-        pebbleKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "Ask Pebble", 
+        // Press X to open App Drawer
+        appDrawerKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "App Drawer",
             InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_P,
+            GLFW.GLFW_KEY_X,
             "Dynamic Island"
         ));
 
@@ -200,19 +228,14 @@ public class DynamicIslandMod implements ClientModInitializer {
             "Dynamic Island"
         ));
 
-        KeyBinding notifCenterKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "Notification Center",
+        // Press P to toggle Privacy Mode
+        privacyKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Privacy Mode",
             InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_N,
+            GLFW.GLFW_KEY_P,
             "Dynamic Island"
         ));
 
-        KeyBinding settingsKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "Settings",
-            InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_G,
-            "Dynamic Island"
-        ));
 
         // Press F7 to show network stats (ping + TPS)
         networkStatsKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
@@ -222,18 +245,40 @@ public class DynamicIslandMod implements ClientModInitializer {
             "Dynamic Island"
         ));
 
+        // Press T to open media viewer panel (ESC to close)
+        KeyBinding mediaKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Media Viewer",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_T,
+            "Dynamic Island"
+        ));
+
+        // Press L to open Loomie AI chat
+        KeyBinding loomieKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
+            "Loomie AI",
+            InputUtil.Type.KEYSYM,
+            GLFW.GLFW_KEY_L,
+            "Dynamic Island"
+        ));
+
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            while (pebbleKeyBinding.wasPressed()) {
-                if (isPebbleOpen) {
-                    // Close Pebble
-                    isPebbleOpen = false;
-                    if (client.currentScreen instanceof PebbleScreen) {
+            while (appDrawerKeyBinding.wasPressed()) {
+                if (isAppDrawerOpen) {
+                    // Close App Drawer
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
+                    if (client.currentScreen instanceof AppDrawerScreen) {
                         client.setScreen(null);
                     }
                 } else if (client.currentScreen == null) {
-                    // Open Pebble
-                    isPebbleOpen = true;
-                    client.setScreen(new PebbleScreen());
+                    // Open App Drawer
+                    isAppDrawerOpen = true;
+                    DynamicIslandHud.isAppDrawerOpen = true;
+                    isPebbleOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isMediaOpen = false;
+                    client.setScreen(new AppDrawerScreen());
                 }
             }
             while (expandKeyBinding.wasPressed()) {
@@ -253,34 +298,54 @@ public class DynamicIslandMod implements ClientModInitializer {
             while (lyricsKeyBinding.wasPressed()) {
                 isLyricsMode = !isLyricsMode;
             }
-            while (notifCenterKeyBinding.wasPressed()) {
-                if (isNotifCenterOpen) {
-                    isNotifCenterOpen = false;
-                    if (client.currentScreen instanceof NotifCenterScreen) {
-                        client.setScreen(null);
-                    }
-                } else if (client.currentScreen == null) {
-                    isNotifCenterOpen = true;
-                    isSettingsOpen = false;
-                    isPebbleOpen = false;
-                    client.setScreen(new NotifCenterScreen());
+            while (privacyKeyBinding.wasPressed()) {
+                privacyMode = !privacyMode;
+                if (privacyMode) {
+                    // Reset aliases/skins so each toggle picks fresh randoms
+                    com.cobble.dynamicisland.privacy.PrivacyState.resetAlias();
+                    com.cobble.dynamicisland.privacy.PrivacyState.resetSkin();
+                    triggerSilentNotification("\uD83D\uDEE1 Privacy Mode ON", "general");
+                } else {
+                    triggerSilentNotification("\uD83D\uDEE1 Privacy Mode OFF", "general");
                 }
-            }
-            while (settingsKeyBinding.wasPressed()) {
-                if (isSettingsOpen) {
-                    isSettingsOpen = false;
-                    if (client.currentScreen instanceof SettingsScreen) {
-                        client.setScreen(null);
-                    }
-                } else if (client.currentScreen == null) {
-                    isSettingsOpen = true;
-                    isNotifCenterOpen = false;
-                    isPebbleOpen = false;
-                    client.setScreen(new SettingsScreen());
-                }
+                DynamicIslandConfig.save();
             }
             while (networkStatsKeyBinding.wasPressed()) {
                 NetworkStats.sendNetworkStats();
+            }
+            // T only OPENS media browser, never closes (ESC closes)
+            while (mediaKeyBinding.wasPressed()) {
+                if (InGameBrowser.isPlayingInBackground() && client.currentScreen == null) {
+                    // Resume background browser
+                    isMediaOpen = true;
+                    isPebbleOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
+                    InGameBrowser.openMedia();
+                } else if (!isMediaOpen && client.currentScreen == null) {
+                    isMediaOpen = true;
+                    isPebbleOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
+                    // Open in-game browser (YouTube/Twitch)
+                    InGameBrowser.openMedia();
+                }
+            }
+            // L opens Loomie AI chat
+            while (loomieKeyBinding.wasPressed()) {
+                if (!isPebbleOpen && client.currentScreen == null) {
+                    isPebbleOpen = true;
+                    isMediaOpen = false;
+                    isNotifCenterOpen = false;
+                    isSettingsOpen = false;
+                    isAppDrawerOpen = false;
+                    DynamicIslandHud.isAppDrawerOpen = false;
+                    client.setScreen(new PebbleScreen());
+                }
             }
 
             // Tick TPS tracker

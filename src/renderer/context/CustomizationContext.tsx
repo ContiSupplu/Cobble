@@ -62,8 +62,13 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     root.style.setProperty('--accent-hover', `rgb(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)})`)
     root.style.setProperty('--accent-muted', `rgba(${r}, ${g}, ${b}, 0.08)`)
 
-    // Font scale
-    root.style.setProperty('font-size', `${settings.fontScale * 16}px`)
+    // Font scale — use zoom to scale all px-based elements proportionally
+    const appBody = document.querySelector('.app-layout') as HTMLElement
+    if (appBody) {
+      appBody.style.zoom = String(settings.fontScale)
+    }
+    // Also set a CSS variable for components that want to opt-in
+    root.style.setProperty('--font-scale', String(settings.fontScale))
   }, [settings])
 
   const update = <K extends keyof CustomizationSettings>(key: K, value: CustomizationSettings[K]) => {

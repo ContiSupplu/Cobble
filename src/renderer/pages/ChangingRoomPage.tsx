@@ -9,12 +9,13 @@ export default function ChangingRoomPage() {
   const [bodyUrl, setBodyUrl] = useState<string | null>(null)
   const [variant, setVariant] = useState<'classic' | 'slim'>('classic')
   const [uploading, setUploading] = useState(false)
+  const [changingVariant, setChangingVariant] = useState(false)
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null)
 
-  const loadSkin = useCallback(async () => {
+  const loadSkin = useCallback(async (overrideVariant?: 'classic' | 'slim') => {
     if (!user?.uuid || !api) return
     const [body, current] = await Promise.all([
-      api.resolveBodyUrl(user.uuid, 256),
+      api.resolveBodyUrl(user.uuid, 256, overrideVariant),
       api.getCurrentSkin(),
     ])
     if (body) setBodyUrl(body)
@@ -22,6 +23,31 @@ export default function ChangingRoomPage() {
   }, [user?.uuid])
 
   useEffect(() => { loadSkin() }, [loadSkin])
+
+  // Change the skin model variant (classic ↔ slim) by re-uploading the current skin
+  const handleVariantChange = async (newVariant: 'classic' | 'slim') => {
+    if (!api || newVariant === variant || changingVariant) return
+    setChangingVariant(true)
+    setStatus(null)
+    // Optimistically update the preview
+    setVariant(newVariant)
+    if (user?.uuid) {
+      const previewBody = await api.resolveBodyUrl(user.uuid, 256, newVariant)
+      if (previewBody) setBodyUrl(previewBody)
+    }
+    // Call the API to change the variant on Mojang's servers
+    const result = await api.changeSkinVariant(newVariant)
+    if (result.success) {
+      setStatus({ type: 'success', msg: `Switched to ${newVariant}` })
+      // Refresh from server after Mojang caches update
+      setTimeout(() => loadSkin(newVariant), 2000)
+    } else {
+      setStatus({ type: 'error', msg: result.error || 'Failed to change model' })
+      // Revert on failure
+      await loadSkin()
+    }
+    setChangingVariant(false)
+  }
 
   const handleUpload = async () => {
     if (!api) return
@@ -65,12 +91,14 @@ export default function ChangingRoomPage() {
           <div className="changing-room-variant-row">
             <button
               className={`changing-room-variant-btn ${variant === 'classic' ? 'active' : ''}`}
-              onClick={() => setVariant('classic')}
+              onClick={() => handleVariantChange('classic')}
+              disabled={changingVariant || uploading}
             >Classic</button>
             <button
               className={`changing-room-variant-btn ${variant === 'slim' ? 'active' : ''}`}
-              onClick={() => setVariant('slim')}
-            >Slim</button>
+              onClick={() => handleVariantChange('slim')}
+              disabled={changingVariant || uploading}
+            >{changingVariant ? 'Changing...' : 'Slim'}</button>
           </div>
 
           <button

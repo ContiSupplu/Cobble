@@ -142,7 +142,7 @@
   background: var(--bg-3);
 }
 
-.sidebar-incognito-dot {
+.sidebar-privacy-dot {
   position: absolute;
   bottom: -2px;
   right: -2px;

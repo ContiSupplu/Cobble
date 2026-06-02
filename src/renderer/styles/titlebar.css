@@ -23,7 +23,7 @@
   -webkit-app-region: drag;
 }
 
-.titlebar-incognito-badge {
+.titlebar-privacy-badge {
   display: flex;
   align-items: center;
   gap: 4px;

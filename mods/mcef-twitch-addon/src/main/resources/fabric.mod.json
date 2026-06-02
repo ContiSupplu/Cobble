@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "mcef-twitch-addon",
+  "version": "${version}",
+  "name": "MCEF Twitch Addon",
+  "description": "Fixes Twitch video playback in MCEF Modern browsers by overriding the user agent and ensuring codec support detection. By Loom MC.",
+  "authors": ["Loom MC"],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.loom.mceftwitch.MCEFTwitchAddon"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=1.21",
+    "java": ">=21"
+  },
+  "suggests": {
+    "mcef-modern": "*"
+  }
+}

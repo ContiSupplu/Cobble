@@ -13,7 +13,7 @@ export interface WizardSettings {
   discordRPC: boolean
 }
 
-const TOTAL_SCREENS = 6
+const TOTAL_SCREENS = 7
 
 export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const [screen, setScreen] = useState(0)
@@ -73,8 +73,13 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
           <SignInScreen onNext={next} isActive={screen === 3} />
         </WizardScreen>
 
-        {/* Screen 4: Preferences */}
+        {/* Screen 4: Transfer Data (Migration) */}
         <WizardScreen index={4} current={screen} prev={prevScreen}>
+          <MigrationScreen isActive={screen === 4} />
+        </WizardScreen>
+
+        {/* Screen 5: Preferences */}
+        <WizardScreen index={5} current={screen} prev={prevScreen}>
           <PreferencesScreen
             ram={ram} onRamChange={setRam}
             dynamicIsland={dynamicIsland} onDynamicIslandChange={setDynamicIsland}
@@ -83,8 +88,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
           />
         </WizardScreen>
 
-        {/* Screen 5: All Set */}
-        <WizardScreen index={5} current={screen} prev={prevScreen}>
+        {/* Screen 6: All Set */}
+        <WizardScreen index={6} current={screen} prev={prevScreen}>
           <AllSetScreen onFinish={() => finish({ ram, dynamicIsland, closeOnLaunch, discordRPC })} />
         </WizardScreen>
       </div>
@@ -215,6 +220,26 @@ function WhatsNewScreen() {
             <div className="wz-feature-text">
               <div className="wz-feature-name">Smart Library</div>
               <div className="wz-feature-desc">Create instances, browse mods, and manage everything in one place.</div>
+            </div>
+          </div>
+
+          <div className="wz-feature">
+            <div className="wz-feature-icon">
+              <svg viewBox="0 0 32 32"><defs><linearGradient id="f4" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#f59e0b" /><stop offset="100%" stopColor="#ef4444" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f4)" /><rect x="10" y="10" width="12" height="12" rx="3" fill="white" /><path d="M14 14h4v4h-4z" fill="url(#f4)" /></svg>
+            </div>
+            <div className="wz-feature-text">
+              <div className="wz-feature-name">Quick Servers</div>
+              <div className="wz-feature-desc">Host your own Minecraft server with one click, right from Loom.</div>
+            </div>
+          </div>
+
+          <div className="wz-feature">
+            <div className="wz-feature-icon">
+              <svg viewBox="0 0 32 32"><defs><linearGradient id="f5" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#10b981" /><stop offset="100%" stopColor="#059669" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f5)" /><path d="M11 16l3 3 7-7" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            </div>
+            <div className="wz-feature-text">
+              <div className="wz-feature-name">Bedrock Edition</div>
+              <div className="wz-feature-desc">Launch and manage Minecraft Bedrock, browse add-ons, all in one place.</div>
             </div>
           </div>
         </div>
@@ -403,6 +428,104 @@ function PreferencesScreen({ ram, onRamChange, dynamicIsland, onDynamicIslandCha
             </div>
             <div className={`prefs-toggle ${closeOnLaunch ? 'on' : ''}`}><div className="prefs-toggle-knob" /></div>
           </label>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+
+/* ═══════════════════════════════════════════════════
+   Screen 4: Transfer Data (Migration)
+   ═══════════════════════════════════════════════════ */
+
+const api = (window as any).electronAPI
+
+function MigrationScreen({ isActive }: { isActive: boolean }) {
+  const [launchers, setLaunchers] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<string | null>(null)
+  const [selected, setSelected] = useState<Record<string, boolean>>({})
+  const detected = useRef(false)
+
+  useEffect(() => {
+    if (!isActive || detected.current) return
+    detected.current = true
+    setLoading(true)
+    api?.migrationDetect?.().then((result: any[]) => {
+      setLaunchers(result || [])
+      // Auto-select all detected launchers
+      const sel: Record<string, boolean> = {}
+      ;(result || []).forEach((l: any) => { sel[l.name] = true })
+      setSelected(sel)
+    }).catch(() => {}).finally(() => setLoading(false))
+  }, [isActive])
+
+  const handleImport = async (launcher: any) => {
+    setImporting(true)
+    try {
+      await api?.migrationImport?.(launcher.type, launcher.path, {
+        worlds: true, mods: true, resourcePacks: true, settings: true
+      })
+      setImportResult(`Imported data from ${launcher.name}`)
+    } catch (e: any) {
+      setImportResult(`Failed: ${e.message}`)
+    }
+    setImporting(false)
+  }
+
+  return (
+    <div className="wz-content">
+      <div className="wz-content-inner">
+        <div className="wz-icon-wrap">
+          <svg viewBox="0 0 56 56" className="wz-icon-svg">
+            <defs>
+              <linearGradient id="migrateGrad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+                <stop offset="0%" stopColor="#0a84ff" />
+                <stop offset="100%" stopColor="#30d158" />
+              </linearGradient>
+            </defs>
+            <rect width="56" height="56" rx="14" fill="url(#migrateGrad)" />
+            <path d="M18 28h20M30 20l8 8-8 8" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </div>
+        <h1 className="wz-heading">Transfer Your Data</h1>
+        <p className="wz-subheading">Import worlds, mods, and settings from another launcher.</p>
+
+        <div className="prefs-group">
+          {loading ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#a1a1a6', fontSize: 13 }}>
+              <span className="wz-spinner" style={{ marginRight: 8 }} />
+              Scanning for launchers...
+            </div>
+          ) : launchers.length === 0 ? (
+            <div style={{ padding: '20px', textAlign: 'center', color: '#a1a1a6', fontSize: 13 }}>
+              No other launchers detected. You can skip this step.
+            </div>
+          ) : (
+            <>
+              {launchers.map((l: any) => (
+                <label key={l.name} className="prefs-row" onClick={() => handleImport(l)} style={{ cursor: importing ? 'wait' : 'pointer' }}>
+                  <div className="prefs-row-info">
+                    <span className="prefs-row-name">{l.name}</span>
+                    <span className="prefs-row-desc">{l.instanceCount || 0} instance{l.instanceCount !== 1 ? 's' : ''} found</span>
+                  </div>
+                  <div className="prefs-row-info" style={{ textAlign: 'right', opacity: 0.6, fontSize: 11 }}>
+                    Import
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 4 }}>
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </div>
+                </label>
+              ))}
+              {importResult && (
+                <div style={{ padding: '12px 16px', fontSize: 12, color: '#30d158', textAlign: 'center' }}>
+                  {importResult}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -1,317 +1,896 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Loom — The All-in-One Minecraft Launcher</title>
-  <meta name="description" content="Loom is a premium Minecraft launcher for Java and Bedrock Edition. Smart mod management, AI companion, dynamic HUD, and more." />
-  <meta name="theme-color" content="#0a0a0a" />
-  <meta property="og:title" content="Loom — The All-in-One Minecraft Launcher" />
-  <meta property="og:description" content="Java and Bedrock Edition, together in one premium launcher. Download for free." />
-  <meta property="og:type" content="website" />
-  <link rel="icon" href="assets/loom-icon.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loom Launcher — The Minecraft Launcher That Does Everything</title>
+    <meta name="description" content="Loom Launcher v1.6 Netherite. Smart library, AI companion, Bedrock support, mod browser, and more.">
+    <link rel="icon" href="assets/loom-icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8a8a9a;
+            --text-tertiary: #55556a;
+            --accent-amber: #d97706;
+            --accent-orange: #f59e0b;
+            --accent-red: #b91c1c;
+            --gradient-netherite: linear-gradient(135deg, #d97706, #b91c1c);
+            --gradient-netherite-soft: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(185, 28, 28, 0.15));
+            --gradient-glow: radial-gradient(600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(217, 119, 6, 0.04), transparent 40%);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ── Navigation ── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 0.3s ease;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .nav-brand img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .nav-brand span {
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 450;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            background: var(--gradient-netherite);
+            color: white !important;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.85rem !important;
+            transition: opacity 0.2s ease, transform 0.2s ease !important;
+        }
+
+        .nav-cta:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* ── Hero Section ── */
+        .hero {
+            position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8rem 2rem 6rem;
+            text-align: center;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(217, 119, 6, 0.08) 0%, rgba(185, 28, 28, 0.04) 40%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;
+            background: linear-gradient(to top, var(--bg-primary), transparent);
+            pointer-events: none;
+        }
+
+        .hero-grid-bg {
+            position: absolute;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+            mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 100%);
+            -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 50%, black 20%, transparent 100%);
+            pointer-events: none;
+        }
+
+        .version-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 1rem;
+            background: var(--gradient-netherite-soft);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--accent-orange);
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+            letter-spacing: 0.02em;
+        }
+
+        .version-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--accent-orange);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .hero h1 {
+            font-size: clamp(3rem, 7vw, 5.5rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            line-height: 1.05;
+            max-width: 800px;
+            position: relative;
+            z-index: 1;
+            background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-tagline {
+            font-size: clamp(1.1rem, 2vw, 1.35rem);
+            color: var(--text-secondary);
+            max-width: 540px;
+            margin: 1.5rem auto 3rem;
+            font-weight: 400;
+            line-height: 1.6;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hero-actions {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.85rem 2rem;
+            background: var(--gradient-netherite);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 24px rgba(217, 119, 6, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            font-family: inherit;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(217, 119, 6, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-primary svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.85rem 2rem;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 500;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            font-family: inherit;
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+            border-color: var(--border-hover);
+            transform: translateY(-1px);
+        }
+
+        /* ── Section Shared ── */
+        section {
+            padding: 7rem 2rem;
+            position: relative;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 4rem;
+        }
+
+        .section-label {
+            display: inline-block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--accent-amber);
+            margin-bottom: 1rem;
+        }
+
+        .section-title {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            line-height: 1.15;
+            background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.65) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section-subtitle {
+            color: var(--text-secondary);
+            max-width: 500px;
+            margin: 1rem auto 0;
+            font-size: 1.05rem;
+        }
+
+        /* ── Features Grid ── */
+        .features {
+            background: var(--bg-secondary);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1px;
+            max-width: 1100px;
+            margin: 0 auto;
+            background: var(--border-subtle);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+
+        .feature-card {
+            background: var(--bg-secondary);
+            padding: 2.5rem;
+            position: relative;
+            transition: background 0.3s ease;
+            cursor: default;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: var(--gradient-glow);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+        }
+
+        .feature-card:hover {
+            background: rgba(18, 18, 26, 0.8);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--gradient-netherite-soft);
+            border: 1px solid rgba(217, 119, 6, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            color: var(--accent-orange);
+        }
+
+        .feature-icon svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .feature-card h3 {
+            font-size: 1.05rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .feature-card p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .badge-coming-soon {
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            padding: 0.2rem 0.6rem;
+            background: rgba(217, 119, 6, 0.12);
+            color: var(--accent-orange);
+            border-radius: 100px;
+            border: 1px solid rgba(217, 119, 6, 0.2);
+        }
+
+        /* Span the last two cards to fill the row */
+        .feature-card:nth-child(7) {
+            grid-column: 1 / 2;
+        }
+
+        .feature-card:nth-child(8) {
+            grid-column: 2 / 4;
+        }
+
+        /* ── Stats Section ── */
+        .stats {
+            background: var(--bg-primary);
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            text-align: center;
+        }
+
+        .stat-item {
+            padding: 2rem;
+        }
+
+        .stat-number {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: var(--gradient-netherite);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1.2;
+        }
+
+        .stat-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-top: 0.4rem;
+            font-weight: 450;
+        }
+
+        /* ── CTA Section ── */
+        .cta-section {
+            text-align: center;
+            padding: 8rem 2rem;
+            position: relative;
+        }
+
+        .cta-section::before {
+            content: '';
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(217, 119, 6, 0.06) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .cta-section h2 {
+            font-size: clamp(2rem, 4vw, 3rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            margin-bottom: 1rem;
+            background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.65) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .cta-section p {
+            color: var(--text-secondary);
+            margin-bottom: 2.5rem;
+            font-size: 1.05rem;
+        }
+
+        /* ── Footer ── */
+        footer {
+            border-top: 1px solid var(--border-subtle);
+            padding: 3rem 2rem;
+            background: var(--bg-primary);
+        }
+
+        .footer-inner {
+            max-width: 1100px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .footer-brand img {
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+        }
+
+        .footer-brand span {
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-tertiary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-secondary);
+        }
+
+        .footer-copy {
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+        }
+
+        /* ── Animations ── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1), transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+
+        /* Hero entrance animation */
+        .hero-animate {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: hero-enter 1s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .hero-animate:nth-child(1) { animation-delay: 0.1s; }
+        .hero-animate:nth-child(2) { animation-delay: 0.25s; }
+        .hero-animate:nth-child(3) { animation-delay: 0.4s; }
+        .hero-animate:nth-child(4) { animation-delay: 0.55s; }
+
+        @keyframes hero-enter {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 900px) {
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+                border-radius: 16px;
+            }
+
+            .feature-card:nth-child(7),
+            .feature-card:nth-child(8) {
+                grid-column: auto;
+            }
+
+            .stats-grid {
+                grid-template-columns: repeat(3, 1fr);
+                gap: 1rem;
+            }
+        }
+
+        @media (max-width: 640px) {
+            nav {
+                padding: 0 1.25rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .nav-links li:not(:last-child) {
+                display: none;
+            }
+
+            .hero {
+                padding: 7rem 1.5rem 5rem;
+            }
+
+            .hero-actions {
+                flex-direction: column;
+                width: 100%;
+                max-width: 320px;
+            }
+
+            .btn-primary, .btn-secondary {
+                width: 100%;
+                justify-content: center;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+                border-radius: 12px;
+            }
+
+            .stats-grid {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+
+            .stat-item {
+                padding: 1.25rem;
+                border-bottom: 1px solid var(--border-subtle);
+            }
+
+            .stat-item:last-child {
+                border-bottom: none;
+            }
+
+            .footer-inner {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+
+            .footer-links {
+                gap: 1.5rem;
+            }
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-primary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+    </style>
 </head>
 <body>
 
-  <!-- ═══════════════════ NAVIGATION ═══════════════════ -->
-  <nav class="nav" id="nav">
-    <div class="container nav-inner">
-      <a href="index.html" class="nav-brand">
-        <img src="assets/loom-icon.png" alt="Loom" class="nav-logo" />
-        <span class="nav-wordmark">Loom</span>
-      </a>
-
-      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-
-      <ul class="nav-links" id="navLinks">
-        <li><a href="index.html" class="nav-link active">Home</a></li>
-        <li><a href="index.html#features" class="nav-link">Features</a></li>
-        <li><a href="changelog.html" class="nav-link">Changelog</a></li>
-        <li><a href="download.html" class="nav-cta">Download</a></li>
-      </ul>
-    </div>
-  </nav>
-
-
-  <!-- ═══════════════════ HERO ═══════════════════ -->
-  <section class="hero" id="hero">
-    <div class="hero-blobs">
-      <div class="hero-blob"></div>
-      <div class="hero-blob"></div>
-      <div class="hero-blob"></div>
-    </div>
-    <div class="hero-grid"></div>
-
-    <div class="hero-content">
-      <div class="hero-badge">
-        <span class="hero-badge-dot"></span>
-        v1.5 Obsidian — Now with Bedrock Edition
-      </div>
-
-      <h1 class="hero-title">
-        Your Minecraft.<br/><span class="gradient">Elevated.</span>
-      </h1>
-
-      <p class="hero-sub">
-        The all-in-one launcher for Java and Bedrock Edition.
-        Smart mod management, an AI companion, a living HUD, and more — all in one place.
-      </p>
-
-      <div class="hero-actions">
-        <a href="download.html" class="btn btn-primary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download for Windows
+    <!-- Navigation -->
+    <nav>
+        <a href="index.html" class="nav-brand">
+            <img src="assets/loom-icon.png" alt="Loom">
+            <span>Loom Launcher</span>
         </a>
-        <a href="changelog.html" class="btn btn-secondary">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 8 12 12 14 14"/><circle cx="12" cy="12" r="10"/></svg>
-          View Changelog
-        </a>
-      </div>
-    </div>
-  </section>
+        <ul class="nav-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="download.html">Download</a></li>
+            <li><a href="https://github.com/ContiSupplu/Cobble" target="_blank" rel="noopener">GitHub</a></li>
+            <li><a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.6.1.exe" class="nav-cta">Download v1.6</a></li>
+        </ul>
+    </nav>
 
+    <!-- Hero -->
+    <section class="hero">
+        <div class="hero-grid-bg"></div>
 
-  <!-- ═══════════════════ FEATURES ═══════════════════ -->
-  <section class="section" id="features">
-    <div class="container">
-      <div class="section-header reveal">
-        <div class="section-label">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          Features
-        </div>
-        <h2 class="section-title">Everything you need.<br/>Nothing you don't.</h2>
-        <p class="section-sub">
-          Built from the ground up for performance, simplicity, and a premium experience.
-        </p>
-      </div>
-
-      <div class="features-grid">
-        <!-- 1 · Smart Library -->
-        <div class="feature-card reveal reveal-delay-1">
-          <div class="feature-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/></svg>
-          </div>
-          <div class="feature-name">Smart Library</div>
-          <p class="feature-desc">Create isolated instances for every version, modpack, or server. Manage mods, resource packs, and settings — all from one clean interface.</p>
+        <div class="version-badge hero-animate">
+            v1.6 Netherite — Now Available
         </div>
 
-        <!-- 2 · Loomie AI -->
-        <div class="feature-card reveal reveal-delay-2">
-          <div class="feature-icon purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/></svg>
-          </div>
-          <div class="feature-name">Loomie AI</div>
-          <p class="feature-desc">Your personal Minecraft companion powered by Gemini. Ask any question, get crafting recipes, troubleshoot crashes, or just chat while you play.</p>
+        <h1 class="hero-animate">Loom Launcher</h1>
+
+        <p class="hero-tagline hero-animate">The Minecraft launcher that does everything.</p>
+
+        <div class="hero-actions hero-animate">
+            <a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.6.1.exe" class="btn-primary">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download for Windows
+            </a>
+            <a href="changelog.html" class="btn-secondary">
+                What's new
+            </a>
+        </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+        <div class="section-header reveal">
+            <span class="section-label">Features</span>
+            <h2 class="section-title">Everything you need. Nothing you don't.</h2>
+            <p class="section-subtitle">Built from the ground up for modern Minecraft.</p>
         </div>
 
-        <!-- 3 · Dynamic Island -->
-        <div class="feature-card reveal reveal-delay-3">
-          <div class="feature-icon cyan">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-          </div>
-          <div class="feature-name">Dynamic Island</div>
-          <p class="feature-desc">A living HUD that floats above your game. See health, coordinates, Spotify playback, and more — without leaving fullscreen.</p>
+        <div class="features-grid">
+            <!-- Smart Library -->
+            <div class="feature-card reveal reveal-delay-1">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                </div>
+                <h3>Smart Library</h3>
+                <p>Create instances, manage mods, switch versions. Your entire Minecraft collection, organized and ready to launch.</p>
+            </div>
+
+            <!-- Dynamic Island -->
+            <div class="feature-card reveal reveal-delay-2">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+                </div>
+                <h3>Dynamic Island</h3>
+                <p>Apple-style HUD overlay that stays on screen while you play. Track performance, manage your session, and stay in control.</p>
+            </div>
+
+            <!-- Loomie AI -->
+            <div class="feature-card reveal reveal-delay-3">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/><path d="M16 14H8a4 4 0 0 0-4 4v2h16v-2a4 4 0 0 0-4-4z"/><circle cx="12" cy="6" r="1"/></svg>
+                </div>
+                <h3>Loomie AI</h3>
+                <p>Your AI companion powered by Gemini. Get help with mods, troubleshoot issues, and explore Minecraft knowledge instantly.</p>
+            </div>
+
+            <!-- Bedrock Edition -->
+            <div class="feature-card reveal reveal-delay-1">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 3v18"/></svg>
+                </div>
+                <h3>Bedrock Edition</h3>
+                <p>Launch and manage Bedrock Edition right from Loom. One launcher for both editions, with full add-on and crossplay support.</p>
+            </div>
+
+            <!-- Quick Servers -->
+            <div class="feature-card reveal reveal-delay-2">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"/><rect x="2" y="14" width="20" height="8" rx="2" ry="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg>
+                </div>
+                <h3>Quick Servers <span class="badge-coming-soon">Coming Soon</span></h3>
+                <p>One-click server hosting. Spin up, configure, and share multiplayer servers without ever leaving the launcher.</p>
+            </div>
+
+            <!-- Performance -->
+            <div class="feature-card reveal reveal-delay-3">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <h3>Performance</h3>
+                <p>Optimized JVM flags, auto-installed performance mods, and Cache & Skip technology. Faster launches, higher framerates.</p>
+            </div>
+
+            <!-- Gallery -->
+            <div class="feature-card reveal reveal-delay-1">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                </div>
+                <h3>Gallery</h3>
+                <p>Record and screenshot your gameplay. Capture your best moments with built-in recording tools and a clip editor.</p>
+            </div>
+
+            <!-- Browse & Install -->
+            <div class="feature-card reveal reveal-delay-2">
+                <div class="feature-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <h3>Browse & Install</h3>
+                <p>Integrated Modrinth and CurseForge browser. Find, preview, and install mods and modpacks without leaving Loom.</p>
+            </div>
         </div>
+    </section>
 
-        <!-- 4 · Bedrock Edition -->
-        <div class="feature-card reveal reveal-delay-1">
-          <div class="feature-icon green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
-          </div>
-          <div class="feature-name">Bedrock Edition</div>
-          <p class="feature-desc">Full Bedrock support with add-on browsing from MCPEDL, CurseForge, and more. Download, auto-install, and manage packs — all built-in.</p>
+    <!-- Stats -->
+    <section class="stats">
+        <div class="stats-grid">
+            <div class="stat-item reveal">
+                <div class="stat-number">7</div>
+                <div class="stat-label">Major Releases</div>
+            </div>
+            <div class="stat-item reveal reveal-delay-1">
+                <div class="stat-number">50+</div>
+                <div class="stat-label">Performance Mods</div>
+            </div>
+            <div class="stat-item reveal reveal-delay-2">
+                <div class="stat-number">Both</div>
+                <div class="stat-label">Editions Supported</div>
+            </div>
         </div>
+    </section>
 
-        <!-- 5 · Mod Browser -->
-        <div class="feature-card reveal reveal-delay-2">
-          <div class="feature-icon pink">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          </div>
-          <div class="feature-name">Browse and Install</div>
-          <p class="feature-desc">Search Modrinth's entire catalog. One-click install for mods, shaders, and resource packs — with automatic dependency resolution.</p>
+    <!-- CTA -->
+    <section class="cta-section">
+        <h2 class="reveal">Ready to upgrade your Minecraft?</h2>
+        <p class="reveal reveal-delay-1">Download Loom Launcher v1.6 Netherite today. Free and open source.</p>
+        <div class="reveal reveal-delay-2">
+            <a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.6.1.exe" class="btn-primary" style="font-size: 1rem; padding: 1rem 2.5rem;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download for Windows
+            </a>
         </div>
+    </section>
 
-        <!-- 6 · Performance -->
-        <div class="feature-card reveal reveal-delay-3">
-          <div class="feature-icon yellow">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-          </div>
-          <div class="feature-name">Auto-Optimization</div>
-          <p class="feature-desc">Loomie automatically installs performance mods, detects crashes, and removes conflicting packages — so your game just works.</p>
+    <!-- Footer -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="assets/loom-icon.png" alt="Loom">
+                <span>Loom Launcher</span>
+            </div>
+            <ul class="footer-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="changelog.html">Changelog</a></li>
+                <li><a href="download.html">Download</a></li>
+                <li><a href="https://github.com/ContiSupplu/Cobble" target="_blank" rel="noopener">GitHub</a></li>
+            </ul>
+            <span class="footer-copy">2026 Loom Launcher. All rights reserved.</span>
         </div>
-      </div>
-    </div>
-  </section>
+    </footer>
 
+    <script>
+        // Scroll reveal with IntersectionObserver
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -60px 0px'
+        });
 
-  <!-- ═══════════════════ EDITIONS ═══════════════════ -->
-  <section class="section">
-    <div class="container">
-      <div class="section-header reveal">
-        <div class="section-label">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-          Two Editions
-        </div>
-        <h2 class="section-title">One launcher.<br/>Both editions.</h2>
-        <p class="section-sub">
-          Java and Bedrock Edition, side by side. No compromise.
-        </p>
-      </div>
+        document.querySelectorAll('.reveal').forEach(el => {
+            revealObserver.observe(el);
+        });
 
-      <div class="editions">
-        <!-- Java -->
-        <div class="edition-card reveal reveal-delay-1">
-          <div class="edition-badge java">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 8l4 4-4 4"/><path d="M3 12h18"/></svg>
-            Java Edition
-          </div>
-          <h3 class="edition-title">Full Mod Support</h3>
-          <p class="edition-desc">
-            Fabric, NeoForge, Quilt — every loader, every version. Create instances, browse mods, and manage everything with zero friction.
-          </p>
-          <ul class="edition-list">
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Isolated instances per version and modpack
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              One-click mod install from Modrinth
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Automatic performance optimization
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Crash detection and smart recovery
-            </li>
-          </ul>
-        </div>
+        // Track mouse for card glow effect
+        document.querySelectorAll('.feature-card').forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = ((e.clientX - rect.left) / rect.width) * 100;
+                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                card.style.setProperty('--mouse-x', x + '%');
+                card.style.setProperty('--mouse-y', y + '%');
+            });
+        });
 
-        <!-- Bedrock -->
-        <div class="edition-card reveal reveal-delay-2">
-          <div class="edition-badge bedrock">
-            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-            Bedrock Edition
-          </div>
-          <h3 class="edition-title">Add-Ons Built In</h3>
-          <p class="edition-desc">
-            Browse MCPEDL, CurseForge, ModBay, and Planet Minecraft. Download add-ons and they install automatically — no manual steps.
-          </p>
-          <ul class="edition-list">
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Embedded add-on browser with 4 sites
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Auto-download and auto-install to Minecraft
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Manage worlds, resource packs, and behaviors
-            </li>
-            <li>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
-              Launch Bedrock directly from Loom
-            </li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </section>
+        // Smooth scroll for anchor links
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
 
-
-  <!-- ═══════════════════ STATS ═══════════════════ -->
-  <section class="section">
-    <div class="container reveal">
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-value"><span class="gradient">6</span></div>
-          <div class="stat-label">Major Releases</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value"><span class="gradient">2</span></div>
-          <div class="stat-label">Editions Supported</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value"><span class="gradient">4</span></div>
-          <div class="stat-label">Mod Sources</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value"><span class="gradient">1</span></div>
-          <div class="stat-label">AI Companion</div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-
-  <!-- ═══════════════════ CTA ═══════════════════ -->
-  <section class="cta-section">
-    <div class="cta-glow"></div>
-    <div class="container cta-content reveal">
-      <h2 class="cta-title">Ready to play?</h2>
-      <p class="cta-sub">Download Loom for free. No account required.</p>
-      <a href="download.html" class="btn btn-primary">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        Download for Windows
-      </a>
-    </div>
-  </section>
-
-
-  <!-- ═══════════════════ FOOTER ═══════════════════ -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <div class="footer-brand-row">
-            <img src="assets/loom-icon.png" alt="Loom" />
-            <span>Loom</span>
-          </div>
-          <p class="footer-tagline">The all-in-one Minecraft launcher for Java and Bedrock Edition. Built with care by _jackoboy.</p>
-        </div>
-
-        <div class="footer-col">
-          <div class="footer-col-title">Product</div>
-          <a href="index.html#features">Features</a>
-          <a href="download.html">Download</a>
-          <a href="changelog.html">Changelog</a>
-        </div>
-
-        <div class="footer-col">
-          <div class="footer-col-title">Resources</div>
-          <a href="https://github.com/ContiSupplu/Cobble" target="_blank">GitHub</a>
-          <a href="https://github.com/ContiSupplu/Cobble/issues" target="_blank">Report a Bug</a>
-          <a href="https://github.com/ContiSupplu/Cobble/releases" target="_blank">All Releases</a>
-        </div>
-
-        <div class="footer-col">
-          <div class="footer-col-title">Community</div>
-          <a href="https://github.com/ContiSupplu/Cobble/discussions" target="_blank">Discussions</a>
-          <a href="https://github.com/ContiSupplu/Cobble" target="_blank">Contribute</a>
-        </div>
-      </div>
-
-      <div class="footer-bottom">
-        <span>&copy; 2026 Loom. Not affiliated with Mojang or Microsoft.</span>
-        <div class="footer-socials">
-          <a href="https://github.com/ContiSupplu/Cobble" target="_blank" aria-label="GitHub">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          </a>
-        </div>
-      </div>
-    </div>
-  </footer>
-
-  <script src="js/main.js"></script>
 </body>
 </html>

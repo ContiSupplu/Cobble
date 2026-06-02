@@ -1,7 +1,11 @@
 import { useRef, useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useCustomization } from '../context/CustomizationContext'
 import SpotifySetup from '../components/SpotifySetup'
+import SyncSettings from '../components/SyncSettings'
+import ModStoreStats from '../components/ModStoreStats'
+import '../components/SyncSettings.css'
 import './SettingsPage.css'
 
 const accentPresets = [
@@ -34,6 +38,18 @@ export default function SettingsPage() {
   const { settings, update, reset } = useCustomization()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const api = (window as any).electronAPI
+  const navigate = useNavigate()
+
+  // ── Instances list (for sync/vault components) ──
+  const [instances, setInstances] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => {
+    api?.getInstances?.().then((list: any[]) => {
+      setInstances(list.map((i: any) => ({ id: i.id, name: i.name })))
+    })
+  }, [])
+
+  // ── Quick Launch state ──
+  const [quickLaunch, setQuickLaunch] = useState(() => localStorage.getItem('loom_quick_launch') === 'true')
 
   // ── Spotify connection state ──
   const [spotifyConnected, setSpotifyConnected] = useState(false)
@@ -164,6 +180,7 @@ export default function SettingsPage() {
   const [perfPowerPlan, setPerfPowerPlan] = useState(false)
   const [perfNetwork, setPerfNetwork] = useState(false)
   const [perfIris, setPerfIris] = useState(false)
+  const [perfCacheAndSkip, setPerfCacheAndSkip] = useState(true)
 
   useEffect(() => {
     api?.storeGet('perf_modpack').then((v: any) => setPerfModpack(v ?? true))
@@ -174,6 +191,7 @@ export default function SettingsPage() {
     api?.storeGet('perf_power_plan').then((v: any) => setPerfPowerPlan(v ?? false))
     api?.storeGet('perf_network').then((v: any) => setPerfNetwork(v ?? false))
     api?.storeGet('perf_iris_shaders').then((v: any) => setPerfIris(v ?? false))
+    api?.storeGet('perf_cache_and_skip').then((v: any) => setPerfCacheAndSkip(v ?? true))
   }, [])
 
   const togglePerf = (key: string, current: boolean, setter: (v: boolean) => void) => {
@@ -230,26 +248,8 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="settings-row">
-          <div>
-            <div className="settings-row-title">Font Scale</div>
-            <div className="settings-row-desc">Adjust text size across the launcher</div>
-          </div>
-          <div className="settings-scale">
-            <input
-              type="range"
-              min="0.85"
-              max="1.2"
-              step="0.05"
-              value={settings.fontScale}
-              onChange={(e) => update('fontScale', parseFloat(e.target.value))}
-              className="settings-slider"
-            />
-            <span className="settings-scale-val">{Math.round(settings.fontScale * 100)}%</span>
-          </div>
-        </div>
 
-        <div className="settings-row last">
+        <div className="settings-row">
           <div>
             <div className="settings-row-title">Show Greeting</div>
             <div className="settings-row-desc">Display "Welcome back" on the home screen</div>
@@ -257,6 +257,23 @@ export default function SettingsPage() {
           <button
             className={`settings-toggle${settings.showGreeting ? ' on' : ''}`}
             onClick={() => update('showGreeting', !settings.showGreeting)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
+        </div>
+
+        <div className="settings-row last">
+          <div>
+            <div className="settings-row-title">Quick Launch</div>
+            <div className="settings-row-desc">Show a Quick Launch button on the splash screen to jump straight into your last played instance</div>
+          </div>
+          <button
+            className={`settings-toggle${quickLaunch ? ' on' : ''}`}
+            onClick={() => {
+              const next = !quickLaunch
+              setQuickLaunch(next)
+              localStorage.setItem('loom_quick_launch', String(next))
+            }}
           >
             <div className="settings-toggle-dot" />
           </button>
@@ -487,6 +504,12 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* ── File Sync ── */}
+      <SyncSettings instances={instances} />
+
+      {/* ── Mod Vault ── */}
+      <ModStoreStats instances={instances} />
+
       {/* ── About ── */}
       <div className="settings-section">
         <div className="settings-label">About</div>
@@ -536,6 +559,13 @@ export default function SettingsPage() {
             localStorage.removeItem('loom_last_seen_version')
             window.location.reload()
           }}>Replay</button>
+        </div>
+        <div className="settings-row">
+          <div>
+            <div className="settings-row-title">Privacy Policy</div>
+            <div className="settings-row-desc">See what data Loom stores and how your privacy is protected</div>
+          </div>
+          <button className="settings-btn-sm settings-btn-accent" onClick={() => navigate('/privacy')}>View</button>
         </div>
         <div className="settings-row last">
           <div className="settings-row-title">Reset Customization</div>
@@ -644,7 +674,7 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="settings-row last">
+        <div className="settings-row">
           <div>
             <div className="settings-row-title">Iris Shaders</div>
             <div className="settings-row-desc">Auto-install Iris shader support (2x faster than OptiFine shaders)</div>
@@ -652,6 +682,19 @@ export default function SettingsPage() {
           <button
             className={`settings-toggle${perfIris ? ' on' : ''}`}
             onClick={() => togglePerf('perf_iris_shaders', perfIris, setPerfIris)}
+          >
+            <div className="settings-toggle-dot" />
+          </button>
+        </div>
+
+        <div className="settings-row last">
+          <div>
+            <div className="settings-row-title">Cache & Skip</div>
+            <div className="settings-row-desc">Cache baked models and textures to skip recomputation on repeat launches (saves 2-5s)</div>
+          </div>
+          <button
+            className={`settings-toggle${perfCacheAndSkip ? ' on' : ''}`}
+            onClick={() => togglePerf('perf_cache_and_skip', perfCacheAndSkip, setPerfCacheAndSkip)}
           >
             <div className="settings-toggle-dot" />
           </button>

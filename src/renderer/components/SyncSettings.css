@@ -1,0 +1,607 @@
+/* ════════════════════════════════════════
+   File Sync & Mod Vault — Settings Panels
+   Uses the app's design system variables
+   ════════════════════════════════════════ */
+
+/* ── Shared Panel ── */
+.sync-panel,
+.modvault-panel {
+  margin-bottom: 28px;
+}
+
+.sync-panel > .settings-label,
+.modvault-panel > .settings-label {
+  margin-bottom: 8px;
+}
+
+/* ── Header Row ── */
+.sync-header,
+.modvault-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sync-header-icon,
+.modvault-header-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.sync-header-icon--spinning svg {
+  animation: syncSpin 1.5s linear infinite;
+}
+
+@keyframes syncSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.sync-title,
+.modvault-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.sync-desc,
+.modvault-desc {
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 1px;
+}
+
+/* ── Empty State ── */
+.sync-empty {
+  padding: 24px 16px;
+  text-align: center;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+}
+
+.sync-empty-icon {
+  color: var(--text-3);
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+.sync-empty-text {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.5;
+}
+
+/* ── Group Cards ── */
+.sync-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sync-group-card {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(80%);
+  border: 1.5px solid var(--glass-border);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color 0.2s;
+}
+
+.sync-group-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.sync-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sync-group-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-0);
+}
+
+.sync-group-delete {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1.5px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.sync-group-delete:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.3);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* ── Synced Items Pills ── */
+.sync-group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sync-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--text-3);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--glass-border);
+}
+
+.sync-item--active {
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-color: transparent;
+}
+
+.sync-item-icon {
+  display: flex;
+  align-items: center;
+}
+
+.sync-item-icon svg {
+  width: 12px;
+  height: 12px;
+}
+
+.sync-item-label {
+  font-weight: 500;
+}
+
+.sync-item-badge {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* ── Instance Chips ── */
+.sync-group-instances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sync-instance-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px 4px 6px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  border: 1.5px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sync-instance-chip:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-0);
+}
+
+.sync-instance-chip.active {
+  background: var(--accent-muted);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.sync-instance-avatar {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-2);
+}
+
+.sync-instance-chip.active .sync-instance-avatar {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sync-instance-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+
+/* ── Stats Row ── */
+.sync-group-stats {
+  display: flex;
+  gap: 16px;
+  padding-top: 6px;
+  border-top: 1px solid var(--glass-border);
+}
+
+.sync-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.sync-stat-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-0);
+  font-family: var(--font-mono);
+}
+
+.sync-stat-label {
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+/* ── Create Button ── */
+.sync-create-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px;
+  margin-top: 8px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--glass-border);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sync-create-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-muted);
+}
+
+/* ── Create Form ── */
+.sync-create-form {
+  padding: 16px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: syncSlideDown 0.2s ease;
+}
+
+@keyframes syncSlideDown {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sync-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sync-form-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+
+.sync-form-input {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--glass-border);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-0);
+  font-size: 13px;
+  font-family: var(--font-sans);
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.sync-form-input:focus {
+  border-color: var(--accent);
+}
+
+.sync-form-input::placeholder {
+  color: var(--text-3);
+}
+
+.sync-form-category {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+  margin-top: 4px;
+}
+
+.sync-form-items,
+.sync-form-instances {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sync-form-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1.5px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sync-form-item:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-0);
+}
+
+.sync-form-item.checked {
+  background: var(--accent-muted);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.sync-form-item-icon {
+  display: flex;
+  align-items: center;
+}
+
+.sync-form-item-icon svg {
+  width: 14px;
+  height: 14px;
+}
+
+.sync-form-item-label {
+  flex: 1;
+}
+
+.sync-form-item-check {
+  display: flex;
+  align-items: center;
+  color: var(--accent);
+}
+
+.sync-form-instance {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px 6px 8px;
+  border-radius: 20px;
+  border: 1.5px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-2);
+  font-size: 11px;
+  font-weight: 500;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.sync-form-instance:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-0);
+}
+
+.sync-form-instance.selected {
+  background: var(--accent-muted);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.sync-form-instance-avatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.sync-form-instance.selected .sync-form-instance-avatar {
+  background: var(--accent);
+  color: #fff;
+}
+
+.sync-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.sync-form-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 7px 18px;
+  border-radius: 8px;
+  border: 1.5px solid var(--glass-border);
+  background: transparent;
+  color: var(--text-1);
+  cursor: pointer;
+  font-family: var(--font-sans);
+  transition: all 0.2s;
+}
+
+.sync-form-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: var(--text-0);
+}
+
+.sync-form-btn.primary {
+  background: var(--accent-muted);
+  border-color: transparent;
+  color: var(--accent);
+}
+
+.sync-form-btn.primary:hover {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 12px var(--accent-muted);
+}
+
+.sync-form-btn.primary:disabled {
+  opacity: 0.4;
+  cursor: default;
+  background: var(--accent-muted);
+  color: var(--accent);
+  box-shadow: none;
+}
+
+/* ════════════════════════════════════════
+   Mod Vault Widget
+   ════════════════════════════════════════ */
+
+.modvault-stats-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.modvault-stat-card {
+  flex: 1;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--glass-bg);
+  border: 1.5px solid var(--glass-border);
+  text-align: center;
+  transition: border-color 0.2s;
+}
+
+.modvault-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.modvault-stat-icon {
+  color: var(--text-3);
+  margin-bottom: 4px;
+}
+
+.modvault-stat-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.modvault-stat-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-0);
+  font-family: var(--font-mono);
+}
+
+.modvault-stat-label {
+  font-size: 10px;
+  color: var(--text-3);
+  margin-top: 2px;
+}
+
+/* ── Dedup Progress ── */
+.modvault-progress-wrap {
+  margin-bottom: 12px;
+}
+
+.modvault-progress-bar {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.modvault-progress-fill {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.5s ease;
+}
+
+.modvault-progress-label {
+  font-size: 10px;
+  color: var(--text-3);
+  text-align: right;
+}
+
+/* ── Optimize Button ── */
+.modvault-optimize-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1.5px solid transparent;
+  background: var(--accent-muted);
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font-sans);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.modvault-optimize-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 0 16px var(--accent-muted);
+}
+
+.modvault-optimize-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+  box-shadow: none;
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+.modvault-result {
+  font-size: 11px;
+  color: #4ade80;
+  margin-top: 8px;
+}

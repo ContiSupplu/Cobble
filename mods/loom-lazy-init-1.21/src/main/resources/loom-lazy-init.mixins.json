@@ -1,0 +1,13 @@
+{
+  "required": true,
+  "package": "com.loom.lazyinit.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "RecipeManagerMixin",
+    "AdvancementLoaderMixin"
+  ],
+  "client": [],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

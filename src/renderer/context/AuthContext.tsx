@@ -10,8 +10,8 @@ interface AccountInfo {
   uuid: string
   username: string
   displayName: string
-  incognitoRegion?: string
-  incognitoEnabled?: boolean
+  privacyRegion?: string
+  privacyEnabled?: boolean
 }
 
 interface AuthContextType {
@@ -19,16 +19,16 @@ interface AuthContextType {
   accounts: AccountInfo[]
   activeUuid: string | null
   isAuthenticated: boolean
-  incognitoEnabled: boolean
-  incognitoRegion: string
+  privacyEnabled: boolean
+  privacyRegion: string
   login: (user: User) => void
   logout: () => void
   switchAccount: (uuid: string) => Promise<void>
   addAccount: () => Promise<void>
   removeAccount: (uuid: string) => void
   updateDisplayName: (uuid: string, name: string) => void
-  setIncognitoEnabled: (enabled: boolean) => void
-  setIncognitoRegion: (region: string) => void
+  setPrivacyEnabled: (enabled: boolean) => void
+  setPrivacyRegion: (region: string) => void
   refreshAccounts: () => Promise<void>
 }
 
@@ -37,16 +37,16 @@ const AuthContext = createContext<AuthContextType>({
   accounts: [],
   activeUuid: null,
   isAuthenticated: false,
-  incognitoEnabled: false,
-  incognitoRegion: 'us-east',
+  privacyEnabled: false,
+  privacyRegion: 'us-east',
   login: () => {},
   logout: () => {},
   switchAccount: async () => {},
   addAccount: async () => {},
   removeAccount: () => {},
   updateDisplayName: () => {},
-  setIncognitoEnabled: () => {},
-  setIncognitoRegion: () => {},
+  setPrivacyEnabled: () => {},
+  setPrivacyRegion: () => {},
   refreshAccounts: async () => {},
 })
 
@@ -64,10 +64,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [accounts, setAccounts] = useState<AccountInfo[]>([])
   const [activeUuid, setActiveUuid] = useState<string | null>(null)
 
-  // Derive incognito state from active account
+  // Derive privacy mode state from active account
   const activeAccount = accounts.find(a => a.uuid === activeUuid)
-  const incognitoEnabled = activeAccount?.incognitoEnabled || false
-  const incognitoRegion = activeAccount?.incognitoRegion || 'us-east'
+  const privacyEnabled = activeAccount?.privacyEnabled || false
+  const privacyRegion = activeAccount?.privacyRegion || 'us-east'
 
   // Load accounts from main process
   const refreshAccounts = useCallback(async () => {
@@ -151,16 +151,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user])
 
-  const setIncognitoEnabled = useCallback((enabled: boolean) => {
+  const setPrivacyEnabled = useCallback((enabled: boolean) => {
     if (!api || !activeUuid) return
-    api.updateIncognitoPrefs(activeUuid, undefined, enabled)
-    setAccounts(prev => prev.map(a => a.uuid === activeUuid ? { ...a, incognitoEnabled: enabled } : a))
+    api.updatePrivacyPrefs(activeUuid, undefined, enabled)
+    setAccounts(prev => prev.map(a => a.uuid === activeUuid ? { ...a, privacyEnabled: enabled } : a))
   }, [activeUuid])
 
-  const setIncognitoRegion = useCallback((region: string) => {
+  const setPrivacyRegion = useCallback((region: string) => {
     if (!api || !activeUuid) return
-    api.updateIncognitoPrefs(activeUuid, region, undefined)
-    setAccounts(prev => prev.map(a => a.uuid === activeUuid ? { ...a, incognitoRegion: region } : a))
+    api.updatePrivacyPrefs(activeUuid, region, undefined)
+    setAccounts(prev => prev.map(a => a.uuid === activeUuid ? { ...a, privacyRegion: region } : a))
   }, [activeUuid])
 
   return (
@@ -169,16 +169,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       accounts,
       activeUuid,
       isAuthenticated: !!user,
-      incognitoEnabled,
-      incognitoRegion,
+      privacyEnabled,
+      privacyRegion,
       login,
       logout,
       switchAccount,
       addAccount,
       removeAccount,
       updateDisplayName,
-      setIncognitoEnabled,
-      setIncognitoRegion,
+      setPrivacyEnabled,
+      setPrivacyRegion,
       refreshAccounts,
     }}>
       {children}

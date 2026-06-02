@@ -200,13 +200,15 @@
   scrollbar-color: rgba(255, 255, 255, 0.06) transparent;
 }
 
-/* â”€â”€ Empty State â”€â”€ */
+/* ── Empty State ── */
 .gem-empty-center {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  flex: 1;
   height: 100%;
+  width: 100%;
   text-align: center;
   position: relative;
   padding: 40px 20px;

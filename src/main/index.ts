@@ -1,17 +1,24 @@
-import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, net, session } from 'electron'
+import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, net, session, safeStorage, protocol } from 'electron'
 import { join } from 'path'
 // Spotify auth is handled inline below
-import { setLauncherWindow, launchInstance, killInstance, getLaunchStatus, preloadEssentials, getGameLogBuffer } from './launcher'
+import { setLauncherWindow, launchInstance, killInstance, getLaunchStatus, preloadEssentials, getGameLogBuffer, predownloadForInstance, prewarmInstanceCache } from './launcher'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, statSync } from 'fs'
-import { getAllInstances, createInstance, deleteInstance, updateInstance, cloneInstance, openInstanceFolder, listInstanceDir, deleteInstanceFile, renameInstanceFile, openInstanceFile, copyFilesToInstance, getInstancePath, getTrashedInstances, recoverInstance, permanentlyDeleteInstance, migrateOrphanInstances } from './instances'
-import { microsoftLogin, getCachedAccount, clearCachedAccount, restoreSession, getAllAccounts, getActiveUuid, switchAccount, removeAccount, updateDisplayName, updateIncognitoPrefs } from './auth'
-import { getAllRegions } from './proxy-config'
+import { getAllInstances, createInstance, deleteInstance, updateInstance, cloneInstance, openInstanceFolder, listInstanceDir, deleteInstanceFile, renameInstanceFile, openInstanceFile, copyFilesToInstance, getInstancePath, getTrashedInstances, recoverInstance, permanentlyDeleteInstance, migrateOrphanInstances, invalidateLaunchReady } from './instances'
+import { microsoftLogin, getCachedAccount, clearCachedAccount, restoreSession, getAllAccounts, getActiveUuid, switchAccount, removeAccount, updateDisplayName, updatePrivacyPrefs } from './auth'
+import { getAllRegions, loadProxyCredentials } from './proxy-config'
 import { connectDiscord, disconnectDiscord, isDiscordConnected, isDiscordEnabled, getDiscordAppId, destroyDiscord } from './discord'
 import { createChat, saveChat, loadChat, listChats, deleteChat, renameChat } from './chat-store'
-import { setStateProvider, setLoomieHandler, setSpotifyCommandHandler, DynamicIslandState } from './dynamic-island-server'
+import { setStateProvider, setLoomieHandler, setSpotifyCommandHandler, setTwitchChatHandler, setMediaSearchHandler, setMediaSelectHandler, setBrowserVideoHandler, DynamicIslandState, sendTwitchChat, sendMediaPlay, sendMediaStop, sendTwitchLive } from './dynamic-island-server'
 import { autoUpdater } from 'electron-updater'
 import { addDefenderExclusion, setHighPerformancePowerPlan, restoreDefaultPowerPlan, applyNetworkOptimizations, restoreNetworkSettings } from './system-optimizations'
 import { pingMinecraftServer } from './server-ping'
+import { initTwitch, startTwitchAuth, clearTwitchAuth, getTwitchToken, getFollowedStreams, isStreamerLive, startPolling as startTwitchPolling, stopPolling as stopTwitchPolling, connectChat, disconnectChat, sendChatMessage, getConnectedChannel, twitchEvents } from './twitch'
+import { downloadFFmpeg, getFFmpegPath, startRecording, stopRecording, startReplayBuffer, saveReplayBuffer, stopReplayBuffer, getRecordingStatus, getGalleryItems, saveGalleryMetadata, recordingEvents } from './recording'
+import { trimVideo, concatenateVideos, addTextOverlay, changeSpeed, generateThumbnail } from './video-editor'
+import { detectLaunchers, getImportableData, importFromLauncher } from './migration'
+import { shareToDiscord, uploadToYouTube, getSocialConfig, addDiscordWebhook, removeDiscordWebhook, setYouTubeTokenPath } from './social'
+import { storeAndLink, linkExisting, removeInstanceRefs, migrateExistingMods, getDiskSavings, getStoreStats } from './mod-store'
+import { getSyncConfig, saveSyncConfig, createSyncGroup, deleteSyncGroup, addInstanceToGroup, removeInstanceFromGroup, getSyncableItems, syncToInstance, syncFromInstance, getInstanceSyncGroups, getSyncGroupStats } from './file-sync'
 
 // ============================================================
 // Simple file-based config store (replaces electron-store)
@@ -67,6 +74,10 @@ function storeSet(key: string, value: unknown): void {
   saveConfig(config)
 }
 
+// Reset crash loop counter on fresh app start — previous crashes
+// from old bugs (e.g. mixin errors) shouldn't persist across restarts
+storeSet('loom_shield_crash_count', 0)
+
 // ============================================================
 // Window & App
 // ============================================================
@@ -93,9 +104,9 @@ function createWindow(): void {
       preload: join(__dirname, '../preload/index.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: false,
-      webSecurity: false,
-      webviewTag: true
+      sandbox: true,
+      webSecurity: true,
+      webviewTag: false
     }
   })
 
@@ -125,33 +136,44 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  // Remove all Content-Security-Policy headers — desktop app doesn't need CSP
-  // and it blocks external images (Crafatar skins, Modrinth icons)
+  // Set a secure Content Security Policy — ONLY for our own renderer pages
+  // External windows (like Microsoft auth) need their own resources unrestricted
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
     const headers = { ...details.responseHeaders }
-    delete headers['Content-Security-Policy']
-    delete headers['content-security-policy']
-    delete headers['X-Content-Security-Policy']
-    delete headers['x-content-security-policy']
+
+    // Only apply CSP to our own pages (localhost dev server or file:// in production)
+    const url = details.url || ''
+    const isOurPage = url.startsWith('http://localhost') || url.startsWith('file://') || url.startsWith('media://')
+
+    if (isOurPage) {
+      const csp = [
+        "default-src 'self'",
+        "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+        "font-src 'self' https://fonts.gstatic.com",
+        "img-src 'self' data: blob: https: http:",
+        "media-src 'self' blob: file: media: https: http:",
+        "connect-src 'self' https://api.spotify.com https://accounts.spotify.com https://api.modrinth.com https://generativelanguage.googleapis.com https://api.twitch.tv https://id.twitch.tv https://gql.twitch.tv wss://irc-ws.chat.twitch.tv https://login.live.com https://login.microsoftonline.com https://user.auth.xboxlive.com https://xsts.auth.xboxlive.com http://auth.xboxlive.com https://api.minecraftservices.com https://launchermeta.mojang.com https://piston-meta.mojang.com https://piston-data.mojang.com https://resources.download.minecraft.net https://libraries.minecraft.net https://meta.fabricmc.net https://maven.fabricmc.net https://lrclib.net https://www.googleapis.com https://cdn.modrinth.com https://github.com https://raw.githubusercontent.com https://crafatar.com ws://127.0.0.1:47521 https://pipedapi.kavin.rocks https://vid.puffyan.us https://invidious.fdn.fr https://inv.nadeko.net https://i.ytimg.com https://api.curseforge.com",
+        "frame-src 'self' https://open.spotify.com"
+      ].join('; ');
+      headers['Content-Security-Policy'] = [csp];
+    }
+    // For external pages (login.live.com, etc.), don't inject any CSP — let them load normally
+
     callback({ responseHeaders: headers })
   })
 
-  // Auto-grant microphone permissions for Loomie Live voice mode
-  // Need ALL THREE handlers for Electron to fully allow mic access:
-
-  // 1) Permission request handler — when renderer calls getUserMedia
+  // Only grant permissions that are actually needed
   mainWindow.webContents.session.setPermissionRequestHandler((_wc, permission, callback) => {
-    callback(true) // Grant all permissions (media, notifications, etc.)
+    const allowed = ['media', 'notifications'];
+    callback(allowed.includes(permission));
   })
-
-  // 2) Permission check handler — Electron checks this BEFORE the request
-  mainWindow.webContents.session.setPermissionCheckHandler(() => {
-    return true // All permission checks pass
+  mainWindow.webContents.session.setPermissionCheckHandler((_wc, permission) => {
+    const allowed = ['media', 'notifications'];
+    return allowed.includes(permission);
   })
-
-  // 3) Device permission handler — required for media device enumeration/access in newer Electron
   mainWindow.webContents.session.setDevicePermissionHandler(() => {
-    return true // Allow all device access (microphone, camera, etc.)
+    return false; // Deny all device access by default
   })
 
   if (process.env['ELECTRON_RENDERER_URL']) {
@@ -163,6 +185,10 @@ function createWindow(): void {
   // ── Intercept webview popups & downloads (Bedrock browser) ──
   // Track webview webContents so we can redirect popup URLs back into them
   const webviewContents = new Set<Electron.WebContents>()
+
+  // Bedrock addon download queue — queued until user clicks "Install All" or launches Bedrock
+  const bedrockDownloadQueue: Array<{ filename: string; path: string; type: string; size: number; addedAt: number }> = []
+  const registeredSessions = new WeakSet<Electron.Session>()
 
   app.on('web-contents-created', (_event, contents) => {
     const type = contents.getType()
@@ -181,7 +207,10 @@ function createWindow(): void {
     }
 
     // Intercept downloads from ANY webContents (webview, popup, etc.)
-    contents.session.on('will-download', (_e, item) => {
+    // Guard: only attach one will-download listener per session to avoid duplicates
+    if (!registeredSessions.has(contents.session)) {
+      registeredSessions.add(contents.session)
+      contents.session.on('will-download', (_e, item) => {
       const filename = item.getFilename()
       const ext = (filename.split('.').pop() || '').toLowerCase()
       const bedrockExts = ['mcaddon', 'mcpack', 'mcworld']
@@ -196,7 +225,6 @@ function createWindow(): void {
 
         item.on('done', async (_doneEvent, state) => {
           if (state === 'completed') {
-            // Verify the file exists and has content
             try {
               const fileSize = statSync(savePath).size
               console.log(`[Bedrock] Download complete (${(fileSize / 1024).toFixed(1)} KB): ${savePath}`)
@@ -206,26 +234,20 @@ function createWindow(): void {
                 return
               }
 
-              // Open the file with its default handler (Minecraft Bedrock)
-              // This triggers Minecraft's built-in addon importer
-              console.log('[Bedrock] Opening addon with Minecraft importer...')
-              const err = await shell.openPath(savePath)
-              if (err) {
-                console.log('[Bedrock] shell.openPath error:', err)
-              } else {
-                console.log('[Bedrock] Addon opened successfully — Minecraft should import it')
-              }
+              // Add to queue instead of installing immediately
+              const queueItem = { filename, path: savePath, type: ext, size: fileSize, addedAt: Date.now() }
+              bedrockDownloadQueue.push(queueItem)
+              console.log(`[Bedrock] Added to queue (${bedrockDownloadQueue.length} pending): ${filename}`)
 
+              // Notify renderer about the queued download
               if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('bedrock:addon-installed', {
-                  filename,
-                  success: !err,
-                  message: err || 'Addon sent to Minecraft for import',
-                  type: ext
+                mainWindow.webContents.send('bedrock:addon-queued', {
+                  ...queueItem,
+                  queueLength: bedrockDownloadQueue.length
                 })
               }
             } catch (err: any) {
-              console.log('[Bedrock] Auto-install failed:', err.message)
+              console.log('[Bedrock] Download failed:', err.message)
             }
           } else {
             console.log(`[Bedrock] Download failed: ${state}`)
@@ -233,6 +255,251 @@ function createWindow(): void {
         })
       }
     })
+    } // end session guard
+  })
+
+  // ── Ad Blocker ──
+  let adBlockEnabled = false
+  const adBlockDomains = [
+    'doubleclick.net', 'googlesyndication.com', 'googleadservices.com',
+    'google-analytics.com', 'googletagmanager.com', 'googletagservices.com',
+    'adservice.google.com', 'pagead2.googlesyndication.com',
+    'adsense', 'adnxs.com', 'adsrvr.org', 'adcolony.com',
+    'facebook.com/tr', 'connect.facebook.net/en_US/fbevents',
+    'amazon-adsystem.com', 'ads.yahoo.com',
+    'ads.pubmatic.com', 'pubmatic.com', 'rubiconproject.com',
+    'openx.net', 'casalemedia.com', 'indexexchange.com',
+    'taboola.com', 'outbrain.com', 'revcontent.com',
+    'mgid.com', 'zergnet.com', 'content.ad',
+    'popads.net', 'popcash.net', 'propellerads.com',
+    'exoclick.com', 'juicyads.com', 'trafficjunky.com',
+    'ad.doubleclick.net', 'securepubads.g.doubleclick.net',
+    'moatads.com', 'serving-sys.com', 'smaato.net',
+    'criteo.com', 'criteo.net', 'crwdcntrl.net',
+    'bluekai.com', 'scorecardresearch.com', 'quantserve.com',
+    'demdex.net', 'krxd.net', 'rlcdn.com',
+    'sharethis.com', 'addthis.com', 'outbrain.com',
+    'tapad.com', 'bidswitch.net', 'mathtag.com',
+    'adsymptotic.com', 'advertising.com', 'contextweb.com',
+    'media.net', 'yieldmo.com', 'spotxchange.com',
+    'conversantmedia.com', 'lijit.com', 'sovrn.com',
+    'gumgum.com', 'sharethrough.com', 'nativo.com'
+  ]
+
+  function setupAdBlocker(): void {
+    // Apply to default session (shared by all webviews)
+    session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+      if (!adBlockEnabled) {
+        callback({ cancel: false })
+        return
+      }
+      const url = details.url.toLowerCase()
+      const blocked = adBlockDomains.some(domain => url.includes(domain))
+      if (blocked) {
+        callback({ cancel: true })
+      } else {
+        callback({ cancel: false })
+      }
+    })
+  }
+
+  setupAdBlocker()
+
+  ipcMain.handle('bedrock:setAdBlock', (_e, enabled: boolean) => {
+    adBlockEnabled = enabled
+    console.log(`[Bedrock] Ad blocker ${enabled ? 'enabled' : 'disabled'}`)
+    return enabled
+  })
+
+  ipcMain.handle('bedrock:getAdBlock', () => {
+    return adBlockEnabled
+  })
+
+  // ── Bedrock download queue IPC handlers ──
+  ipcMain.handle('bedrock:getQueue', () => {
+    return bedrockDownloadQueue.map(q => ({ filename: q.filename, type: q.type, size: q.size, addedAt: q.addedAt }))
+  })
+
+  ipcMain.handle('bedrock:installQueue', async () => {
+    if (bedrockDownloadQueue.length === 0) return { installed: 0, errors: [] }
+
+    // Get Minecraft's data path
+    const dataPath = getBedrockDataPath()
+    if (!dataPath) {
+      console.log('[Bedrock] Cannot install: no com.mojang path found')
+      return { installed: 0, errors: ['Minecraft Bedrock data folder not found'] }
+    }
+
+    // Copy queue and clear immediately
+    const itemsToInstall = [...bedrockDownloadQueue]
+    bedrockDownloadQueue.length = 0
+
+    console.log(`[Bedrock] Installing ${itemsToInstall.length} addons via direct extraction to: ${dataPath}`)
+    const errors: string[] = []
+    let installed = 0
+
+    const { execSync } = require('child_process')
+    const { readdirSync, rmSync, renameSync } = require('fs')
+    const tmpBase = join(app.getPath('temp'), 'loom-bedrock-install')
+
+    for (let i = 0; i < itemsToInstall.length; i++) {
+      const item = itemsToInstall[i]
+      try {
+        // Check file exists
+        if (!existsSync(item.path)) {
+          const msg = `File not found: ${item.path}`
+          console.log(`[Bedrock] ${msg}`)
+          errors.push(`${item.filename}: ${msg}`)
+          continue
+        }
+
+        console.log(`[Bedrock] Extracting (${i + 1}/${itemsToInstall.length}): ${item.filename}`)
+
+        // Notify renderer of progress
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('bedrock:queue-progress', {
+            current: i + 1, total: itemsToInstall.length, filename: item.filename
+          })
+        }
+
+        // Create a clean temp directory for extraction
+        const tmpDir = join(tmpBase, `extract-${Date.now()}-${i}`)
+        if (existsSync(tmpDir)) rmSync(tmpDir, { recursive: true, force: true })
+        mkdirSync(tmpDir, { recursive: true })
+
+        // PowerShell Expand-Archive only accepts .zip — copy with .zip extension
+        const zipCopy = join(tmpDir, '_source.zip')
+        copyFileSync(item.path, zipCopy)
+
+        // Extract ZIP using PowerShell
+        const extractDir = join(tmpDir, '_contents')
+        mkdirSync(extractDir, { recursive: true })
+        const escapedZip = zipCopy.replace(/'/g, "''")
+        const escapedDest = extractDir.replace(/'/g, "''")
+        try {
+          execSync(
+            `powershell -NoProfile -Command "Expand-Archive -Path '${escapedZip}' -DestinationPath '${escapedDest}' -Force"`,
+            { timeout: 30000, windowsHide: true }
+          )
+        } catch (extractErr: any) {
+          console.log(`[Bedrock] Extraction failed for ${item.filename}: ${extractErr.message}`)
+          errors.push(`${item.filename}: Failed to extract archive`)
+          try { rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignore */ }
+          continue
+        }
+
+        // Find and install packs from extracted contents
+        const packsInstalled = installExtractedPacks(extractDir, dataPath, item.filename, errors)
+        installed += packsInstalled
+
+        // Clean up temp
+        try { rmSync(tmpDir, { recursive: true, force: true }) } catch { /* ignore */ }
+
+        console.log(`[Bedrock] ${item.filename}: installed ${packsInstalled} pack(s)`)
+      } catch (e: any) {
+        console.log(`[Bedrock] Install error for ${item.filename}: ${e.message}`)
+        errors.push(`${item.filename}: ${e.message}`)
+      }
+    }
+
+    console.log(`[Bedrock] Queue complete: ${installed} pack(s) installed, ${errors.length} errors`)
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('bedrock:queue-installed', { installed, errors })
+    }
+
+    return { installed, errors }
+  })
+
+  // Helper: recursively find and install packs from extracted directory
+  function installExtractedPacks(dir: string, dataPath: string, sourceFile: string, errors: string[]): number {
+    const { readdirSync, cpSync } = require('fs')
+    let count = 0
+
+    // Check if this directory itself is a pack (has manifest.json)
+    const manifestPath = join(dir, 'manifest.json')
+    if (existsSync(manifestPath)) {
+      try {
+        const manifest = JSON.parse(readFileSync(manifestPath, 'utf-8'))
+        const packType = detectPackType(manifest)
+        const packName = manifest.header?.name || sourceFile.replace(/\.[^.]+$/, '')
+        const packUuid = manifest.header?.uuid || `pack-${Date.now()}`
+        const targetFolder = packType === 'resources' ? 'resource_packs' : 'behavior_packs'
+        const destDir = join(dataPath, targetFolder, packUuid)
+
+        if (!existsSync(join(dataPath, targetFolder))) {
+          mkdirSync(join(dataPath, targetFolder), { recursive: true })
+        }
+
+        // Copy the pack to Minecraft's folder
+        cpSync(dir, destDir, { recursive: true, force: true })
+        console.log(`[Bedrock] Installed ${packType} pack "${packName}" → ${targetFolder}/${packUuid}`)
+        return 1
+      } catch (e: any) {
+        console.log(`[Bedrock] Failed to process manifest in ${dir}: ${e.message}`)
+        errors.push(`${sourceFile}: ${e.message}`)
+        return 0
+      }
+    }
+
+    // Otherwise scan subdirectories for packs (mcaddon contains multiple packs)
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isDirectory()) {
+          count += installExtractedPacks(join(dir, entry.name), dataPath, sourceFile, errors)
+        } else if (entry.name.endsWith('.mcpack')) {
+          // Nested .mcpack inside .mcaddon — extract it too
+          const nestedTmp = join(dir, `_nested_${Date.now()}`)
+          mkdirSync(nestedTmp, { recursive: true })
+          try {
+            const escapedNested = join(dir, entry.name).replace(/'/g, "''")
+            const escapedNestedTmp = nestedTmp.replace(/'/g, "''")
+            require('child_process').execSync(
+              `powershell -NoProfile -Command "Expand-Archive -Path '${escapedNested}' -DestinationPath '${escapedNestedTmp}' -Force"`,
+              { timeout: 30000, windowsHide: true }
+            )
+            count += installExtractedPacks(nestedTmp, dataPath, sourceFile, errors)
+          } catch (e: any) {
+            console.log(`[Bedrock] Failed to extract nested pack ${entry.name}: ${e.message}`)
+            errors.push(`${sourceFile}/${entry.name}: Failed to extract`)
+          }
+          try { require('fs').rmSync(nestedTmp, { recursive: true, force: true }) } catch { /* ignore */ }
+        }
+      }
+    } catch (e: any) {
+      console.log(`[Bedrock] Error scanning ${dir}: ${e.message}`)
+    }
+
+    return count
+  }
+
+  // Helper: determine pack type from manifest
+  function detectPackType(manifest: any): 'resources' | 'data' {
+    // Check modules array for type
+    const modules = manifest.modules || []
+    for (const mod of modules) {
+      if (mod.type === 'resources' || mod.type === 'client_data') return 'resources'
+      if (mod.type === 'data' || mod.type === 'script' || mod.type === 'javascript') return 'data'
+    }
+    // Default to resources if we can't determine
+    return 'resources'
+  }
+
+  ipcMain.handle('bedrock:clearQueue', () => {
+    const count = bedrockDownloadQueue.length
+    bedrockDownloadQueue.length = 0
+    console.log(`[Bedrock] Queue cleared (${count} items removed)`)
+    return count
+  })
+
+  ipcMain.handle('bedrock:removeFromQueue', (_e, index: number) => {
+    if (index >= 0 && index < bedrockDownloadQueue.length) {
+      const removed = bedrockDownloadQueue.splice(index, 1)
+      console.log(`[Bedrock] Removed from queue: ${removed[0]?.filename} (${bedrockDownloadQueue.length} remaining)`)
+      return { removed: removed[0]?.filename, remaining: bedrockDownloadQueue.length }
+    }
+    return { removed: null, remaining: bedrockDownloadQueue.length }
   })
 }
 
@@ -301,6 +568,54 @@ ipcMain.handle('updater:getVersion', () => {
 })
 
 // ============================================================
+// IPC Handlers — World Backups
+// ============================================================
+
+import { createBackup, listBackups, restoreBackup, deleteBackup } from './backups'
+
+ipcMain.handle('backup:create', async (_e, instanceId: string) => {
+  return createBackup(instanceId)
+})
+
+ipcMain.handle('backup:list', (_e, instanceId: string) => {
+  return listBackups(instanceId)
+})
+
+ipcMain.handle('backup:restore', async (_e, instanceId: string, backupId: string) => {
+  return restoreBackup(instanceId, backupId)
+})
+
+ipcMain.handle('backup:delete', (_e, instanceId: string, backupId: string) => {
+  return deleteBackup(instanceId, backupId)
+})
+
+// ============================================================
+// IPC Handlers — Modpack Import
+// ============================================================
+
+import { importModpack } from './modpack-import'
+
+ipcMain.handle('modpack:import', async (_e, filePath: string) => {
+  return importModpack(filePath, (progress) => {
+    mainWindow?.webContents.send('modpack:progress', progress)
+  })
+})
+
+ipcMain.handle('modpack:browse', async () => {
+  const { dialog } = require('electron')
+  const result = await dialog.showOpenDialog(mainWindow!, {
+    title: 'Import Modpack',
+    filters: [
+      { name: 'Modpacks', extensions: ['zip', 'mrpack'] },
+      { name: 'All Files', extensions: ['*'] },
+    ],
+    properties: ['openFile'],
+  })
+  if (result.canceled || !result.filePaths.length) return null
+  return result.filePaths[0]
+})
+
+// ============================================================
 // IPC Handlers — Window Controls
 // ============================================================
 
@@ -326,19 +641,34 @@ ipcMain.handle('theme:set', (_event, theme: string) => {
 // IPC Handlers — Store
 // ============================================================
 
-ipcMain.handle('store:get', (_event, key: string) => storeGet(key))
-ipcMain.handle('store:set', (_event, key: string, value: unknown) => storeSet(key, value))
+ipcMain.handle('store:get', (_event, key: string) => {
+  if (key === 'geminiApiKey') {
+    const raw = storeGet(key) as string;
+    if (raw && safeStorage.isEncryptionAvailable()) {
+      try { return safeStorage.decryptString(Buffer.from(raw, 'base64')); } catch { return raw; }
+    }
+    return raw;
+  }
+  return storeGet(key);
+})
+ipcMain.handle('store:set', (_event, key: string, value: unknown) => {
+  if (key === 'geminiApiKey' && typeof value === 'string' && value) {
+    storeSet(key, safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(value).toString('base64') : value);
+    return;
+  }
+  storeSet(key, value);
+})
 
 // ============================================================
 // IPC Handlers — Performance Optimizations
 // ============================================================
 
 ipcMain.handle('perf:applyDefenderExclusion', async () => {
-  return addDefenderExclusion()
+  return addDefenderExclusion(true) // User explicitly triggered from Settings > Performance
 })
 
 ipcMain.handle('perf:setPowerPlan', () => {
-  setHighPerformancePowerPlan()
+  setHighPerformancePowerPlan(true) // User explicitly triggered from Settings > Performance
 })
 
 ipcMain.handle('perf:restorePowerPlan', () => {
@@ -346,11 +676,18 @@ ipcMain.handle('perf:restorePowerPlan', () => {
 })
 
 ipcMain.handle('perf:applyNetworkOpt', async () => {
-  return applyNetworkOptimizations()
+  return applyNetworkOptimizations(true) // User explicitly triggered from Settings > Performance
 })
 
 ipcMain.handle('perf:restoreNetwork', async () => {
   return restoreNetworkSettings()
+})
+
+// Reset the user's Defender exclusion preference (so the prompt appears again on next launch)
+ipcMain.handle('defender:resetChoice', () => {
+  storeSet('defender_exclusion_choice', undefined)
+  console.log('[Defender] User choice reset — prompt will appear on next launch')
+  return true
 })
 
 ipcMain.handle('net:pingServer', async (_e, host: string, port?: number) => {
@@ -451,6 +788,41 @@ ipcMain.handle('skins:reset', async () => {
     return { success: true }
   } catch (err: any) {
     return { success: false, error: err.message || 'Reset failed' }
+  }
+})
+
+// Change skin variant (classic ↔ slim) without uploading a new file
+// Downloads the current skin texture and re-uploads with the new variant
+ipcMain.handle('skins:changeVariant', async (_event, variant: 'classic' | 'slim') => {
+  const account = getCachedAccount()
+  if (!account) return { success: false, error: 'Not logged in' }
+  try {
+    // 1. Get the current skin URL from the profile
+    const profileResp = await net.fetch('https://api.minecraftservices.com/minecraft/profile', {
+      headers: { Authorization: `Bearer ${account.accessToken}` }
+    })
+    if (!profileResp.ok) return { success: false, error: 'Failed to fetch profile' }
+    const profileData = await profileResp.json() as { skins?: { url: string; variant: string; state: string }[] }
+    const activeSkin = profileData.skins?.find((s: { state: string }) => s.state === 'ACTIVE')
+    if (!activeSkin?.url) return { success: false, error: 'No active skin found' }
+
+    // 2. Upload the same skin URL with the new variant
+    const uploadResp = await net.fetch('https://api.minecraftservices.com/minecraft/profile/skins', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${account.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ variant, url: activeSkin.url }),
+    })
+    if (!uploadResp.ok) {
+      const text = await uploadResp.text()
+      return { success: false, error: `Variant change failed: ${uploadResp.status} ${text}` }
+    }
+    console.log(`[Skins] Changed skin variant to ${variant}`)
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Variant change failed' }
   }
 })
 
@@ -576,7 +948,7 @@ function blitSkinRegion(
   }
 }
 
-ipcMain.handle('skins:resolveBody', async (_event, uuid: string, height = 256) => {
+ipcMain.handle('skins:resolveBody', async (_event, uuid: string, height = 256, variant?: 'classic' | 'slim') => {
   try {
     const cleanUuid = uuid.replace(/-/g, '')
     const profileResp = await net.fetch(`https://sessionserver.mojang.com/session/minecraft/profile/${cleanUuid}`)
@@ -588,6 +960,9 @@ ipcMain.handle('skins:resolveBody', async (_event, uuid: string, height = 256) =
     const skinTextureUrl = decoded.textures?.SKIN?.url as string | undefined
     if (!skinTextureUrl) return null
 
+    // Detect slim from Mojang metadata if not explicitly provided
+    const isSlim = variant === 'slim' || (!variant && decoded.textures?.SKIN?.metadata?.model === 'slim')
+
     const texResp = await net.fetch(skinTextureUrl)
     if (!texResp.ok) return null
     const texBuffer = Buffer.from(await texResp.arrayBuffer())
@@ -597,35 +972,38 @@ ipcMain.handle('skins:resolveBody', async (_event, uuid: string, height = 256) =
     const bitmap = fullImage.toBitmap()
     const stride = fullSize.width * 4
 
-    // Body layout: 16px wide x 32px tall
-    // Head: 8x8 at (4,0), Body: 8x12 at (4,8), Arms: 4x12 at (0,8) and (12,8), Legs: 4x12 at (4,20) and (8,20)
-    const bw = 16, bh = 32
+    // Slim arms are 3px wide, classic arms are 4px wide
+    const armW = isSlim ? 3 : 4
+
+    // Body layout: variable width based on arm model
+    // Classic: 4+8+4 = 16px wide, Slim: 3+8+3 = 14px wide
+    const bw = armW + 8 + armW, bh = 32
     const body = Buffer.alloc(bw * bh * 4)
 
     // Base layers
-    blitSkinRegion(bitmap, stride, body, bw, 8, 8, 8, 8, 4, 0)      // Head
-    blitSkinRegion(bitmap, stride, body, bw, 20, 20, 8, 12, 4, 8)   // Body/torso
-    blitSkinRegion(bitmap, stride, body, bw, 44, 20, 4, 12, 0, 8)   // Right arm
-    blitSkinRegion(bitmap, stride, body, bw, 4, 20, 4, 12, 4, 20)   // Right leg
+    blitSkinRegion(bitmap, stride, body, bw, 8, 8, 8, 8, armW, 0)        // Head
+    blitSkinRegion(bitmap, stride, body, bw, 20, 20, 8, 12, armW, 8)     // Body/torso
+    blitSkinRegion(bitmap, stride, body, bw, 44, 20, armW, 12, 0, 8)     // Right arm
+    blitSkinRegion(bitmap, stride, body, bw, 4, 20, 4, 12, armW, 20)     // Right leg
 
     // New format (64x64) has separate left arm/leg
     if (fullSize.height >= 64) {
-      blitSkinRegion(bitmap, stride, body, bw, 36, 52, 4, 12, 12, 8)  // Left arm
-      blitSkinRegion(bitmap, stride, body, bw, 20, 52, 4, 12, 8, 20)  // Left leg
+      blitSkinRegion(bitmap, stride, body, bw, 36, 52, armW, 12, armW + 8, 8) // Left arm
+      blitSkinRegion(bitmap, stride, body, bw, 20, 52, 4, 12, armW + 4, 20)   // Left leg
     } else {
       // Old format: mirror right arm/leg
-      blitSkinRegion(bitmap, stride, body, bw, 44, 20, 4, 12, 12, 8)
-      blitSkinRegion(bitmap, stride, body, bw, 4, 20, 4, 12, 8, 20)
+      blitSkinRegion(bitmap, stride, body, bw, 44, 20, armW, 12, armW + 8, 8)
+      blitSkinRegion(bitmap, stride, body, bw, 4, 20, 4, 12, armW + 4, 20)
     }
 
     // Overlay layers
-    blitSkinRegion(bitmap, stride, body, bw, 40, 8, 8, 8, 4, 0)     // Head overlay
+    blitSkinRegion(bitmap, stride, body, bw, 40, 8, 8, 8, armW, 0)       // Head overlay
     if (fullSize.height >= 64) {
-      blitSkinRegion(bitmap, stride, body, bw, 20, 36, 8, 12, 4, 8)   // Body overlay
-      blitSkinRegion(bitmap, stride, body, bw, 44, 36, 4, 12, 0, 8)   // Right arm overlay
-      blitSkinRegion(bitmap, stride, body, bw, 52, 52, 4, 12, 12, 8)  // Left arm overlay
-      blitSkinRegion(bitmap, stride, body, bw, 4, 36, 4, 12, 4, 20)   // Right leg overlay
-      blitSkinRegion(bitmap, stride, body, bw, 4, 52, 4, 12, 8, 20)   // Left leg overlay
+      blitSkinRegion(bitmap, stride, body, bw, 20, 36, 8, 12, armW, 8)     // Body overlay
+      blitSkinRegion(bitmap, stride, body, bw, 44, 36, armW, 12, 0, 8)     // Right arm overlay
+      blitSkinRegion(bitmap, stride, body, bw, 52, 52, armW, 12, armW + 8, 8) // Left arm overlay
+      blitSkinRegion(bitmap, stride, body, bw, 4, 36, 4, 12, armW, 20)     // Right leg overlay
+      blitSkinRegion(bitmap, stride, body, bw, 4, 52, 4, 12, armW + 4, 20) // Left leg overlay
     }
 
     // Scale up with nearest-neighbor
@@ -651,8 +1029,37 @@ ipcMain.handle('skins:resolveBody', async (_event, uuid: string, height = 256) =
 // ============================================================
 
 ipcMain.handle('instances:getAll', () => getAllInstances())
+
+// Pre-warm OS page cache when user selects an instance (before Play click)
+ipcMain.handle('instances:prewarm', (_event, id: string) => {
+  prewarmInstanceCache(id).catch(() => {})
+})
+
+// ── Mod Store (Deduplication) IPC ──
+ipcMain.handle('modstore:stats', () => getStoreStats())
+ipcMain.handle('modstore:savings', () => getDiskSavings())
+ipcMain.handle('modstore:migrate', (_event, instanceId: string) => {
+  const modsDir = join(getInstancePath(instanceId), 'mods')
+  return migrateExistingMods(modsDir)
+})
+
+// ── File Sync IPC ──
+ipcMain.handle('sync:getConfig', () => getSyncConfig())
+ipcMain.handle('sync:saveConfig', (_event, config: any) => saveSyncConfig(config))
+ipcMain.handle('sync:createGroup', (_event, name: string, items: string[], instanceIds: string[]) => createSyncGroup(name, items, instanceIds))
+ipcMain.handle('sync:deleteGroup', (_event, groupId: string) => deleteSyncGroup(groupId))
+ipcMain.handle('sync:addInstance', (_event, groupId: string, instanceId: string) => addInstanceToGroup(groupId, instanceId))
+ipcMain.handle('sync:removeInstance', (_event, groupId: string, instanceId: string) => removeInstanceFromGroup(groupId, instanceId))
+ipcMain.handle('sync:getSyncableItems', () => getSyncableItems())
+ipcMain.handle('sync:getInstanceGroups', (_event, instanceId: string) => getInstanceSyncGroups(instanceId))
+ipcMain.handle('sync:getGroupStats', (_event, groupId: string) => getSyncGroupStats(groupId))
+ipcMain.handle('sync:syncToInstance', (_event, instanceId: string) => syncToInstance(instanceId))
+ipcMain.handle('sync:syncFromInstance', (_event, instanceId: string) => syncFromInstance(instanceId))
 ipcMain.handle('instances:create', (_event, config: { name: string; version: string; loader: string; createdBy?: string; loaderVersion?: string }) => {
-  return createInstance(config.name, config.version, config.loader, config.createdBy, config.loaderVersion)
+  const instance = createInstance(config.name, config.version, config.loader, config.createdBy, config.loaderVersion)
+  // Fire-and-forget: start downloading game files in background so they're ready at launch
+  predownloadForInstance(instance.id, config.version, config.loader, config.loaderVersion).catch(() => {})
+  return instance
 })
 ipcMain.handle('instances:delete', (_event, id: string) => deleteInstance(id))
 ipcMain.handle('instances:getTrash', () => getTrashedInstances())
@@ -676,7 +1083,10 @@ ipcMain.handle('instances:listDir', (_event, id: string, relativePath: string) =
   return listInstanceDir(id, relativePath || '')
 })
 ipcMain.handle('instances:deleteFile', (_event, id: string, relativePath: string) => {
-  return deleteInstanceFile(id, relativePath)
+  const result = deleteInstanceFile(id, relativePath)
+  // Invalidate fast-relaunch cache if mods were modified
+  if (relativePath.startsWith('mods')) invalidateLaunchReady(id)
+  return result
 })
 ipcMain.handle('instances:renameFile', (_event, id: string, relativePath: string, newName: string) => {
   return renameInstanceFile(id, relativePath, newName)
@@ -685,7 +1095,10 @@ ipcMain.handle('instances:openFile', (_event, id: string, relativePath: string) 
   return openInstanceFile(id, relativePath)
 })
 ipcMain.handle('instances:copyFiles', (_event, id: string, relativeDest: string, filePaths: string[]) => {
-  return copyFilesToInstance(id, relativeDest, filePaths)
+  const result = copyFilesToInstance(id, relativeDest, filePaths)
+  // Invalidate fast-relaunch cache if mods were modified
+  if (relativeDest.startsWith('mods')) invalidateLaunchReady(id)
+  return result
 })
 ipcMain.handle('instances:setIcon', async (_event, id: string, imagePath: string) => {
   const instanceDir = getInstancePath(id)
@@ -982,8 +1395,25 @@ function getSpotifyConfig(): { clientId: string; redirectUri: string } {
 }
 
 let spotifyAccessToken: string | null = null
-let spotifyRefreshToken: string | null = (storeGet('spotify_refresh_token') as string) || null
+let spotifyRefreshToken: string | null = null
 let spotifyTokenExpiry = 0
+let spotifyTokenLoaded = false
+
+/** Lazy-load the refresh token from the store (safeStorage may not be ready at module load) */
+function loadSpotifyRefreshToken(): string | null {
+  if (spotifyTokenLoaded) return spotifyRefreshToken
+  spotifyTokenLoaded = true
+  try {
+    const raw = storeGet('spotify_refresh_token') as string
+    if (!raw) return null
+    spotifyRefreshToken = safeStorage.isEncryptionAvailable()
+      ? safeStorage.decryptString(Buffer.from(raw, 'base64'))
+      : raw
+    return spotifyRefreshToken
+  } catch {
+    return null
+  }
+}
 
 function generateCodeVerifier(): string {
   return crypto.randomBytes(32).toString('base64url')
@@ -1000,6 +1430,7 @@ ipcMain.handle('spotify:setConfig', (_event, config: { clientId: string; redirec
   spotifyAccessToken = null
   spotifyRefreshToken = null
   spotifyTokenExpiry = 0
+  spotifyTokenLoaded = true
   return true
 })
 
@@ -1009,14 +1440,15 @@ ipcMain.handle('spotify:getConfig', () => {
 
 async function refreshSpotifyToken(): Promise<boolean> {
   const { clientId } = getSpotifyConfig()
-  if (!spotifyRefreshToken || !clientId) return false
+  const token = loadSpotifyRefreshToken()
+  if (!token || !clientId) return false
   try {
     const response = await net.fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({
         grant_type: 'refresh_token',
-        refresh_token: spotifyRefreshToken,
+        refresh_token: token,
         client_id: clientId,
       }).toString(),
     })
@@ -1025,9 +1457,10 @@ async function refreshSpotifyToken(): Promise<boolean> {
     spotifyAccessToken = data.access_token
     if (data.refresh_token) {
       spotifyRefreshToken = data.refresh_token
-      storeSet('spotify_refresh_token', data.refresh_token)
+      storeSet('spotify_refresh_token', safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(data.refresh_token).toString('base64') : data.refresh_token)
     }
     spotifyTokenExpiry = Date.now() + data.expires_in * 1000
+    console.log('[Spotify] Token refreshed successfully')
     return true
   } catch {
     return false
@@ -1038,7 +1471,7 @@ async function getSpotifyToken(): Promise<string | null> {
   if (spotifyAccessToken && Date.now() < spotifyTokenExpiry - 60000) {
     return spotifyAccessToken
   }
-  if (spotifyRefreshToken) {
+  if (loadSpotifyRefreshToken()) {
     const ok = await refreshSpotifyToken()
     if (ok) return spotifyAccessToken
   }
@@ -1106,7 +1539,7 @@ ipcMain.handle('spotify:login', async () => {
         spotifyRefreshToken = data.refresh_token
         spotifyTokenExpiry = Date.now() + data.expires_in * 1000
         // Persist refresh token so Spotify stays connected across restarts
-        storeSet('spotify_refresh_token', data.refresh_token)
+        storeSet('spotify_refresh_token', safeStorage.isEncryptionAvailable() ? safeStorage.encryptString(data.refresh_token).toString('base64') : data.refresh_token)
         resolve({ connected: true })
       } catch (err: any) {
         resolve({ connected: false, error: err.message })
@@ -1381,6 +1814,11 @@ setStateProvider(() => {
     } : null,
     time: now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
     notification: null,
+    twitch: {
+      connected: !!(getTwitchToken()),
+      channel: getConnectedChannel() || null,
+      viewerCount: null,
+    },
   }
 })
 
@@ -1478,7 +1916,11 @@ setSpotifyCommandHandler(async (command: string) => {
 // Forward in-game Loomie questions to Gemini
 setLoomieHandler(async (text: string, reply: (answer: string) => void) => {
   try {
-    const apiKey = storeGet('geminiApiKey') as string
+    const rawGeminiKey = storeGet('geminiApiKey') as string
+    let apiKey = rawGeminiKey
+    if (rawGeminiKey && safeStorage.isEncryptionAvailable()) {
+      try { apiKey = safeStorage.decryptString(Buffer.from(rawGeminiKey, 'base64')) } catch { apiKey = rawGeminiKey }
+    }
     if (!apiKey) {
       reply('Error: No Gemini API key found in Loom Launcher settings.')
       return
@@ -1488,10 +1930,10 @@ setLoomieHandler(async (text: string, reply: (answer: string) => void) => {
     const contents = [{ role: 'user', parts: [{ text }] }]
 
     const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: systemText }] },
           contents,
@@ -1580,15 +2022,15 @@ ipcMain.handle('auth:updateDisplayName', (_event, uuid: string, displayName: str
 })
 
 // ============================================================
-// IPC Handlers — Incognito
+// IPC Handlers — Privacy Mode
 // ============================================================
 
-ipcMain.handle('incognito:getRegions', () => {
+ipcMain.handle('privacy:getRegions', () => {
   return getAllRegions()
 })
 
-ipcMain.handle('incognito:updatePrefs', (_event, uuid: string, region?: string, enabled?: boolean) => {
-  updateIncognitoPrefs(uuid, region, enabled)
+ipcMain.handle('privacy:updatePrefs', (_event, uuid: string, region?: string, enabled?: boolean) => {
+  updatePrivacyPrefs(uuid, region, enabled)
   return true
 })
 
@@ -1927,7 +2369,24 @@ ipcMain.handle('resourcepacks:install', async (_event, instanceId: string, pack:
 // ============================================================
 
 ipcMain.handle('shell:openExternal', (_event, url: string) => {
-  shell.openExternal(url)
+  // Only allow http and https protocols
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+      shell.openExternal(url);
+    } else {
+      console.warn('[Security] Blocked openExternal for protocol:', parsed.protocol);
+    }
+  } catch {
+    console.warn('[Security] Blocked openExternal for invalid URL:', url);
+  }
+})
+
+ipcMain.handle('shell:openPath', (_event, filePath: string) => {
+  // Open a file with the system's default application
+  if (existsSync(filePath)) {
+    shell.openPath(filePath)
+  }
 })
 
 // ============================================================
@@ -1955,6 +2414,18 @@ function createTray(): void {
 // App Lifecycle
 // ============================================================
 
+// Register custom 'media' protocol for local video file playback (must be before app.whenReady)
+protocol.registerSchemesAsPrivileged([{
+  scheme: 'media',
+  privileges: {
+    standard: true,
+    secure: true,
+    supportFetchAPI: true,
+    stream: true,
+    bypassCSP: true
+  }
+}])
+
 const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
@@ -1968,6 +2439,17 @@ if (!gotTheLock) {
   })
 
   app.whenReady().then(async () => {
+    // Register media:// protocol handler — serves local files for video playback
+    protocol.handle('media', (request) => {
+      // media://C:/path/to/file.mp4 → serve that file
+      let filePath = decodeURIComponent(request.url.replace('media://', ''))
+      // Remove leading slash on Windows paths (media:///C:/foo → C:/foo)
+      if (process.platform === 'win32' && filePath.startsWith('/')) {
+        filePath = filePath.substring(1)
+      }
+      return net.fetch('file:///' + filePath.replace(/\\/g, '/'))
+    })
+
     // Restore saved login session before creating window
     await restoreSession().catch(err => console.error('[Auth] Session restore failed:', err))
     // Migrate any instances without a profile owner to the active account
@@ -2050,7 +2532,7 @@ ipcMain.handle('friends:updateNote', (_event, uuid: string, note: string) => upd
 // IPC Handlers — Bedrock Edition
 // ============================================================
 
-import { detectBedrock, launchBedrock, getBedrockWorlds, getBedrockPacks, installAddon, openBedrockFolder } from './bedrock'
+import { detectBedrock, launchBedrock, getBedrockWorlds, getBedrockPacks, installAddon, openBedrockFolder, getBedrockDataPath } from './bedrock'
 
 ipcMain.handle('bedrock:detect', async () => {
   try { return await detectBedrock() } catch (e: any) { return { installed: false, version: null, error: e.message } }
@@ -2229,10 +2711,10 @@ ipcMain.handle('gemini:chat', async (_event, apiKey: string, messages: Array<{ r
 
   try {
     const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           system_instruction: {
             parts: [{ text: GEMINI_SYSTEM_PROMPT }],
@@ -2310,10 +2792,10 @@ ipcMain.handle('gemini:chat-vision', async (_event, apiKey: string, textPrompt: 
     ]
 
     const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nThe user has shared a screenshot of the Loom Launcher. Describe what you see and answer their question about it. The launcher has pages: Library (game instances), Browse (mods), Players (lookup), Settings, and Gemini AI (this chat).' }] },
           contents,
@@ -2352,10 +2834,10 @@ ipcMain.handle('gemini:chat-audio', async (_event, apiKey: string, audioBase64: 
     ]
 
     const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nIMPORTANT: The user is speaking via voice. First, transcribe exactly what they said in quotes. Then respond concisely (1-3 sentences). Format: "[transcription]"\n\nYour response here.' }] },
           contents,
@@ -2522,7 +3004,9 @@ async function executeLoomieTool(name: string, args: Record<string, any>): Promi
         return readInstanceMods(args.instanceId)
       }
       case 'create_instance': {
-        return createInstance(args.name, args.version, args.loader)
+        const inst = createInstance(args.name, args.version, args.loader)
+        predownloadForInstance(inst.id, args.version, args.loader).catch(() => {})
+        return inst
       }
       case 'launch_instance': {
         return launchInstance(args.instanceId)
@@ -2667,10 +3151,10 @@ ipcMain.handle('gemini:chat-with-tools', async (_event, apiKey: string, messages
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
       const response = await net.fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
           body: JSON.stringify({
             system_instruction: { parts: [{ text: systemText }] },
             contents: conversationContents,
@@ -2745,3 +3229,721 @@ ipcMain.handle('gemini:chat-with-tools', async (_event, apiKey: string, messages
     return { error: err.message || 'Failed to reach Gemini API' }
   }
 })
+
+// ============================================================
+// Twitch Integration
+// ============================================================
+
+ipcMain.handle('twitch:auth', () => startTwitchAuth(mainWindow))
+ipcMain.handle('twitch:logout', () => clearTwitchAuth())
+ipcMain.handle('twitch:getToken', () => getTwitchToken())
+ipcMain.handle('twitch:isLoggedIn', async () => {
+  const token = await getTwitchToken()
+  return !!token
+})
+ipcMain.handle('twitch:getFollowedStreams', () => getFollowedStreams())
+ipcMain.handle('twitch:isStreamerLive', (_e, channel: string) => isStreamerLive(channel))
+ipcMain.handle('twitch:startPolling', () => startTwitchPolling())
+ipcMain.handle('twitch:stopPolling', () => stopTwitchPolling())
+ipcMain.handle('twitch:connectChat', (_e, channel: string) => connectChat(channel))
+ipcMain.handle('twitch:disconnectChat', () => disconnectChat())
+ipcMain.handle('twitch:sendChat', (_e, channel: string, message: string) => sendChatMessage(channel, message))
+
+// Forward Twitch events to renderer
+twitchEvents.on('streamer-live', (data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('twitch:streamer-live', data)
+  }
+  // Also forward to in-game Dynamic Island
+  sendTwitchLive({ channel: data.userName || data.userLogin, game: data.gameName || '', viewers: data.viewerCount || 0 })
+})
+twitchEvents.on('chat-message', (data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('twitch:chat-message', data)
+  }
+  // Forward chat to in-game Dynamic Island
+  sendTwitchChat({ username: data.username, message: data.message, color: data.color || '#FFFFFF', badges: data.badges || [] })
+})
+
+// Handle chat messages sent from the in-game mod
+setTwitchChatHandler((message: string) => {
+  const channel = getConnectedChannel()
+  if (channel && message) {
+    sendChatMessage(channel, message)
+  }
+})
+
+// Initialize Twitch on startup
+try { initTwitch() } catch (e: any) { console.log('[Twitch] Init skipped:', e.message) }
+try { loadProxyCredentials() } catch (e: any) { console.log('[Proxy] Creds load skipped:', e.message) }
+
+// Wire in-game media search: mod sends search query, we call APIs and reply with results
+setMediaSearchHandler(async (query: string, source: string, reply: (results: any[]) => void) => {
+  console.log(`[Media] Search handler called: query="${query}" source="${source}"`)
+  const results: any[] = []
+  if (source === 'youtube' || source === 'all') {
+    const ytResults = await searchYouTube(query)
+    console.log(`[Media] YouTube returned ${ytResults.length} results`)
+    results.push(...ytResults)
+  }
+  if (source === 'twitch' || source === 'all') {
+    const twResults = await searchTwitch(query)
+    console.log(`[Media] Twitch returned ${twResults.length} results`)
+    results.push(...twResults)
+  }
+  console.log(`[Media] Total results: ${results.length}`)
+
+  // Download thumbnails in parallel and attach as base64
+  // (Java-side HTTP fails inside Minecraft's JVM, so we do it here)
+  const thumbPromises = results.map(async (r) => {
+    if (!r.thumbnail) return
+    try {
+      // Use simple ytimg URL for YouTube thumbnails (more reliable than signed URLs)
+      let thumbUrl = r.thumbnail
+      if (r.source === 'youtube' && r.id) {
+        thumbUrl = `https://i.ytimg.com/vi/${r.id}/mqdefault.jpg`
+        r.thumbnail = thumbUrl // Normalize for cache key
+      }
+      const res = await net.fetch(thumbUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/131.0.0.0' }
+      })
+      if (res.ok) {
+        const buf = Buffer.from(await res.arrayBuffer())
+        r.thumbnailBase64 = `data:image/jpeg;base64,${buf.toString('base64')}`
+      }
+    } catch { /* ignore individual failures */ }
+  })
+  await Promise.allSettled(thumbPromises)
+  const withThumbs = results.filter(r => r.thumbnailBase64).length
+  console.log(`[Media] Downloaded ${withThumbs}/${results.length} thumbnails`)
+
+  reply(results)
+})
+
+// When the mod selects a search result, start playback
+setMediaSelectHandler(async (result: any) => {
+  if (!result?.url || !result?.source) return
+  if (result.source === 'twitch') {
+    // Resolve HLS URL and send to mod
+    const channel = result.url.split('/').pop() || result.channel
+    const hlsUrl = await getTwitchStreamHlsUrl(channel)
+    if (hlsUrl) {
+      sendMediaPlay(hlsUrl, 'twitch', result.title || channel)
+    }
+  } else if (result.source === 'youtube') {
+    // Send YouTube URL directly — WATERMeDIA uses VLC which handles YouTube natively
+    // NOTE: YouTube support was removed in WATERMeDIA 2.1.37, direct URL may not work
+    // Fallback: use Invidious to get a direct video URL
+    try {
+      const videoId = result.id || result.url.match(/v=([^&]+)/)?.[1]
+      if (videoId) {
+        // Try to get a direct stream URL from Invidious
+        const instances = ['https://vid.puffyan.us', 'https://invidious.fdn.fr', 'https://inv.nadeko.net']
+        let directUrl = result.url
+        for (const instance of instances) {
+          try {
+            const res = await net.fetch(`${instance}/api/v1/videos/${videoId}`, {
+              headers: { 'Accept': 'application/json' }
+            })
+            if (res.ok) {
+              const data = await res.json() as any
+              let bestUrl: string | null = null
+              let bestQuality = ''
+              const combined = (data.formatStreams || [])
+                .filter((f: any) => f.container === 'mp4' && f.qualityLabel)
+                .sort((a: any, b: any) => (parseInt(b.qualityLabel) || 0) - (parseInt(a.qualityLabel) || 0))
+              if (combined.length > 0) {
+                bestUrl = combined[0].url
+                bestQuality = combined[0].qualityLabel
+              }
+              // Try adaptive 1080p if combined is < 1080p
+              if ((parseInt(bestQuality) || 0) < 1080) {
+                const hd = (data.adaptiveFormats || [])
+                  .filter((f: any) => f.type?.startsWith('video/mp4') && f.qualityLabel?.includes('1080'))
+                  .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+                if (hd.length > 0 && hd[0].url) {
+                  bestUrl = hd[0].url
+                  bestQuality = hd[0].qualityLabel || '1080p'
+                }
+              }
+              console.log(`[Media] Invidious: selected quality ${bestQuality || 'unknown'}`)
+              if (bestUrl) {
+                directUrl = bestUrl
+              }
+              break
+            }
+          } catch { continue }
+        }
+        sendMediaPlay(directUrl, 'youtube', result.title || 'YouTube Video')
+      }
+    } catch (err) {
+      console.error('[Media] YouTube URL resolution failed:', err)
+      sendMediaPlay(result.url, 'youtube', result.title || 'YouTube Video')
+    }
+  }
+})
+
+// ============================================================
+// In-Game Browser Video Selection Handler
+// ============================================================
+// When the MCEF browser detects a YouTube/Twitch video, resolve and play it
+
+setBrowserVideoHandler(async (source: string, id: string, url: string) => {
+  console.log(`[Media] Browser video: source=${source} id=${id}`)
+  if (source === 'youtube') {
+    // Resolve via Invidious for best quality
+    const instances = ['https://vid.puffyan.us', 'https://invidious.fdn.fr', 'https://inv.nadeko.net']
+    let directUrl = url || `https://www.youtube.com/watch?v=${id}`
+    let title = 'YouTube Video'
+
+    // Get title
+    try {
+      const oembedRes = await net.fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(`https://www.youtube.com/watch?v=${id}`)}&format=json`)
+      if (oembedRes.ok) {
+        const data = await oembedRes.json() as any
+        title = data?.title || title
+      }
+    } catch { /* ignore */ }
+
+    // Resolve direct URL
+    for (const instance of instances) {
+      try {
+        const res = await net.fetch(`${instance}/api/v1/videos/${id}`, {
+          headers: { 'Accept': 'application/json' }
+        })
+        if (res.ok) {
+          const data = await res.json() as any
+          let bestUrl: string | null = null
+          let bestQuality = ''
+          const combined = (data.formatStreams || [])
+            .filter((f: any) => f.container === 'mp4' && f.qualityLabel)
+            .sort((a: any, b: any) => (parseInt(b.qualityLabel) || 0) - (parseInt(a.qualityLabel) || 0))
+          if (combined.length > 0) {
+            bestUrl = combined[0].url
+            bestQuality = combined[0].qualityLabel
+          }
+          if ((parseInt(bestQuality) || 0) < 1080) {
+            const hd = (data.adaptiveFormats || [])
+              .filter((f: any) => f.type?.startsWith('video/mp4') && f.qualityLabel?.includes('1080'))
+              .sort((a: any, b: any) => (b.bitrate || 0) - (a.bitrate || 0))
+            if (hd.length > 0 && hd[0].url) {
+              bestUrl = hd[0].url
+              bestQuality = hd[0].qualityLabel || '1080p'
+            }
+          }
+          console.log(`[Media] Browser: Invidious quality ${bestQuality || 'unknown'}`)
+          if (bestUrl) directUrl = bestUrl
+          if (data.title) title = data.title
+          break
+        }
+      } catch { continue }
+    }
+
+    sendMediaPlay(directUrl, 'youtube', title)
+  } else if (source === 'twitch') {
+    // Resolve Twitch HLS URL
+    const hlsUrl = await getTwitchStreamHlsUrl(id)
+    if (hlsUrl) {
+      sendMediaPlay(hlsUrl, 'twitch', id)
+    } else {
+      console.log(`[Media] Browser: Failed to resolve Twitch stream for ${id}`)
+    }
+  }
+})
+
+// ============================================================
+// In-Game Media Viewer (Twitch + YouTube)
+// ============================================================
+
+const TWITCH_CLIENT_ID = 'kimne78kx3ncx6brgo4mv6wki5h1ko' // Public Twitch GQL client ID (no auth required)
+
+/** Resolve a Twitch channel name to an HLS m3u8 stream URL */
+async function getTwitchStreamHlsUrl(channel: string): Promise<string | null> {
+  try {
+    // Fetch access token from Twitch GQL
+    const gqlRes = await net.fetch('https://gql.twitch.tv/gql', {
+      method: 'POST',
+      headers: { 'Client-ID': TWITCH_CLIENT_ID, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `{
+          streamPlaybackAccessToken(channelName:"${channel.toLowerCase()}", params:{platform:"web",playerBackend:"mediaplayer",playerType:"site"}) {
+            value
+            signature
+          }
+        }`
+      })
+    })
+
+    if (!gqlRes.ok) return null
+    const result = await gqlRes.json() as any
+    const token = result?.data?.streamPlaybackAccessToken
+    if (!token?.value || !token?.signature) return null
+
+    // Build usher HLS URL
+    const params = new URLSearchParams({
+      token: token.value,
+      sig: token.signature,
+      allow_source: 'true',
+      allow_audio_only: 'true',
+      fast_bread: 'true',
+      p: String(Math.floor(Math.random() * 999999)),
+    })
+
+    return `https://usher.ttvnw.net/api/channel/hls/${channel.toLowerCase()}.m3u8?${params.toString()}`
+  } catch (err) {
+    console.error('[Media] Failed to get Twitch HLS URL:', err)
+    return null
+  }
+}
+
+// Play a Twitch stream in-game
+ipcMain.handle('media:playTwitch', async (_e, channel: string) => {
+  try {
+    const hlsUrl = await getTwitchStreamHlsUrl(channel)
+    if (!hlsUrl) return { success: false, error: 'Could not resolve stream URL' }
+
+    // Connect to chat for this channel
+    await connectChat(channel)
+
+    // Send to in-game mod via DI server
+    sendMediaPlay(hlsUrl, 'twitch', channel)
+
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+// Play a YouTube video in-game (WATERMeDIA resolves YouTube URLs natively)
+ipcMain.handle('media:playYoutube', async (_e, url: string) => {
+  try {
+    // Extract video title from URL for display (optional, best-effort)
+    let title = 'YouTube Video'
+    try {
+      const oembedRes = await net.fetch(`https://www.youtube.com/oembed?url=${encodeURIComponent(url)}&format=json`)
+      if (oembedRes.ok) {
+        const data = await oembedRes.json() as any
+        title = data?.title || title
+      }
+    } catch { /* ignore */ }
+
+    // Send YouTube URL directly to mod — WATERMeDIA resolves it
+    sendMediaPlay(url, 'youtube', title)
+
+    return { success: true, title }
+  } catch (err: any) {
+    return { success: false, error: err.message }
+  }
+})
+
+// Stop in-game media
+ipcMain.handle('media:stop', async () => {
+  sendMediaStop()
+  return { success: true }
+})
+
+// Get Twitch HLS URL (for launcher UI use)
+ipcMain.handle('twitch:getStreamUrl', async (_e, channel: string) => {
+  return getTwitchStreamHlsUrl(channel)
+})
+
+// ── In-Game Media Search (YouTube + Twitch) ──────────────────
+
+interface MediaSearchResult {
+  id: string
+  title: string
+  source: 'youtube' | 'twitch'
+  thumbnail: string
+  duration?: string    // YouTube: "12:34", Twitch: "LIVE"
+  channel?: string
+  viewers?: number     // Twitch only
+  url: string
+}
+
+/** Search YouTube via Piped API (dynamically fetches working instances) */
+async function searchYouTube(query: string): Promise<MediaSearchResult[]> {
+  // Strategy 1: Try Piped with dynamically fetched instance list
+  const pipedResults = await searchYouTubePiped(query)
+  if (pipedResults.length > 0) return pipedResults
+
+  // Strategy 2: Scrape YouTube search page directly
+  const scrapeResults = await searchYouTubeScrape(query)
+  if (scrapeResults.length > 0) return scrapeResults
+
+  console.error('[Media] YouTube search: all strategies failed')
+  return []
+}
+
+/** Fetch working Piped API instances dynamically */
+async function getPipedInstances(): Promise<string[]> {
+  try {
+    const res = await net.fetch('https://raw.githubusercontent.com/TeamPiped/Piped/master/piped-instances.json', {
+      headers: { 'Accept': 'application/json' }
+    })
+    if (res.ok) {
+      const list = await res.json() as any[]
+      return list
+        .filter((i: any) => i.api_url && !i.api_url.includes('localhost'))
+        .map((i: any) => i.api_url.replace(/\/$/, ''))
+        .slice(0, 6)
+    }
+  } catch (err: any) {
+    console.log(`[Media] Failed to fetch Piped instance list: ${err.message}`)
+  }
+  // Hardcoded fallbacks
+  return [
+    'https://pipedapi.kavin.rocks',
+    'https://pipedapi.r4fo.com',
+    'https://watchapi.whatever.social',
+  ]
+}
+
+async function searchYouTubePiped(query: string): Promise<MediaSearchResult[]> {
+  const instances = await getPipedInstances()
+  for (const instance of instances) {
+    try {
+      console.log(`[Media] Trying Piped: ${instance}`)
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
+      const res = await net.fetch(`${instance}/search?q=${encodeURIComponent(query)}&filter=videos`, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal
+      })
+      clearTimeout(timeout)
+      if (res.ok) {
+        const data = await res.json() as any
+        const items = data.items || data
+        if (Array.isArray(items) && items.length > 0) {
+          console.log(`[Media] Piped returned ${items.length} results from ${instance}`)
+          return items.slice(0, 20).map((v: any) => ({
+            id: v.url?.replace('/watch?v=', '') || v.videoId || '',
+            title: v.title || 'Untitled',
+            source: 'youtube' as const,
+            thumbnail: v.thumbnail || `https://i.ytimg.com/vi/${v.url?.replace('/watch?v=', '')}/mqdefault.jpg`,
+            duration: v.duration ? formatPipedDuration(v.duration) : '0:00',
+            channel: v.uploaderName || v.uploader || '',
+            url: `https://www.youtube.com${v.url || '/watch?v=' + v.videoId}`,
+          }))
+        }
+      } else {
+        console.log(`[Media] Piped ${instance} returned ${res.status}`)
+      }
+    } catch (err: any) {
+      console.log(`[Media] Piped ${instance} failed: ${err.message}`)
+    }
+  }
+  return []
+}
+
+/** Scrape YouTube search results directly from youtube.com */
+async function searchYouTubeScrape(query: string): Promise<MediaSearchResult[]> {
+  try {
+    console.log(`[Media] Trying YouTube scrape for: ${query}`)
+    const res = await net.fetch(`https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+      }
+    })
+    if (!res.ok) {
+      console.log(`[Media] YouTube scrape returned ${res.status}`)
+      return []
+    }
+    const html = await res.text()
+    console.log(`[Media] YouTube scrape: got ${html.length} bytes of HTML`)
+
+    // Extract ytInitialData JSON from the page
+    // Use greedy [\s\S]+ (matches any char including newlines) anchored to ;</script>
+    // so it captures the entire JSON object, not stopping at a nested }
+    const match = html.match(/var\s+ytInitialData\s*=\s*([\s\S]+?);\s*<\/script>/)
+      || html.match(/ytInitialData\s*=\s*'(.*?)';/s)
+      || html.match(/ytInitialData\s*=\s*({.*?});\s*(?:var|<\/script>|window)/s)
+    if (!match) {
+      // Debug: show a snippet around where we'd expect ytInitialData
+      const idx = html.indexOf('ytInitialData')
+      console.log(`[Media] YouTube scrape: could not find ytInitialData (indexOf=${idx})`)
+      if (idx >= 0) {
+        console.log(`[Media] YouTube scrape context: ...${html.substring(idx, idx + 200)}...`)
+      }
+      return []
+    }
+
+    let rawJson = match[1]
+    // If the match captured a quoted string (YouTube sometimes wraps in single quotes), unescape it
+    if (rawJson.startsWith("'") || rawJson.startsWith('"')) {
+      rawJson = rawJson.slice(1, -1)
+    }
+
+    let data: any
+    try {
+      data = JSON.parse(rawJson)
+    } catch (parseErr: any) {
+      console.log(`[Media] YouTube scrape: JSON.parse failed: ${parseErr.message}`)
+      console.log(`[Media] YouTube scrape: JSON snippet: ${rawJson.substring(0, 300)}...`)
+      return []
+    }
+
+    const contents = data?.contents?.twoColumnSearchResultsRenderer?.primaryContents
+      ?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents
+
+    if (!Array.isArray(contents)) {
+      // Log available keys for debugging
+      const topKeys = Object.keys(data?.contents || {}).join(', ')
+      console.log(`[Media] YouTube scrape: unexpected data structure (top keys: ${topKeys})`)
+      return []
+    }
+
+    console.log(`[Media] YouTube scrape: found ${contents.length} content items to process`)
+
+    const results: MediaSearchResult[] = []
+    for (const item of contents) {
+      const video = item.videoRenderer
+      if (!video?.videoId) continue
+
+      const title = video.title?.runs?.[0]?.text || 'Untitled'
+      const channel = video.ownerText?.runs?.[0]?.text || ''
+      const duration = video.lengthText?.simpleText || ''
+      const thumbnail = video.thumbnail?.thumbnails?.pop()?.url || `https://i.ytimg.com/vi/${video.videoId}/mqdefault.jpg`
+
+      results.push({
+        id: video.videoId,
+        title,
+        source: 'youtube',
+        thumbnail,
+        duration: duration || '0:00',
+        channel,
+        url: `https://www.youtube.com/watch?v=${video.videoId}`,
+      })
+
+      if (results.length >= 20) break
+    }
+
+    console.log(`[Media] YouTube scrape returned ${results.length} results`)
+    return results
+  } catch (err: any) {
+    console.error(`[Media] YouTube scrape failed: ${err.message}`)
+    return []
+  }
+}
+
+/** Piped returns duration as seconds (number) */
+function formatPipedDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return '0:00'
+  const hrs = Math.floor(seconds / 3600)
+  const mins = Math.floor((seconds % 3600) / 60)
+  const secs = seconds % 60
+  if (hrs > 0) return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+function formatDuration(totalSeconds: number): string {
+  if (totalSeconds <= 0) return '0:00'
+  const mins = Math.floor(totalSeconds / 60)
+  const secs = totalSeconds % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
+
+/** Search Twitch live streams via public GQL endpoint */
+async function searchTwitch(query: string): Promise<MediaSearchResult[]> {
+  try {
+    console.log(`[Media] Searching Twitch GQL for: ${query}`)
+
+    // Generate a persistent device ID for this session
+    const deviceId = require('crypto').randomBytes(16).toString('hex')
+
+    // Strategy 1: Try SearchResultsPage_SearchResults persisted query (used by Twitch web)
+    const gqlBody = JSON.stringify([{
+      operationName: 'SearchResultsPage_SearchResults',
+      variables: {
+        query,
+        options: { targets: [{ index: 'STREAM' }] },
+        requestID: deviceId.substring(0, 32)
+      },
+      extensions: {
+        persistedQuery: {
+          version: 1,
+          sha256Hash: '6ea6e6f66006485e41dbe3ebd69d5674c5b22896ce7b595d7fce6411a3571571'
+        }
+      }
+    }])
+
+    const res = await net.fetch('https://gql.twitch.tv/gql', {
+      method: 'POST',
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Content-Type': 'application/json',
+        'Device-ID': deviceId,
+        'X-Device-Id': deviceId,
+      },
+      body: gqlBody,
+    })
+
+    if (!res.ok) {
+      console.log(`[Media] Twitch GQL returned ${res.status}`)
+      // Fallback to simple query
+      return searchTwitchFallback(query)
+    }
+
+    const data = await res.json() as any
+    const responseData = Array.isArray(data) ? data[0] : data
+    const items = responseData?.data?.searchFor?.streams?.edges
+      || responseData?.data?.searchStreams?.edges
+      || []
+    console.log(`[Media] Twitch GQL returned ${items.length} results`)
+
+    if (items.length === 0) {
+      // Log response structure for debugging
+      const keys = Object.keys(responseData?.data || {}).join(', ')
+      console.log(`[Media] Twitch GQL response keys: ${keys}`)
+      // Try fallback
+      return searchTwitchFallback(query)
+    }
+
+    return items.map((edge: any) => {
+      const node = edge.node || edge.item || edge
+      const login = node?.broadcaster?.login || node?.login || ''
+      const displayName = node?.broadcaster?.displayName || node?.displayName || login
+      return {
+        id: node?.id || '',
+        title: node?.title || displayName,
+        source: 'twitch' as const,
+        thumbnail: node?.previewImageURL || '',
+        duration: 'LIVE',
+        channel: displayName,
+        viewers: node?.viewersCount || node?.stream?.viewersCount || 0,
+        url: `https://twitch.tv/${login}`,
+      }
+    })
+  } catch (err) {
+    console.error('[Media] Twitch GQL search failed:', err)
+    return searchTwitchFallback(query)
+  }
+}
+
+/** Fallback: simple GQL searchStreams query */
+async function searchTwitchFallback(query: string): Promise<MediaSearchResult[]> {
+  try {
+    console.log(`[Media] Trying Twitch fallback search for: ${query}`)
+    const deviceId = require('crypto').randomBytes(16).toString('hex')
+
+    const gqlBody = JSON.stringify({
+      query: `query { searchStreams(query: "${query.replace(/"/g, '\\"')}", first: 20) { edges { node { id broadcaster { login displayName } title game { name } viewersCount previewImageURL(width: 440, height: 248) } } } }`,
+    })
+
+    const res = await net.fetch('https://gql.twitch.tv/gql', {
+      method: 'POST',
+      headers: {
+        'Client-ID': TWITCH_CLIENT_ID,
+        'Content-Type': 'application/json',
+        'Device-ID': deviceId,
+        'X-Device-Id': deviceId,
+      },
+      body: gqlBody,
+    })
+
+    if (!res.ok) {
+      console.log(`[Media] Twitch fallback returned ${res.status}`)
+      return []
+    }
+
+    const data = await res.json() as any
+    const edges = data?.data?.searchStreams?.edges || []
+    console.log(`[Media] Twitch fallback returned ${edges.length} results`)
+
+    return edges.map((edge: any) => {
+      const node = edge.node
+      const login = node?.broadcaster?.login || ''
+      const displayName = node?.broadcaster?.displayName || login
+      return {
+        id: node?.id || '',
+        title: node?.title || displayName,
+        source: 'twitch' as const,
+        thumbnail: node?.previewImageURL || '',
+        duration: 'LIVE',
+        channel: displayName,
+        viewers: node?.viewersCount || 0,
+        url: `https://twitch.tv/${login}`,
+      }
+    })
+  } catch (err) {
+    console.error('[Media] Twitch fallback search failed:', err)
+    return []
+  }
+}
+
+// IPC handler for renderer-side search
+ipcMain.handle('media:search', async (_e, query: string, source: 'youtube' | 'twitch' | 'all') => {
+  console.log(`[Media] IPC search: query="${query}" source="${source}"`)
+  const results: MediaSearchResult[] = []
+  if (source === 'youtube' || source === 'all') {
+    const ytResults = await searchYouTube(query)
+    console.log(`[Media] IPC YouTube returned ${ytResults.length} results`)
+    results.push(...ytResults)
+  }
+  if (source === 'twitch' || source === 'all') {
+    const twResults = await searchTwitch(query)
+    console.log(`[Media] IPC Twitch returned ${twResults.length} results`)
+    results.push(...twResults)
+  }
+  console.log(`[Media] IPC total results: ${results.length}`)
+  return results
+})
+
+// ============================================================
+// Recording & Gallery
+// ============================================================
+
+ipcMain.handle('recording:downloadFFmpeg', () => downloadFFmpeg())
+ipcMain.handle('recording:getFFmpegPath', () => getFFmpegPath())
+ipcMain.handle('recording:start', (_e, opts) => startRecording(opts))
+ipcMain.handle('recording:stop', () => stopRecording())
+ipcMain.handle('recording:startReplayBuffer', (_e, opts) => startReplayBuffer(opts))
+ipcMain.handle('recording:saveReplayBuffer', () => saveReplayBuffer())
+ipcMain.handle('recording:stopReplayBuffer', () => stopReplayBuffer())
+ipcMain.handle('recording:getStatus', () => getRecordingStatus())
+ipcMain.handle('gallery:getItems', () => getGalleryItems())
+ipcMain.handle('gallery:saveMetadata', (_e, item) => saveGalleryMetadata(item))
+
+// Forward recording events to renderer
+recordingEvents.on('status', (data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('recording:status', data)
+  }
+})
+recordingEvents.on('progress', (data) => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('recording:progress', data)
+  }
+})
+
+// ============================================================
+// Video Editor
+// ============================================================
+
+ipcMain.handle('editor:trim', (_e, input, output, start, end) => trimVideo(input, output, start, end))
+ipcMain.handle('editor:concatenate', (_e, inputs, output) => concatenateVideos(inputs, output))
+ipcMain.handle('editor:textOverlay', (_e, input, output, text, opts) => addTextOverlay(input, output, text, opts))
+ipcMain.handle('editor:changeSpeed', (_e, input, output, speed) => changeSpeed(input, output, speed))
+ipcMain.handle('editor:thumbnail', (_e, video, output, atTime) => generateThumbnail(video, output, atTime))
+
+// ============================================================
+// Launcher Migration
+// ============================================================
+
+ipcMain.handle('migration:detect', () => detectLaunchers())
+ipcMain.handle('migration:getImportable', (_e, path) => getImportableData(path))
+ipcMain.handle('migration:import', (_e, type, path, opts) => importFromLauncher(type, path, opts))
+
+// ============================================================
+// Social Sharing
+// ============================================================
+
+ipcMain.handle('social:getConfig', () => getSocialConfig())
+ipcMain.handle('social:addDiscordWebhook', (_e, url) => addDiscordWebhook(url))
+ipcMain.handle('social:removeDiscordWebhook', (_e, url) => removeDiscordWebhook(url))
+ipcMain.handle('social:setYouTubeToken', (_e, path) => setYouTubeTokenPath(path))
+ipcMain.handle('social:shareToDiscord', (_e, webhookUrl, opts) => shareToDiscord(webhookUrl, opts))
+ipcMain.handle('social:uploadToYouTube', (_e, tokenPath, opts) => uploadToYouTube(tokenPath, opts))

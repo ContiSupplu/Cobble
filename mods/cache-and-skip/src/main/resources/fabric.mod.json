@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "cache-and-skip",
+  "version": "${version}",
+  "name": "Cache & Skip",
+  "description": "Caches baked models and texture atlases to disk, skipping recomputation on repeat launches. Saves 2-5+ seconds on startup.",
+  "authors": ["Loom Launcher"],
+  "contact": {},
+  "license": "All Rights Reserved",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.loom.cacheskip.CacheAndSkipMod"
+    ]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.5",
+    "minecraft": "~1.21.11",
+    "java": ">=21"
+  },
+  "conflicts": {
+    "dashloader": "*"
+  },
+  "mixins": [
+    "cache-and-skip.mixins.json"
+  ]
+}

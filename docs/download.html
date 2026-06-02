@@ -1,167 +1,665 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Download — Loom</title>
-  <meta name="description" content="Download Loom for Windows — the all-in-one Minecraft launcher for Java and Bedrock Edition." />
-  <meta name="theme-color" content="#0a0a0a" />
-  <link rel="icon" href="assets/loom-icon.png" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="css/styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download — Loom Launcher</title>
+    <meta name="description" content="Download Loom Launcher v1.6.1 Netherite for Windows. Free and open source.">
+    <link rel="icon" href="assets/loom-icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8a8a9a;
+            --text-tertiary: #55556a;
+            --accent-amber: #d97706;
+            --accent-orange: #f59e0b;
+            --accent-red: #b91c1c;
+            --gradient-netherite: linear-gradient(135deg, #d97706, #b91c1c);
+            --gradient-netherite-soft: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(185, 28, 28, 0.15));
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* ── Navigation ── */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+
+        .nav-brand img {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+        }
+
+        .nav-brand span {
+            font-weight: 600;
+            font-size: 0.95rem;
+            letter-spacing: -0.01em;
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 450;
+            transition: color 0.2s ease;
+        }
+
+        .nav-links a:hover {
+            color: var(--text-primary);
+        }
+
+        .nav-links .active {
+            color: var(--text-primary);
+        }
+
+        .nav-cta {
+            background: var(--gradient-netherite);
+            color: white !important;
+            padding: 0.5rem 1.25rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.85rem !important;
+            transition: opacity 0.2s ease, transform 0.2s ease !important;
+        }
+
+        .nav-cta:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        /* ── Page Content ── */
+        .download-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 8rem 2rem 4rem;
+            position: relative;
+        }
+
+        .download-page::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 700px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(217, 119, 6, 0.07) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        /* ── Download Hero Card ── */
+        .download-hero {
+            text-align: center;
+            max-width: 600px;
+            margin-bottom: 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .download-hero h1 {
+            font-size: clamp(2.5rem, 5vw, 3.5rem);
+            font-weight: 800;
+            letter-spacing: -0.04em;
+            background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+        }
+
+        .download-hero p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 2.5rem;
+        }
+
+        .download-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 3rem;
+            max-width: 520px;
+            margin: 0 auto 3rem;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            transition: border-color 0.3s ease;
+        }
+
+        .download-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .download-icon {
+            width: 72px;
+            height: 72px;
+            border-radius: 18px;
+            background: var(--gradient-netherite-soft);
+            border: 1px solid rgba(217, 119, 6, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+
+        .download-icon svg {
+            width: 32px;
+            height: 32px;
+            color: var(--accent-orange);
+        }
+
+        .download-version {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.9rem;
+            background: var(--gradient-netherite-soft);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+            border-radius: 100px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: var(--accent-orange);
+            margin-bottom: 1.25rem;
+        }
+
+        .download-card h2 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+        }
+
+        .download-card .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        .btn-download {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 1rem 2.5rem;
+            background: var(--gradient-netherite);
+            color: white;
+            border: none;
+            border-radius: 14px;
+            font-size: 1rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 24px rgba(217, 119, 6, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            font-family: inherit;
+            width: 100%;
+            justify-content: center;
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(217, 119, 6, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .btn-download svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .download-meta {
+            margin-top: 1.25rem;
+            font-size: 0.8rem;
+            color: var(--text-tertiary);
+        }
+
+        /* ── Info Sections ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            max-width: 520px;
+            width: 100%;
+            margin: 0 auto 4rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .info-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 14px;
+            padding: 1.75rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .info-card:hover {
+            border-color: var(--border-hover);
+        }
+
+        .info-card h3 {
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--accent-amber);
+            margin-bottom: 1rem;
+        }
+
+        .info-card ul {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .info-card li {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            padding-left: 1rem;
+            position: relative;
+            line-height: 1.5;
+        }
+
+        .info-card li::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0.55em;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--text-tertiary);
+        }
+
+        /* ── Installation Steps ── */
+        .install-section {
+            max-width: 520px;
+            width: 100%;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
+
+        .install-section h3 {
+            font-size: 1.25rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .install-steps {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .install-step {
+            display: flex;
+            gap: 1.25rem;
+            align-items: flex-start;
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 1.25rem 1.5rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .install-step:hover {
+            border-color: var(--border-hover);
+        }
+
+        .step-number {
+            flex-shrink: 0;
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--gradient-netherite-soft);
+            border: 1px solid rgba(217, 119, 6, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: var(--accent-orange);
+        }
+
+        .step-content h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .step-content p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .file-name {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border-subtle);
+            border-radius: 5px;
+            font-family: 'SF Mono', 'Cascadia Code', 'Fira Code', monospace;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+        }
+
+        /* ── Animations ── */
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .reveal.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+
+        /* Hero entrance */
+        .hero-animate {
+            opacity: 0;
+            transform: translateY(20px);
+            animation: hero-enter 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+
+        .hero-animate:nth-child(1) { animation-delay: 0.1s; }
+        .hero-animate:nth-child(2) { animation-delay: 0.2s; }
+        .hero-animate:nth-child(3) { animation-delay: 0.35s; }
+
+        @keyframes hero-enter {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* ── Footer ── */
+        footer {
+            border-top: 1px solid var(--border-subtle);
+            padding: 3rem 2rem;
+            background: var(--bg-primary);
+            margin-top: 4rem;
+        }
+
+        .footer-inner {
+            max-width: 740px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .footer-brand img {
+            width: 22px;
+            height: 22px;
+            border-radius: 5px;
+        }
+
+        .footer-brand span {
+            font-weight: 500;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+
+        .footer-links a {
+            color: var(--text-tertiary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--text-secondary);
+        }
+
+        .footer-copy {
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            nav {
+                padding: 0 1.25rem;
+            }
+
+            .nav-links {
+                gap: 1rem;
+            }
+
+            .nav-links li:not(:last-child):not(:nth-last-child(2)) {
+                display: none;
+            }
+
+            .download-page {
+                padding: 7rem 1.5rem 3rem;
+            }
+
+            .download-card {
+                padding: 2rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-inner {
+                flex-direction: column;
+                gap: 1.5rem;
+                text-align: center;
+            }
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+    </style>
 </head>
 <body>
 
-  <!-- ═══════════════════ NAVIGATION ═══════════════════ -->
-  <nav class="nav" id="nav">
-    <div class="container nav-inner">
-      <a href="index.html" class="nav-brand">
-        <img src="assets/loom-icon.png" alt="Loom" class="nav-logo" />
-        <span class="nav-wordmark">Loom</span>
-      </a>
-
-      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
-      </button>
-
-      <ul class="nav-links" id="navLinks">
-        <li><a href="index.html" class="nav-link">Home</a></li>
-        <li><a href="index.html#features" class="nav-link">Features</a></li>
-        <li><a href="changelog.html" class="nav-link">Changelog</a></li>
-        <li><a href="download.html" class="nav-cta">Download</a></li>
-      </ul>
-    </div>
-  </nav>
-
-
-  <!-- ═══════════════════ DOWNLOAD ═══════════════════ -->
-  <main class="download-page">
-    <div class="container">
-
-      <div class="reveal">
-        <div class="section-label" style="justify-content: center;">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download
-        </div>
-        <h1 class="section-title">Get Loom</h1>
-        <p class="section-sub" style="margin: 0 auto;">
-          Free. No account required. Auto-updates included.
-        </p>
-      </div>
-
-      <div class="download-card reveal reveal-delay-1">
-        <img src="assets/loom-icon.png" alt="Loom" class="download-icon" />
-        <div class="download-name">Loom for Windows</div>
-        <div class="download-version">v1.5.0 "Obsidian" — Latest</div>
-
-        <a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.5.0.exe" class="download-btn" id="downloadBtn">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          Download Installer
+    <!-- Navigation -->
+    <nav>
+        <a href="index.html" class="nav-brand">
+            <img src="assets/loom-icon.png" alt="Loom">
+            <span>Loom Launcher</span>
         </a>
+        <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="changelog.html">Changelog</a></li>
+            <li><a href="download.html" class="active">Download</a></li>
+            <li><a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.6.1.exe" class="nav-cta">Download v1.6</a></li>
+        </ul>
+    </nav>
 
-        <div class="download-meta">
-          Windows 10+ required
+    <!-- Download Page -->
+    <div class="download-page">
+
+        <!-- Hero -->
+        <div class="download-hero hero-animate">
+            <h1>Download Loom</h1>
+            <p>Get the latest version and start playing in under a minute.</p>
         </div>
-      </div>
 
-      <!-- How to Install -->
-      <div class="sysreq reveal reveal-delay-2 mt-64">
-        <div class="sysreq-title">Installation</div>
-        <div class="changelog-body" style="max-width: 480px; margin: 0 auto;">
-          <ul class="changelog-list mb-0">
-            <li>Download the installer above</li>
-            <li>Run <strong>Loom Setup 1.5.0.exe</strong></li>
-            <li>Follow the on-screen instructions</li>
-            <li>Loom will auto-update whenever a new version is released</li>
-          </ul>
+        <!-- Download Card -->
+        <div class="download-card hero-animate">
+            <div class="download-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </div>
+            <div class="download-version">v1.6.1 "Netherite" — Latest</div>
+            <h2>Loom Launcher for Windows</h2>
+            <p class="subtitle">Free and open source. Always.</p>
+            <a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.6.1.exe" class="btn-download">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Loom Setup 1.6.1.exe
+            </a>
+            <p class="download-meta">Windows installer  /  ~85 MB  /  Requires Windows 10+</p>
         </div>
-      </div>
 
-      <!-- System Requirements -->
-      <div class="sysreq reveal reveal-delay-3 mt-48">
-        <div class="sysreq-title">System Requirements</div>
-        <div class="sysreq-grid">
-          <div class="sysreq-item">
-            <div class="sysreq-label">OS</div>
-            <div class="sysreq-value">Windows 10 or later</div>
-          </div>
-          <div class="sysreq-item">
-            <div class="sysreq-label">Architecture</div>
-            <div class="sysreq-value">x64 (64-bit)</div>
-          </div>
-          <div class="sysreq-item">
-            <div class="sysreq-label">Memory</div>
-            <div class="sysreq-value">4 GB RAM minimum</div>
-          </div>
-          <div class="sysreq-item">
-            <div class="sysreq-label">Disk Space</div>
-            <div class="sysreq-value">~200 MB for Loom</div>
-          </div>
-          <div class="sysreq-item">
-            <div class="sysreq-label">Java Runtime</div>
-            <div class="sysreq-value">Downloaded automatically</div>
-          </div>
-          <div class="sysreq-item">
-            <div class="sysreq-label">Internet</div>
-            <div class="sysreq-value">Required for login and mods</div>
-          </div>
+        <!-- Info Grid -->
+        <div class="info-grid">
+            <div class="info-card reveal">
+                <h3>System Requirements</h3>
+                <ul>
+                    <li>Windows 10 or later</li>
+                    <li>4 GB RAM minimum</li>
+                    <li>500 MB available disk space</li>
+                    <li>Internet connection</li>
+                </ul>
+            </div>
+            <div class="info-card reveal reveal-delay-1">
+                <h3>What's Included</h3>
+                <ul>
+                    <li>Loom Launcher v1.6.1</li>
+                    <li>Auto-updater</li>
+                    <li>Java runtime manager</li>
+                    <li>Performance mod suite</li>
+                </ul>
+            </div>
         </div>
-      </div>
 
-      <!-- Previous versions -->
-      <div class="reveal mt-64" style="padding-bottom: 80px;">
-        <p class="text-center" style="font-size: 14px; color: var(--text-3);">
-          Looking for an older version?
-          <a href="https://github.com/ContiSupplu/Cobble/releases" target="_blank" style="color: var(--text-2);">View all releases on GitHub</a>
-        </p>
-      </div>
+        <!-- Installation Steps -->
+        <div class="install-section">
+            <h3 class="reveal">Installation</h3>
+            <div class="install-steps">
+                <div class="install-step reveal reveal-delay-1">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>Download the installer</h4>
+                        <p>Click the download button above to get <span class="file-name">Loom Setup 1.6.1.exe</span></p>
+                    </div>
+                </div>
+                <div class="install-step reveal reveal-delay-2">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>Run the installer</h4>
+                        <p>Open the downloaded file. If Windows SmartScreen appears, click "More info" then "Run anyway" — Loom is open source and safe.</p>
+                    </div>
+                </div>
+                <div class="install-step reveal reveal-delay-3">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>Sign in and play</h4>
+                        <p>Log in with your Microsoft account, create an instance, and launch Minecraft. Loom handles everything else.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
-  </main>
 
+    <!-- Footer -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="assets/loom-icon.png" alt="Loom">
+                <span>Loom Launcher</span>
+            </div>
+            <ul class="footer-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="changelog.html">Changelog</a></li>
+                <li><a href="download.html">Download</a></li>
+                <li><a href="https://github.com/ContiSupplu/Cobble" target="_blank" rel="noopener">GitHub</a></li>
+            </ul>
+            <span class="footer-copy">2026 Loom Launcher. All rights reserved.</span>
+        </div>
+    </footer>
 
-  <!-- ═══════════════════ FOOTER ═══════════════════ -->
-  <footer class="footer">
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <div class="footer-brand-row">
-            <img src="assets/loom-icon.png" alt="Loom" />
-            <span>Loom</span>
-          </div>
-          <p class="footer-tagline">The all-in-one Minecraft launcher for Java and Bedrock Edition. Built with care by _jackoboy.</p>
-        </div>
-        <div class="footer-col">
-          <div class="footer-col-title">Product</div>
-          <a href="index.html#features">Features</a>
-          <a href="download.html">Download</a>
-          <a href="changelog.html">Changelog</a>
-        </div>
-        <div class="footer-col">
-          <div class="footer-col-title">Resources</div>
-          <a href="https://github.com/ContiSupplu/Cobble" target="_blank">GitHub</a>
-          <a href="https://github.com/ContiSupplu/Cobble/issues" target="_blank">Report a Bug</a>
-          <a href="https://github.com/ContiSupplu/Cobble/releases" target="_blank">All Releases</a>
-        </div>
-        <div class="footer-col">
-          <div class="footer-col-title">Community</div>
-          <a href="https://github.com/ContiSupplu/Cobble/discussions" target="_blank">Discussions</a>
-          <a href="https://github.com/ContiSupplu/Cobble" target="_blank">Contribute</a>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <span>&copy; 2026 Loom. Not affiliated with Mojang or Microsoft.</span>
-        <div class="footer-socials">
-          <a href="https://github.com/ContiSupplu/Cobble" target="_blank" aria-label="GitHub">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
-          </a>
-        </div>
-      </div>
-    </div>
-  </footer>
+    <script>
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    revealObserver.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.1,
+            rootMargin: '0px 0px -40px 0px'
+        });
 
-  <script src="js/main.js"></script>
+        document.querySelectorAll('.reveal').forEach(el => {
+            revealObserver.observe(el);
+        });
+    </script>
+
 </body>
 </html>

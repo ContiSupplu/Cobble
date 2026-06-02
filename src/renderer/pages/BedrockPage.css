@@ -477,28 +477,310 @@
   border: none;
 }
 
-.bedrock-fullscreen-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  border: 1.5px solid var(--glass-border);
+.bedrock-hero-icon svg {
+  color: var(--text-0);
+}
+
+/* ── Browser Controls Container ── */
+.bedrock-browser-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Nav Buttons (back, forward, fullscreen) ── */
+.bedrock-nav-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: none;
   background: rgba(255, 255, 255, 0.04);
   color: var(--text-2);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  transition: all 150ms;
+  flex-shrink: 0;
+}
+
+.bedrock-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-0);
+}
+
+.bedrock-nav-btn.active {
+  background: rgba(10, 132, 255, 0.15);
+  color: #0A84FF;
+  border: 1px solid rgba(10, 132, 255, 0.3);
+}
+
+.bedrock-nav-btn.active:hover {
+  background: rgba(10, 132, 255, 0.22);
+}
+
+/* ── Queue Badge Button ── */
+.bedrock-queue-badge-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 12px;
+  cursor: pointer;
   transition: all 200ms;
   flex-shrink: 0;
-  margin-left: auto;
+  margin-right: 4px;
 }
 
-.bedrock-fullscreen-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
+.bedrock-queue-badge-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.bedrock-queue-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, #0A84FF, #5e5ce6);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Queue Review Panel ── */
+.bedrock-queue-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: queue-overlay-in 200ms ease forwards;
+}
+
+.bedrock-queue-overlay.dismissing {
+  animation: queue-overlay-out 280ms ease forwards;
+}
+
+@keyframes queue-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes queue-overlay-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+
+.bedrock-queue-panel {
+  width: 100%;
+  max-width: 480px;
+  max-height: 50%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(24, 24, 28, 0.96);
+  backdrop-filter: blur(40px) saturate(120%);
+  -webkit-backdrop-filter: blur(40px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  overflow: hidden;
+  animation: queue-panel-in 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.bedrock-queue-panel.dismissing {
+  animation: queue-panel-out 280ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+
+@keyframes queue-panel-in {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
+}
+
+@keyframes queue-panel-out {
+  from { transform: translateY(0); }
+  to   { transform: translateY(100%); }
+}
+
+.bedrock-queue-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.bedrock-queue-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-0);
 }
 
-.bedrock-hero-icon svg {
+.bedrock-queue-panel-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: all 150ms;
+}
+
+.bedrock-queue-panel-close:hover {
+  background: rgba(255, 255, 255, 0.1);
   color: var(--text-0);
 }
 
+/* ── Queue Item List ── */
+.bedrock-queue-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  min-height: 0;
+}
+
+.bedrock-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 8px;
+  border-radius: 10px;
+  transition: background 150ms;
+}
+
+.bedrock-queue-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.bedrock-queue-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.bedrock-queue-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.bedrock-queue-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-0);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bedrock-queue-item-meta {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+.bedrock-queue-item-remove {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all 150ms;
+  flex-shrink: 0;
+}
+
+.bedrock-queue-item-remove:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
+/* ── Panel Footer ── */
+.bedrock-queue-panel-footer {
+  padding: 12px 20px 20px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-shrink: 0;
+}
+
+.bedrock-queue-confirm {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #0A84FF, #5e5ce6);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 200ms;
+  font-family: var(--font-sans);
+}
+
+.bedrock-queue-confirm:hover {
+  filter: brightness(1.12);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(10, 132, 255, 0.3);
+}
+
+.bedrock-queue-confirm:disabled {
+  opacity: 0.5;
+  cursor: default;
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── Toast Notification ── */
+.bedrock-toast {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 10px 20px;
+  background: rgba(30, 30, 30, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: var(--text-0);
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 100;
+  animation: toast-in 300ms ease;
+  pointer-events: none;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}

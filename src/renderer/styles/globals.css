@@ -82,7 +82,7 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 .page-enter { animation: fadeIn 300ms cubic-bezier(0.16, 1, 0.3, 1); }
 
-/* ── Incognito shift — subtle darkening, smooth transition ── */
+/* ── Privacy Mode shift — subtle darkening, smooth transition ── */
 
 .app-layout {
   transition: background 500ms ease;
@@ -100,15 +100,15 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
   transition: background 500ms ease;
 }
 
-[data-incognito="true"] .sidebar {
+[data-privacy="true"] .sidebar {
   background: rgba(0, 0, 0, 0.12);
   border-right-color: rgba(255, 255, 255, 0.05);
 }
 
-[data-incognito="true"] .app-content {
+[data-privacy="true"] .app-content {
   background: #0e0e0c;
 }
 
-[data-incognito="true"] .titlebar {
+[data-privacy="true"] .titlebar {
   background: rgba(0, 0, 0, 0.3);
 }

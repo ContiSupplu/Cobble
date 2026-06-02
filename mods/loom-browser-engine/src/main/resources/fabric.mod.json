@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "id": "loom-browser-engine",
+  "version": "${version}",
+  "name": "Loom Browser Engine",
+  "description": "Custom browser engine for Loom MC. Wraps JCEF directly for full control over CEF settings including proprietary codec support.",
+  "authors": ["Loom MC"],
+  "contact": {},
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.loom.browser.LoomBrowserEngine"]
+  },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": ">=1.21",
+    "java": ">=21"
+  }
+}

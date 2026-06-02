@@ -1,7 +1,7 @@
 {
-  "name": "jackoboy-launcher",
-  "version": "1.5.0",
-  "description": "Personal Bedwars-focused Minecraft launcher",
+  "name": "loom-launcher",
+  "version": "1.6.1",
+  "description": "Loom — A premium Minecraft launcher with Dynamic Island, AI assistant, and built-in security",
   "main": "./out/main/index.js",
   "author": "_jackoboy",
   "license": "MIT",
@@ -21,6 +21,7 @@
     "@xmcl/installer": "^5.4.0",
     "@xmcl/task": "^4.1.1",
     "@xmcl/user": "^4.1.0",
+    "adm-zip": "^0.5.17",
     "better-sqlite3": "^12.10.0",
     "electron-updater": "^6.8.3",
     "react": "^19.2.0",
@@ -30,6 +31,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/better-sqlite3": "^7.6.12",
     "@types/react": "^19.0.0",
     "@types/react-dom": "^19.0.0",
@@ -56,14 +58,18 @@
         "nsis"
       ],
       "icon": "resources/icon.ico",
-      "signAndEditExecutable": false
+      "signAndEditExecutable": false,
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "resources/icon.ico",
       "uninstallerIcon": "resources/icon.ico",
-      "installerHeaderIcon": "resources/icon.ico"
+      "installerHeaderIcon": "resources/icon.ico",
+      "shortcutName": "Loom",
+      "menuCategory": "Games",
+      "license": "LICENSE.md"
     },
     "directories": {
       "output": "dist"

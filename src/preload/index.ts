@@ -32,9 +32,9 @@ const electronAPI = {
   removeAccount: (uuid: string) => ipcRenderer.invoke('auth:removeAccount', uuid),
   updateDisplayName: (uuid: string, displayName: string) => ipcRenderer.invoke('auth:updateDisplayName', uuid, displayName),
 
-  // Incognito
-  getIncognitoRegions: () => ipcRenderer.invoke('incognito:getRegions'),
-  updateIncognitoPrefs: (uuid: string, region?: string, enabled?: boolean) => ipcRenderer.invoke('incognito:updatePrefs', uuid, region, enabled),
+  // Privacy Mode
+  getPrivacyRegions: () => ipcRenderer.invoke('privacy:getRegions'),
+  updatePrivacyPrefs: (uuid: string, region?: string, enabled?: boolean) => ipcRenderer.invoke('privacy:updatePrefs', uuid, region, enabled),
 
   // Launcher (Phase 2)
   launch: (instanceId: string, serverId?: string) => ipcRenderer.invoke('launch:start', instanceId, serverId),
@@ -53,12 +53,13 @@ const electronAPI = {
 
   // Skin resolver (direct from Mojang)
   resolveSkinUrl: (uuid: string, size?: number) => ipcRenderer.invoke('skins:resolve', uuid, size),
-  resolveBodyUrl: (uuid: string, height?: number) => ipcRenderer.invoke('skins:resolveBody', uuid, height),
+  resolveBodyUrl: (uuid: string, height?: number, variant?: 'classic' | 'slim') => ipcRenderer.invoke('skins:resolveBody', uuid, height, variant),
 
   // Changing Room (skin management)
   getCurrentSkin: () => ipcRenderer.invoke('skins:getCurrent'),
   uploadSkin: (filePath: string, variant: 'classic' | 'slim') => ipcRenderer.invoke('skins:upload', filePath, variant),
   uploadSkinUrl: (skinUrl: string, variant: 'classic' | 'slim') => ipcRenderer.invoke('skins:uploadUrl', skinUrl, variant),
+  changeSkinVariant: (variant: 'classic' | 'slim') => ipcRenderer.invoke('skins:changeVariant', variant),
   resetSkin: () => ipcRenderer.invoke('skins:reset'),
   pickSkinFile: () => ipcRenderer.invoke('skins:pickFile'),
 
@@ -80,6 +81,7 @@ const electronAPI = {
   copyFilesToInstance: (id: string, relativeDest: string, filePaths: string[]) => ipcRenderer.invoke('instances:copyFiles', id, relativeDest, filePaths),
   setInstanceIcon: (id: string, imagePath: string) => ipcRenderer.invoke('instances:setIcon', id, imagePath),
   getInstancePath: (id: string) => ipcRenderer.invoke('instances:getPath', id),
+  prewarmInstance: (id: string) => ipcRenderer.invoke('instances:prewarm', id),
   getVersions: (loader: string) => ipcRenderer.invoke('versions:getAll', loader),
 
   // Stats (Phase 3)
@@ -105,6 +107,7 @@ const electronAPI = {
 
   // Shell
   openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  shellOpenPath: (path: string) => ipcRenderer.invoke('shell:openPath', path),
 
   // Tools (Phase 6)
   setToolConfig: (tool: string, config: unknown) => ipcRenderer.invoke('tools:setConfig', tool, config),
@@ -194,6 +197,15 @@ const electronAPI = {
   applyNetworkOptimization: () => ipcRenderer.invoke('perf:applyNetworkOpt'),
   restoreNetworkSettings: () => ipcRenderer.invoke('perf:restoreNetwork'),
 
+  // Windows Defender exclusion prompt (opt-in during launch)
+  onDefenderExclusionPrompt: (callback: (data: { paths: string[]; reason: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { paths: string[]; reason: string }) => callback(data)
+    ipcRenderer.on('defender:exclusionPrompt', handler)
+    return () => ipcRenderer.removeListener('defender:exclusionPrompt', handler)
+  },
+  respondDefenderExclusion: (approved: boolean) => ipcRenderer.invoke('defender:userResponse', approved),
+  resetDefenderChoice: () => ipcRenderer.invoke('defender:resetChoice'),
+
   // Network
   pingServer: (host: string, port?: number) => ipcRenderer.invoke('net:pingServer', host, port),
 
@@ -214,6 +226,111 @@ const electronAPI = {
   bedrockPacks: (type: string) => ipcRenderer.invoke('bedrock:packs', type),
   bedrockInstallAddon: (filePath: string) => ipcRenderer.invoke('bedrock:installAddon', filePath),
   bedrockOpenFolder: (type: string) => ipcRenderer.invoke('bedrock:openFolder', type),
+  bedrockGetQueue: () => ipcRenderer.invoke('bedrock:getQueue'),
+  bedrockInstallQueue: () => ipcRenderer.invoke('bedrock:installQueue'),
+  bedrockClearQueue: () => ipcRenderer.invoke('bedrock:clearQueue'),
+  bedrockRemoveFromQueue: (index: number) => ipcRenderer.invoke('bedrock:removeFromQueue', index),
+  bedrockSetAdBlock: (enabled: boolean) => ipcRenderer.invoke('bedrock:setAdBlock', enabled),
+  bedrockGetAdBlock: () => ipcRenderer.invoke('bedrock:getAdBlock'),
+  onBedrockAddonQueued: (callback: (data: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data)
+    ipcRenderer.on('bedrock:addon-queued', handler)
+    return () => ipcRenderer.removeListener('bedrock:addon-queued', handler)
+  },
+  onBedrockQueueInstalled: (callback: (data: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data)
+    ipcRenderer.on('bedrock:queue-installed', handler)
+    return () => ipcRenderer.removeListener('bedrock:queue-installed', handler)
+  },
+
+  // Twitch Integration
+  twitchAuth: () => ipcRenderer.invoke('twitch:auth'),
+  twitchLogout: () => ipcRenderer.invoke('twitch:logout'),
+  twitchIsLoggedIn: () => ipcRenderer.invoke('twitch:isLoggedIn'),
+  twitchGetFollowedStreams: () => ipcRenderer.invoke('twitch:getFollowedStreams'),
+  twitchIsStreamerLive: (channel: string) => ipcRenderer.invoke('twitch:isStreamerLive', channel),
+  twitchStartPolling: () => ipcRenderer.invoke('twitch:startPolling'),
+  twitchStopPolling: () => ipcRenderer.invoke('twitch:stopPolling'),
+  twitchConnectChat: (channel: string) => ipcRenderer.invoke('twitch:connectChat', channel),
+  twitchDisconnectChat: () => ipcRenderer.invoke('twitch:disconnectChat'),
+  twitchSendChat: (channel: string, message: string) => ipcRenderer.invoke('twitch:sendChat', channel, message),
+  onTwitchStreamerLive: (callback: (data: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data)
+    ipcRenderer.on('twitch:streamer-live', handler)
+    return () => ipcRenderer.removeListener('twitch:streamer-live', handler)
+  },
+  onTwitchChatMessage: (callback: (data: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data)
+    ipcRenderer.on('twitch:chat-message', handler)
+    return () => ipcRenderer.removeListener('twitch:chat-message', handler)
+  },
+
+  // In-Game Media Viewer (Twitch streams + YouTube videos)
+  mediaPlayTwitch: (channel: string) => ipcRenderer.invoke('media:playTwitch', channel),
+  mediaPlayYoutube: (url: string) => ipcRenderer.invoke('media:playYoutube', url),
+  mediaStop: () => ipcRenderer.invoke('media:stop'),
+  twitchGetStreamUrl: (channel: string) => ipcRenderer.invoke('twitch:getStreamUrl', channel),
+  mediaSearch: (query: string, source: 'youtube' | 'twitch' | 'all') => ipcRenderer.invoke('media:search', query, source),
+
+  // Recording & Gallery
+  recordingDownloadFFmpeg: () => ipcRenderer.invoke('recording:downloadFFmpeg'),
+  recordingGetFFmpegPath: () => ipcRenderer.invoke('recording:getFFmpegPath'),
+  recordingStart: (opts: any) => ipcRenderer.invoke('recording:start', opts),
+  recordingStop: () => ipcRenderer.invoke('recording:stop'),
+  recordingStartReplayBuffer: (opts: any) => ipcRenderer.invoke('recording:startReplayBuffer', opts),
+  recordingSaveReplayBuffer: () => ipcRenderer.invoke('recording:saveReplayBuffer'),
+  recordingStopReplayBuffer: () => ipcRenderer.invoke('recording:stopReplayBuffer'),
+  recordingGetStatus: () => ipcRenderer.invoke('recording:getStatus'),
+  galleryGetItems: () => ipcRenderer.invoke('gallery:getItems'),
+  gallerySaveMetadata: (item: any) => ipcRenderer.invoke('gallery:saveMetadata', item),
+  onRecordingStatus: (callback: (data: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data)
+    ipcRenderer.on('recording:status', handler)
+    return () => ipcRenderer.removeListener('recording:status', handler)
+  },
+  onRecordingProgress: (callback: (data: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data)
+    ipcRenderer.on('recording:progress', handler)
+    return () => ipcRenderer.removeListener('recording:progress', handler)
+  },
+
+  // Video Editor
+  editorTrim: (input: string, output: string, start: string, end: string) => ipcRenderer.invoke('editor:trim', input, output, start, end),
+  editorConcatenate: (inputs: string[], output: string) => ipcRenderer.invoke('editor:concatenate', inputs, output),
+  editorTextOverlay: (input: string, output: string, text: string, opts: any) => ipcRenderer.invoke('editor:textOverlay', input, output, text, opts),
+  editorChangeSpeed: (input: string, output: string, speed: number) => ipcRenderer.invoke('editor:changeSpeed', input, output, speed),
+  editorThumbnail: (video: string, output: string, atTime?: string) => ipcRenderer.invoke('editor:thumbnail', video, output, atTime),
+
+  // Launcher Migration
+  migrationDetect: () => ipcRenderer.invoke('migration:detect'),
+  migrationGetImportable: (path: string) => ipcRenderer.invoke('migration:getImportable', path),
+  migrationImport: (type: string, path: string, opts: any) => ipcRenderer.invoke('migration:import', type, path, opts),
+
+  // Social Sharing
+  socialGetConfig: () => ipcRenderer.invoke('social:getConfig'),
+  socialAddDiscordWebhook: (url: string) => ipcRenderer.invoke('social:addDiscordWebhook', url),
+  socialRemoveDiscordWebhook: (url: string) => ipcRenderer.invoke('social:removeDiscordWebhook', url),
+  socialSetYouTubeToken: (path: string) => ipcRenderer.invoke('social:setYouTubeToken', path),
+  socialShareToDiscord: (webhookUrl: string, opts: any) => ipcRenderer.invoke('social:shareToDiscord', webhookUrl, opts),
+  socialUploadToYouTube: (tokenPath: string, opts: any) => ipcRenderer.invoke('social:uploadToYouTube', tokenPath, opts),
+
+  // Mod Store (Deduplication)
+  modStoreStats: () => ipcRenderer.invoke('modstore:stats'),
+  modStoreSavings: () => ipcRenderer.invoke('modstore:savings'),
+  modStoreMigrate: (instanceId: string) => ipcRenderer.invoke('modstore:migrate', instanceId),
+
+  // File Sync
+  syncGetConfig: () => ipcRenderer.invoke('sync:getConfig'),
+  syncSaveConfig: (config: any) => ipcRenderer.invoke('sync:saveConfig', config),
+  syncCreateGroup: (name: string, items: string[], instanceIds: string[]) => ipcRenderer.invoke('sync:createGroup', name, items, instanceIds),
+  syncDeleteGroup: (groupId: string) => ipcRenderer.invoke('sync:deleteGroup', groupId),
+  syncAddInstance: (groupId: string, instanceId: string) => ipcRenderer.invoke('sync:addInstance', groupId, instanceId),
+  syncRemoveInstance: (groupId: string, instanceId: string) => ipcRenderer.invoke('sync:removeInstance', groupId, instanceId),
+  syncGetSyncableItems: () => ipcRenderer.invoke('sync:getSyncableItems'),
+  syncGetInstanceGroups: (instanceId: string) => ipcRenderer.invoke('sync:getInstanceGroups', instanceId),
+  syncGetGroupStats: (groupId: string) => ipcRenderer.invoke('sync:getGroupStats', groupId),
+  syncToInstance: (instanceId: string) => ipcRenderer.invoke('sync:syncToInstance', instanceId),
+  syncFromInstance: (instanceId: string) => ipcRenderer.invoke('sync:syncFromInstance', instanceId),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

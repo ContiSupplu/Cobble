@@ -20,4 +20,12 @@ public class LauncherState {
         public long time;   // ms timestamp
         public String text;  // lyric text
     }
+
+    public TwitchState twitch;
+
+    public static class TwitchState {
+        public boolean connected;
+        public String channel;
+        public int viewerCount;
+    }
 }
