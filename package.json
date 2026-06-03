@@ -61,7 +61,7 @@
         "nsis"
       ],
       "icon": "resources/icon.ico",
-      "signAndEditExecutable": true,
+      "signAndEditExecutable": false,
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
