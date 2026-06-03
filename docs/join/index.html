@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Join Game — Loom</title>
+    <meta name="description" content="Join your friend's Minecraft world through Loom's P2P multiplayer. No server setup needed.">
+    <link rel="icon" href="../assets/loom-icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8a8a9a;
+            --text-tertiary: #55556a;
+            --accent-amber: #d97706;
+            --accent-orange: #f59e0b;
+            --accent-blue: #3b82f6;
+            --accent-green: #22c55e;
+            --gradient-netherite: linear-gradient(135deg, #d97706, #b91c1c);
+            --gradient-netherite-soft: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(185, 28, 28, 0.15));
+            --gradient-blue: linear-gradient(135deg, #3b82f6, #6366f1);
+            --gradient-blue-soft: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(99, 102, 241, 0.15));
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        /* ── Join Card ── */
+        .join-container {
+            max-width: 480px;
+            width: 100%;
+            position: relative;
+        }
+
+        .join-container::before {
+            content: '';
+            position: absolute;
+            top: -200px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 600px;
+            height: 400px;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.08) 0%, transparent 60%);
+            pointer-events: none;
+        }
+
+        .join-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            position: relative;
+            z-index: 1;
+            animation: card-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+            transform: translateY(24px);
+        }
+
+        @keyframes card-enter {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .join-icon {
+            width: 64px;
+            height: 64px;
+            border-radius: 16px;
+            background: var(--gradient-blue-soft);
+            border: 1px solid rgba(59, 130, 246, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+        }
+
+        .join-icon svg {
+            width: 28px;
+            height: 28px;
+            color: var(--accent-blue);
+        }
+
+        .join-card h1 {
+            font-size: 1.75rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(180deg, #ffffff 0%, rgba(255, 255, 255, 0.7) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 0.5rem;
+        }
+
+        .join-card .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 2rem;
+        }
+
+        /* Status indicator */
+        .join-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            padding: 0.75rem 1.25rem;
+            background: rgba(59, 130, 246, 0.08);
+            border: 1px solid rgba(59, 130, 246, 0.12);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+            font-size: 0.875rem;
+            color: var(--accent-blue);
+        }
+
+        .join-status.success {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.12);
+            color: var(--accent-green);
+        }
+
+        .join-status.error {
+            background: rgba(239, 68, 68, 0.08);
+            border-color: rgba(239, 68, 68, 0.12);
+            color: #ef4444;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Divider */
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0;
+            color: var(--text-tertiary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 500;
+        }
+
+        .divider::before, .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-subtle);
+        }
+
+        /* Buttons */
+        .btn-primary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            width: 100%;
+            padding: 0.9rem 1.5rem;
+            background: var(--gradient-blue);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 24px rgba(59, 130, 246, 0.25);
+            font-family: inherit;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(59, 130, 246, 0.35);
+        }
+
+        .btn-primary svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-secondary {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            width: 100%;
+            padding: 0.9rem 1.5rem;
+            background: var(--gradient-netherite);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 24px rgba(217, 119, 6, 0.2);
+            font-family: inherit;
+        }
+
+        .btn-secondary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(217, 119, 6, 0.3);
+        }
+
+        .btn-secondary svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .btn-meta {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            margin-top: 0.5rem;
+        }
+
+        /* Steps */
+        .steps {
+            text-align: left;
+            margin-top: 1.5rem;
+        }
+
+        .steps h3 {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text-tertiary);
+            margin-bottom: 0.75rem;
+        }
+
+        .step {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.75rem 0;
+        }
+
+        .step:not(:last-child) {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        .step-num {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            background: var(--gradient-blue-soft);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+        }
+
+        .step p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+        }
+
+        .step code {
+            padding: 0.15rem 0.5rem;
+            background: var(--bg-card-hover);
+            border: 1px solid var(--border-subtle);
+            border-radius: 5px;
+            font-family: 'SF Mono', 'Cascadia Code', monospace;
+            font-size: 0.8rem;
+            color: var(--text-primary);
+        }
+
+        /* Footer link */
+        .join-footer {
+            text-align: center;
+            margin-top: 1.5rem;
+            animation: card-enter 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.2s forwards;
+            opacity: 0;
+        }
+
+        .join-footer a {
+            color: var(--text-tertiary);
+            text-decoration: none;
+            font-size: 0.85rem;
+            transition: color 0.2s;
+        }
+
+        .join-footer a:hover {
+            color: var(--text-secondary);
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            body { padding: 1.25rem; }
+            .join-card { padding: 2rem 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="join-container">
+        <div class="join-card">
+            <!-- Icon -->
+            <div class="join-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                    <circle cx="9" cy="7" r="4" />
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87" />
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+                </svg>
+            </div>
+
+            <h1>Join Game</h1>
+            <p class="subtitle">Your friend invited you to play Minecraft together.</p>
+
+            <!-- Status -->
+            <div class="join-status" id="status">
+                <span class="status-dot"></span>
+                <span id="status-text">Opening Loom Launcher...</span>
+            </div>
+
+            <!-- Option 1: Open in Loom (if installed) -->
+            <a href="#" id="open-loom" class="btn-primary" style="display:none;">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
+                Open in Loom Launcher
+            </a>
+
+            <div class="divider">or</div>
+
+            <!-- Option 2: Download Loom Connect -->
+            <a href="https://github.com/ContiSupplu/Loom/releases/latest/download/LoomConnect-v1.0.0-win64.zip" class="btn-secondary" id="download-connect">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Download Loom Connect
+            </a>
+            <p class="btn-meta">No launcher needed · 17 MB · Windows</p>
+
+            <!-- Steps -->
+            <div class="steps">
+                <h3>How to join</h3>
+                <div class="step">
+                    <span class="step-num">1</span>
+                    <p>Download and unzip <strong>Loom Connect</strong></p>
+                </div>
+                <div class="step">
+                    <span class="step-num">2</span>
+                    <p>Double-click <code>loom-connect.exe</code> — it auto-reads the invite link from your clipboard</p>
+                </div>
+                <div class="step">
+                    <span class="step-num">3</span>
+                    <p>Open Minecraft, go to <strong>Multiplayer</strong> → <strong>Add Server</strong> → type <code>localhost:25566</code></p>
+                </div>
+                <div class="step">
+                    <span class="step-num">4</span>
+                    <p>Click <strong>Join Server</strong> and play! 🎮</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="join-footer">
+            <a href="../index.html">← Back to loommc.com</a>
+        </div>
+    </div>
+
+    <script>
+        // Parse the invite URL from the current page path
+        // Expected: /join/<roomId>/<token> or /join/index.html?r=<roomId>&t=<token>
+        const pathParts = window.location.pathname.split('/').filter(Boolean);
+        const params = new URLSearchParams(window.location.search);
+
+        let roomId = params.get('r') || (pathParts.length >= 3 ? pathParts[pathParts.length - 2] : null);
+        let token = params.get('t') || (pathParts.length >= 3 ? pathParts[pathParts.length - 1] : null);
+
+        // Clean token (remove .html if present)
+        if (token) token = token.replace('.html', '');
+
+        const statusEl = document.getElementById('status');
+        const statusText = document.getElementById('status-text');
+        const openBtn = document.getElementById('open-loom');
+
+        if (roomId && token) {
+            const deepLink = `loom://join/${roomId}/${token}`;
+            const webInvite = `https://loommc.com/join/${roomId}/${token}`;
+
+            // Copy invite URL to clipboard for Loom Connect
+            navigator.clipboard.writeText(webInvite).catch(() => {});
+
+            // Try opening the deep link (works if Loom is installed)
+            try {
+                window.location.href = deepLink;
+            } catch(e) {}
+
+            // After a delay, show the manual button (deep link may have failed)
+            setTimeout(() => {
+                statusText.textContent = 'Loom didn\'t open? Try the options below.';
+                openBtn.href = deepLink;
+                openBtn.style.display = 'flex';
+            }, 2000);
+
+            // Show success status after clipboard copy
+            setTimeout(() => {
+                statusEl.className = 'join-status success';
+                statusText.textContent = 'Invite link copied to clipboard ✓';
+                statusEl.querySelector('.status-dot').style.animation = 'none';
+                statusEl.querySelector('.status-dot').style.opacity = '1';
+            }, 3000);
+        } else {
+            statusEl.className = 'join-status error';
+            statusText.textContent = 'Invalid invite link';
+            statusEl.querySelector('.status-dot').style.animation = 'none';
+        }
+    </script>
+
+</body>
+</html>
