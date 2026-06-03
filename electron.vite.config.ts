@@ -10,6 +10,10 @@ export default defineConfig({
   },
   renderer: {
     plugins: [react()],
-    base: './'
+    base: './',
+    define: {
+      // simple-peer uses Node.js `global` — polyfill for browser
+      global: 'globalThis',
+    },
   }
 })

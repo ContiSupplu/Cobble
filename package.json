@@ -1,6 +1,6 @@
 {
   "name": "loom-launcher",
-  "version": "1.6.1",
+  "version": "1.6.5",
   "description": "Loom — A premium Minecraft launcher with Dynamic Island, AI assistant, and built-in security",
   "main": "./out/main/index.js",
   "author": "_jackoboy",
@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@azure/msal-node": "^5.2.2",
+    "@types/simple-peer": "^9.11.9",
     "@xhayper/discord-rpc": "^1.3.4",
     "@xmcl/core": "^2.12.1",
     "@xmcl/installer": "^5.4.0",
@@ -28,6 +29,8 @@
     "react-dom": "^19.2.0",
     "react-router-dom": "^7.15.0",
     "recharts": "^3.8.0",
+    "sharp": "^0.34.5",
+    "simple-peer": "^9.11.1",
     "zustand": "^5.0.13"
   },
   "devDependencies": {
@@ -58,7 +61,7 @@
         "nsis"
       ],
       "icon": "resources/icon.ico",
-      "signAndEditExecutable": false,
+      "signAndEditExecutable": true,
       "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {

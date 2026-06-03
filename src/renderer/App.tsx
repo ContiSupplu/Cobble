@@ -23,6 +23,7 @@ import GameLogsWindow from './components/GameLogsWindow'
 import SplashScreen from './components/SplashScreen'
 import SetupWizard, { type WizardSettings } from './components/SetupWizard'
 import WelcomeWalkthrough, { type WalkthroughSlide } from './components/WelcomeWalkthrough'
+import P2PPanel from './components/P2PPanel'
 
 /* ── Versioning — codenames + simplified display ── */
 const CURRENT_VERSION = '1.6.0'
@@ -130,6 +131,7 @@ function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
     setWalkthroughDone(true)
   }, [])
   const [showProfileScreen, setShowProfileScreen] = useState(false)
+  const [showP2P, setShowP2P] = useState(false)
 
   // Always start on the home screen when app launches
   useEffect(() => {
@@ -264,6 +266,7 @@ function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
         <div className="app-body" style={{ position: 'relative', overflow: 'hidden' }}>
           <Sidebar
             onOpenProfiles={() => setShowProfileScreen(true)}
+            onOpenP2P={() => setShowP2P(true)}
           />
           <main className="app-content">
             <Routes>
@@ -299,6 +302,11 @@ function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
           onEditDisplayName={updateDisplayName}
           onClose={() => setShowProfileScreen(false)}
         />
+      )}
+
+      {/* P2P Multiplayer overlay */}
+      {showP2P && (
+        <P2PPanel onClose={() => setShowP2P(false)} />
       )}
     </HashRouter>
   )

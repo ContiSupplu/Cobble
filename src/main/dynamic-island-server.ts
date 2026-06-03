@@ -1,5 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws'
 import { randomBytes } from 'crypto'
+import { BrowserWindow } from 'electron'
 
 const PORT = 47521
 let wss: WebSocketServer | null = null
@@ -45,6 +46,12 @@ let onSpotifyCommand: ((command: string) => void) | null = null
 let onTwitchChatFromMod: ((message: string) => void) | null = null
 let onMediaSearch: ((query: string, source: string, reply: (results: any[]) => void) => void) | null = null
 let onMediaSelect: ((result: any) => void) | null = null
+
+// P2P event handlers
+let onP2PLanOpened: ((port: number) => void) | null = null
+let onP2PRequestInvite: (() => void) | null = null
+let onP2PPlayerJoined: ((username: string) => void) | null = null
+let onP2PPlayerLeft: ((username: string) => void) | null = null
 let onBrowserVideoSelected: ((source: string, id: string, url: string) => void) | null = null
 
 export function setStateProvider(provider: () => DynamicIslandState): void {
@@ -73,6 +80,22 @@ export function setMediaSelectHandler(handler: (result: any) => void): void {
 
 export function setBrowserVideoHandler(handler: (source: string, id: string, url: string) => void): void {
   onBrowserVideoSelected = handler
+}
+
+export function setP2PLanOpenedHandler(handler: (port: number) => void): void {
+  onP2PLanOpened = handler
+}
+
+export function setP2PRequestInviteHandler(handler: () => void): void {
+  onP2PRequestInvite = handler
+}
+
+export function setP2PPlayerJoinedHandler(handler: (username: string) => void): void {
+  onP2PPlayerJoined = handler
+}
+
+export function setP2PPlayerLeftHandler(handler: (username: string) => void): void {
+  onP2PPlayerLeft = handler
 }
 
 export function startDynamicIslandServer(): void {
@@ -152,6 +175,46 @@ export function startDynamicIslandServer(): void {
             if (onBrowserVideoSelected) {
               onBrowserVideoSelected(msg.source, msg.id, msg.url || '')
             }
+          } else if (msg.type === 'p2p_lan_opened') {
+            // Mod confirmed LAN world is open
+            const port = typeof msg.port === 'number' ? msg.port : parseInt(msg.port)
+            console.log(`[DynamicIsland] P2P LAN opened on port ${port}`)
+            if (onP2PLanOpened) onP2PLanOpened(port)
+            // Notify renderer
+            BrowserWindow.getAllWindows().forEach((w) => {
+              w.webContents.send('p2p:lanOpened', port)
+            })
+          } else if (msg.type === 'p2p_lan_closed') {
+            console.log('[DynamicIsland] P2P LAN closed')
+            BrowserWindow.getAllWindows().forEach((w) => {
+              w.webContents.send('p2p:lanClosed')
+            })
+          } else if (msg.type === 'p2p_request_invite') {
+            // Player pressed "Play with Friends" in the ESC menu
+            console.log('[DynamicIsland] P2P invite requested from in-game')
+            if (onP2PRequestInvite) onP2PRequestInvite()
+            BrowserWindow.getAllWindows().forEach((w) => {
+              w.webContents.send('p2p:requestInvite')
+            })
+          } else if (msg.type === 'p2p_player_joined') {
+            const username = msg.username || 'Unknown'
+            console.log(`[DynamicIsland] P2P player joined: ${username}`)
+            if (onP2PPlayerJoined) onP2PPlayerJoined(username)
+            BrowserWindow.getAllWindows().forEach((w) => {
+              w.webContents.send('p2p:playerJoined', username)
+            })
+          } else if (msg.type === 'p2p_player_left') {
+            const username = msg.username || 'Unknown'
+            console.log(`[DynamicIsland] P2P player left: ${username}`)
+            if (onP2PPlayerLeft) onP2PPlayerLeft(username)
+            BrowserWindow.getAllWindows().forEach((w) => {
+              w.webContents.send('p2p:playerLeft', username)
+            })
+          } else if (msg.type === 'p2p_error') {
+            console.error(`[DynamicIsland] P2P error from mod: ${msg.message}`)
+            BrowserWindow.getAllWindows().forEach((w) => {
+              w.webContents.send('p2p:error', msg.message)
+            })
           }
         } catch { /* ignore malformed messages */ }
       })
@@ -252,4 +315,30 @@ export function sendTwitchLive(data: { channel: string; game: string; viewers: n
 
 export function isServerRunning(): boolean {
   return wss !== null
+}
+
+// ─── P2P Commands (Launcher → Mod) ─────────────────────────────────────────
+
+/** Tell the mod to open the current singleplayer world to LAN */
+export function requestOpenLAN(options?: { gameMode?: string; cheats?: boolean }): void {
+  if (!wss) return
+  const json = JSON.stringify({ type: 'p2p_open_lan', ...options })
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN && (client as any).__authenticated) {
+      client.send(json)
+    }
+  })
+  console.log('[DynamicIsland] P2P: requested Open to LAN')
+}
+
+/** Tell the mod to close the LAN session */
+export function requestCloseLAN(): void {
+  if (!wss) return
+  const json = JSON.stringify({ type: 'p2p_close_lan' })
+  wss.clients.forEach((client) => {
+    if (client.readyState === WebSocket.OPEN && (client as any).__authenticated) {
+      client.send(json)
+    }
+  })
+  console.log('[DynamicIsland] P2P: requested Close LAN')
 }

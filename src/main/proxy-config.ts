@@ -18,13 +18,8 @@ export interface ProxyRegion {
   available: boolean
 }
 
-// Proxy server endpoints — credentials loaded from encrypted storage
-export const PROXY_REGIONS: ProxyRegion[] = [
-  { id: 'us-east',   name: 'US East',        host: '149.28.39.243',  port: 1080, username: '', password: '', available: true },
-  { id: 'us-west',   name: 'US West',        host: '66.42.104.127',  port: 1080, username: '', password: '', available: true },
-  { id: 'uk',        name: 'United Kingdom',  host: '78.141.201.20',  port: 1080, username: '', password: '', available: true },
-  { id: 'australia', name: 'Australia',       host: '45.32.189.89',   port: 1080, username: '', password: '', available: true },
-]
+// Proxy server endpoints — servers are fetched from encrypted config at runtime
+export const PROXY_REGIONS: ProxyRegion[] = []
 
 function getCredsPath(): string {
   const dir = join(app.getPath('userData'), 'config')

@@ -331,6 +331,60 @@ const electronAPI = {
   syncGetGroupStats: (groupId: string) => ipcRenderer.invoke('sync:getGroupStats', groupId),
   syncToInstance: (instanceId: string) => ipcRenderer.invoke('sync:syncToInstance', instanceId),
   syncFromInstance: (instanceId: string) => ipcRenderer.invoke('sync:syncFromInstance', instanceId),
+
+  // P2P Multiplayer
+  p2pCreateRoom: (username: string, worldName?: string, gameVersion?: string) => ipcRenderer.invoke('p2p:createRoom', username, worldName, gameVersion),
+  p2pJoinRoom: (roomId: string, joinToken: string, username: string) => ipcRenderer.invoke('p2p:joinRoom', roomId, joinToken, username),
+  p2pJoinFromUrl: (url: string, username: string) => ipcRenderer.invoke('p2p:joinFromUrl', url, username),
+  p2pCloseRoom: () => ipcRenderer.invoke('p2p:closeRoom'),
+  p2pGetSession: () => ipcRenderer.invoke('p2p:getSession'),
+  p2pRelaySignal: (data: any) => ipcRenderer.invoke('p2p:relaySignal', data),
+  p2pStartHostProxy: (mcPort: number) => ipcRenderer.invoke('p2p:startHostProxy', mcPort),
+  p2pStartJoinProxy: () => ipcRenderer.invoke('p2p:startJoinProxy'),
+  p2pFeedTunnelData: (data: number[]) => ipcRenderer.invoke('p2p:feedTunnelData', data),
+  p2pGetICEServers: () => ipcRenderer.invoke('p2p:getICEServers'),
+  p2pStartLanDetection: () => ipcRenderer.invoke('p2p:startLanDetection'),
+  p2pStopLanDetection: () => ipcRenderer.invoke('p2p:stopLanDetection'),
+  onP2PSessionUpdate: (callback: (session: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, session: any) => callback(session)
+    ipcRenderer.on('p2p:sessionUpdate', handler)
+    return () => ipcRenderer.removeListener('p2p:sessionUpdate', handler)
+  },
+  onP2PStartWebRTC: (callback: (data: { initiator: boolean }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { initiator: boolean }) => callback(data)
+    ipcRenderer.on('p2p:startWebRTC', handler)
+    return () => ipcRenderer.removeListener('p2p:startWebRTC', handler)
+  },
+  onP2PSignal: (callback: (data: any) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: any) => callback(data)
+    ipcRenderer.on('p2p:signal', handler)
+    return () => ipcRenderer.removeListener('p2p:signal', handler)
+  },
+  onP2PTunnelData: (callback: (data: number[]) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: number[]) => callback(data)
+    ipcRenderer.on('p2p:tunnelData', handler)
+    return () => ipcRenderer.removeListener('p2p:tunnelData', handler)
+  },
+  onP2PRequestInvite: (callback: () => void) => {
+    const handler = () => callback()
+    ipcRenderer.on('p2p:requestInvite', handler)
+    return () => ipcRenderer.removeListener('p2p:requestInvite', handler)
+  },
+  onP2PPeerLeft: (callback: (data: { username: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, data: { username: string }) => callback(data)
+    ipcRenderer.on('p2p:peerLeft', handler)
+    return () => ipcRenderer.removeListener('p2p:peerLeft', handler)
+  },
+  onP2PError: (callback: (message: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, message: string) => callback(message)
+    ipcRenderer.on('p2p:error', handler)
+    return () => ipcRenderer.removeListener('p2p:error', handler)
+  },
+  onP2PDeepLink: (callback: (url: string) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, url: string) => callback(url)
+    ipcRenderer.on('p2p:deepLink', handler)
+    return () => ipcRenderer.removeListener('p2p:deepLink', handler)
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

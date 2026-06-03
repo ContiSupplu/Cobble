@@ -15,6 +15,51 @@ interface ChangelogEntry {
   url: string
 }
 
+const FALLBACK_CHANGELOG: ChangelogEntry[] = [
+  {
+    version: '1.6.2',
+    date: 'Jun 1, 2026',
+    body: '## Loom v1.6 "Netherite"\n\n- Quick Servers landing page with Coming Soon gate\n- Cache & Skip model/atlas caching mod\n- Advanced settings section with new performance toggles\n- Improved mod auto-installer for Fabric instances\n- Bedrock crossplay toggle for servers\n- Plugin browser with Modrinth integration\n- File manager for server instances\n- App icon now embeds correctly\n- Stability improvements and bug fixes',
+    url: 'https://github.com/ContiSupplu/Cobble/releases/tag/v1.6.2'
+  },
+  {
+    version: '1.5.0',
+    date: 'May 29, 2026',
+    body: '## Loom v1.5 "Obsidian"\n\n- Bedrock Edition support — launch and manage from Loom\n- Add-On Browser with MCPEDL, CurseForge, ModBay, Planet Minecraft\n- Smart Downloads — auto-detect and install .mcaddon/.mcpack files\n- Privacy Mode with region-based compliance\n- File sync across instances',
+    url: 'https://github.com/ContiSupplu/Cobble/releases/tag/v1.5.0'
+  },
+  {
+    version: '1.4.0',
+    date: 'May 28, 2026',
+    body: '## Loom v1.4 "Diamond"\n\n- Gallery page with screenshots and recordings\n- In-game recording via FFmpeg\n- Clip editor with trim and export\n- Screenshot capture with hotkey support',
+    url: 'https://github.com/ContiSupplu/Cobble/releases/tag/v1.4.0'
+  },
+  {
+    version: '1.3.0',
+    date: 'May 27, 2026',
+    body: '## Loom v1.3 "Redstone"\n\n- Loomie AI assistant powered by Gemini\n- Natural conversation about Minecraft\n- Launcher actions via chat (install mods, create instances)\n- Multi-loader support (Fabric, NeoForge, Quilt)',
+    url: 'https://github.com/ContiSupplu/Cobble/releases/tag/v1.3.0'
+  },
+  {
+    version: '1.2.0',
+    date: 'May 27, 2026',
+    body: '## Loom v1.2 "Gold"\n\n- Mod browser with full Modrinth integration\n- One-click mod install with dependency resolution\n- Player Lookup feature\n- Improved instance management',
+    url: 'https://github.com/ContiSupplu/Cobble/releases/tag/v1.2.0'
+  },
+  {
+    version: '1.1.0',
+    date: 'May 26, 2026',
+    body: '## Loom v1.1 "Iron"\n\n- Performance optimizations and JVM flag presets\n- Automatic performance mod installation\n- Crash detection and smart recovery\n- Discord Rich Presence',
+    url: 'https://github.com/ContiSupplu/Cobble/releases/tag/v1.1.0'
+  },
+  {
+    version: '1.0.0',
+    date: 'May 26, 2026',
+    body: '## Loom v1.0 "Cobblestone"\n\n- Initial release\n- Instance creation and management\n- Microsoft authentication\n- Dynamic Island HUD overlay\n- Spotify integration',
+    url: 'https://github.com/ContiSupplu/Cobble/releases/tag/v1.0.0'
+  },
+]
+
 interface Instance {
   id: string
   name: string
@@ -744,19 +789,26 @@ export default function LibraryPage() {
 
     // Fetch changelog from GitHub
     setChangelogLoading(true)
-    fetch('https://api.github.com/repos/ContiSupplu/Cobble/releases?per_page=10') // repo name is Cobble on GitHub
+    fetch('https://api.github.com/repos/ContiSupplu/Cobble/releases?per_page=10')
       .then(res => res.json())
       .then((releases: any[]) => {
-        if (Array.isArray(releases)) {
-          setChangelog(releases.map(r => ({
-            version: r.tag_name?.replace(/^v/, '') || r.name,
-            date: new Date(r.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
-            body: r.body || 'No release notes.',
-            url: r.html_url
-          })))
+        if (Array.isArray(releases) && releases.length > 0) {
+          setChangelog(releases
+            .filter(r => !r.draft)
+            .map(r => ({
+              version: r.tag_name?.replace(/^v/, '') || r.name,
+              date: new Date(r.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+              body: r.body || 'No release notes.',
+              url: r.html_url
+            })))
+        } else {
+          // Fallback: hardcoded changelog when API fails or returns empty
+          setChangelog(FALLBACK_CHANGELOG)
         }
       })
-      .catch(() => {})
+      .catch(() => {
+        setChangelog(FALLBACK_CHANGELOG)
+      })
       .finally(() => setChangelogLoading(false))
 
     // Listen for modpack install progress from main process

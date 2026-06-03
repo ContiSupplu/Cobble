@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, shell, Tray, Menu, nativeImage, net, session, safeStorage, protocol } from 'electron'
-import { join } from 'path'
+import { join, resolve } from 'path'
 // Spotify auth is handled inline below
 import { setLauncherWindow, launchInstance, killInstance, getLaunchStatus, preloadEssentials, getGameLogBuffer, predownloadForInstance, prewarmInstanceCache } from './launcher'
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, statSync } from 'fs'
@@ -1055,8 +1055,8 @@ ipcMain.handle('sync:getInstanceGroups', (_event, instanceId: string) => getInst
 ipcMain.handle('sync:getGroupStats', (_event, groupId: string) => getSyncGroupStats(groupId))
 ipcMain.handle('sync:syncToInstance', (_event, instanceId: string) => syncToInstance(instanceId))
 ipcMain.handle('sync:syncFromInstance', (_event, instanceId: string) => syncFromInstance(instanceId))
-ipcMain.handle('instances:create', (_event, config: { name: string; version: string; loader: string; createdBy?: string; loaderVersion?: string }) => {
-  const instance = createInstance(config.name, config.version, config.loader, config.createdBy, config.loaderVersion)
+ipcMain.handle('instances:create', async (_event, config: { name: string; version: string; loader: string; createdBy?: string; loaderVersion?: string }) => {
+  const instance = await createInstance(config.name, config.version, config.loader, config.createdBy, config.loaderVersion)
   // Fire-and-forget: start downloading game files in background so they're ready at launch
   predownloadForInstance(instance.id, config.version, config.loader, config.loaderVersion).catch(() => {})
   return instance
@@ -1082,8 +1082,8 @@ ipcMain.handle('instances:getPath', (_event, id: string) => {
 ipcMain.handle('instances:listDir', (_event, id: string, relativePath: string) => {
   return listInstanceDir(id, relativePath || '')
 })
-ipcMain.handle('instances:deleteFile', (_event, id: string, relativePath: string) => {
-  const result = deleteInstanceFile(id, relativePath)
+ipcMain.handle('instances:deleteFile', async (_event, id: string, relativePath: string) => {
+  const result = await deleteInstanceFile(id, relativePath)
   // Invalidate fast-relaunch cache if mods were modified
   if (relativePath.startsWith('mods')) invalidateLaunchReady(id)
   return result
@@ -1094,8 +1094,8 @@ ipcMain.handle('instances:renameFile', (_event, id: string, relativePath: string
 ipcMain.handle('instances:openFile', (_event, id: string, relativePath: string) => {
   return openInstanceFile(id, relativePath)
 })
-ipcMain.handle('instances:copyFiles', (_event, id: string, relativeDest: string, filePaths: string[]) => {
-  const result = copyFilesToInstance(id, relativeDest, filePaths)
+ipcMain.handle('instances:copyFiles', async (_event, id: string, relativeDest: string, filePaths: string[]) => {
+  const result = await copyFilesToInstance(id, relativeDest, filePaths)
   // Invalidate fast-relaunch cache if mods were modified
   if (relativeDest.startsWith('mods')) invalidateLaunchReady(id)
   return result
@@ -1929,26 +1929,20 @@ setLoomieHandler(async (text: string, reply: (answer: string) => void) => {
     const systemText = GEMINI_SYSTEM_PROMPT
     const contents = [{ role: 'user', parts: [{ text }] }]
 
-    const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: systemText }] },
-          contents,
-          tools: LOOMIE_TOOLS,
-        })
-      }
-    )
+    const result = await callGeminiAPI(apiKey, {
+      system_instruction: { parts: [{ text: systemText }] },
+      contents,
+      tools: LOOMIE_TOOLS,
+    })
 
-    if (!response.ok) {
+    if (!result.ok) {
       reply('Loomie is having trouble connecting to the network.')
       return
     }
+    const response = { ok: true }
 
-    const data = await response.json()
-    const content = data.candidates?.[0]?.content
+    const data = result.data
+    const content = data?.candidates?.[0]?.content
     
     // Quick handle of simple text response
     if (content?.parts?.[0]?.text) {
@@ -2414,27 +2408,45 @@ function createTray(): void {
 // App Lifecycle
 // ============================================================
 
-// Register custom 'media' protocol for local video file playback (must be before app.whenReady)
-protocol.registerSchemesAsPrivileged([{
-  scheme: 'media',
-  privileges: {
-    standard: true,
-    secure: true,
-    supportFetchAPI: true,
-    stream: true,
-    bypassCSP: true
+// Register custom protocols (must be before app.whenReady)
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'media',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+      bypassCSP: true
+    }
+  },
+  {
+    scheme: 'loom',
+    privileges: { standard: true, secure: true }
   }
-}])
+])
+
+// Register loom:// as the default protocol handler for invite deep links
+if (process.defaultApp) {
+  app.setAsDefaultProtocolClient('loom', process.execPath, [resolve(process.argv[1])])
+} else {
+  app.setAsDefaultProtocolClient('loom')
+}
 
 const gotTheLock = app.requestSingleInstanceLock()
 
 if (!gotTheLock) {
   app.quit()
 } else {
-  app.on('second-instance', () => {
+  app.on('second-instance', (_event, argv) => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.focus()
+    }
+    // Handle loom:// deep link from second instance
+    const deepLink = argv.find(arg => arg.startsWith('loom://'))
+    if (deepLink && mainWindow) {
+      mainWindow.webContents.send('p2p:deepLink', deepLink)
     }
   })
 
@@ -2460,6 +2472,9 @@ if (!gotTheLock) {
     }
     createWindow()
     createTray()
+    // Register P2P multiplayer IPC handlers
+    const { registerP2PHandlers } = await import('./p2p/ipc-handlers')
+    registerP2PHandlers()
     // Preload essentials in background — don't block window
     preloadEssentials().catch(err => console.error('[Preload] Failed:', err))
     // Check for updates after a short delay
@@ -2691,53 +2706,129 @@ const GEMINI_SYSTEM_PROMPT = `You are Loomie, a friendly and knowledgeable Minec
 ## Launcher Actions
 You can perform actions in the Loom Launcher. When someone asks you to do something (skip a song, download a mod, create an instance, etc.), use the available tools. Always confirm what you did afterward.
 
-## Auto-Diagnosis
-When the user reports a crash or you detect issues:
-1. Use get_game_logs to read recent output
-2. Analyze ALL errors — identify every incompatible mod, missing dependency, or Java issue
-3. Use remove_mod with just the mod name/slug to remove ALL incompatible mods (e.g. remove_mod with modName "embeddium" — it auto-finds the jar file)
-4. Use install_dependency to install missing dependencies
-5. Tell the user what you fixed and suggest relaunching
+## Auto-Diagnosis & Troubleshooting
+When the user reports a crash, error, or any issue — follow this exact workflow:
+
+### Step 1: Gather Information
+- ALWAYS call get_game_logs first (use lines=200 for crash cases)
+- Call get_instances to find the active instance
+- Call get_installed_mods on the active instance to see what's installed
+
+### Step 2: Analyze the Logs
+Look for these common patterns:
+- **"Mixin apply failed"** or **"Mixin transformation failed"** → Two mods are modifying the same game code. Identify BOTH mods from the stack trace and remove the less important one.
+- **"java.lang.NoSuchMethodError"** or **"java.lang.NoSuchFieldError"** → A mod was built for a different Minecraft version. Find the mod name in the error and remove it.
+- **"DuplicateModsFoundException"** or **"Duplicate mod"** → Two versions of the same mod exist. Use list_mod_files to find duplicates and remove the older one.
+- **"Incompatible mod set"** or **"breaks"** → Fabric Loader detected conflicting mods. The error message lists exactly which mods conflict — remove all listed conflicts.
+- **"java.lang.OutOfMemoryError"** → Tell the user to increase RAM allocation in instance settings. Recommend 6-8 GB for modded.
+- **"Module java.base does not export"** → Java version mismatch. Tell the user to check their Java version in settings.
+- **"Failed to load class"** or **"ClassNotFoundException"** → A dependency is missing. Look for the mod that needs it and install_dependency.
+- **"Registry entry not found"** or **"Unknown registry key"** → A mod references content from another mod that isn't installed. Install the dependency.
+- **"Rendering error"** or **"GL error"** or shader-related crashes → Often caused by Iris/Sodium conflicts with other rendering mods. Remove the conflicting renderer.
+- **"Connection refused"** or **"Connection timed out"** → Server-side issue, not a mod problem. Tell the user the server might be down.
+- **"Invalid or corrupt jarfile"** → The mod file is corrupted. Remove it and reinstall.
+- **"Could not find required mod"** → A mod requires another mod that isn't installed. Install the missing dependency.
+
+### Step 3: Fix Everything
+- Use remove_mod with just the mod name/slug — it auto-finds the jar file
+- Use install_dependency to install missing dependencies
+- Fix ALL issues at once. If there are 5 broken mods, remove all 5 in sequence.
+- After removing, verify by calling list_mod_files to confirm they're gone.
+
+### Step 4: Report
+- Tell the user exactly what you found, what you fixed, and why
+- Suggest relaunching the game
+- If the same crash could recur, explain what to avoid
+
 CRITICAL RULES:
 - NEVER ask the user for filenames. The remove_mod tool finds files automatically by name.
-- Fix ALL issues at once, not just the first one. If there are 5 incompatible mods, remove all 5.
-- When mods conflict (e.g. Sodium vs Embeddium), remove the one that was added as a performance optimization, NOT the one from the modpack.
-- Performance mods we install: sodium, embeddium, iris, scalablelux, lithium, starlight, lazydfu, modmenu, fabric-api, enhanced-block-entities, moreculling, cull-less-leaves, sodium-extra, krypton, dynamic-fps, debugify, noisium, modernfix, notenoughcrashes, clumps, immediatelyfast, entityculling, ferritecore, badoptimizations, cloth-config
-- If a perf mod conflicts with a modpack mod, always remove the perf mod.
-- Always take action to fix issues, don't just describe what's wrong.`
+- Fix ALL issues at once, not just the first one.
+- When mods conflict (e.g. Sodium vs Embeddium, or Iris vs Oculus), remove the one that was added as a performance optimization, NOT the one from the modpack.
+- Performance mods Loom installs automatically: sodium, embeddium, iris, scalablelux, lithium, starlight, lazydfu, modmenu, fabric-api, enhanced-block-entities, moreculling, cull-less-leaves, sodium-extra, krypton, dynamic-fps, debugify, noisium, modernfix, notenoughcrashes, clumps, immediatelyfast, entityculling, ferritecore, badoptimizations, cloth-config
+- If a perf mod conflicts with a modpack mod, ALWAYS remove the perf mod.
+- Always take action to fix issues. Don't just describe what's wrong — fix it.
+- If you can't identify the problem from logs, ask the user to describe what happened (what they clicked, when it crashed, any error messages on screen).`
+
+// ── Gemini API Helper with Retry + Fallback ──
+const GEMINI_MODELS = ['gemini-2.5-flash', 'gemini-2.0-flash'] as const
+const MAX_RETRIES = 2
+const RETRY_DELAYS = [1000, 2500] // ms between retries
+
+async function callGeminiAPI(
+  apiKey: string,
+  body: Record<string, any>,
+  modelOverride?: string
+): Promise<{ ok: boolean; data?: any; status?: number; error?: string }> {
+  const models = modelOverride ? [modelOverride] : [...GEMINI_MODELS]
+
+  for (const model of models) {
+    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`
+        const response = await net.fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+          body: JSON.stringify(body),
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (model !== GEMINI_MODELS[0]) {
+            console.log(`[Gemini] Used fallback model: ${model}`)
+          }
+          return { ok: true, data }
+        }
+
+        // Don't retry auth errors
+        if (response.status === 400) {
+          return { ok: false, status: 400, error: 'Invalid API key. Check Settings → Connected Apps → Gemini.' }
+        }
+
+        // Retry on 503 (overloaded) and 429 (rate limit)
+        if ((response.status === 503 || response.status === 429) && attempt < MAX_RETRIES) {
+          console.warn(`[Gemini] ${model} returned ${response.status}, retrying in ${RETRY_DELAYS[attempt]}ms (attempt ${attempt + 1}/${MAX_RETRIES})...`)
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]))
+          continue
+        }
+
+        // If all retries exhausted for this model, try fallback
+        if ((response.status === 503 || response.status === 429)) {
+          console.warn(`[Gemini] ${model} exhausted retries (status ${response.status}), trying next model...`)
+          break // Move to next model
+        }
+
+        // Other errors — return immediately
+        const errText = await response.text()
+        return { ok: false, status: response.status, error: `API error (${response.status}): ${errText.slice(0, 200)}` }
+      } catch (err: any) {
+        if (attempt < MAX_RETRIES) {
+          console.warn(`[Gemini] Network error on ${model}, retrying...`, err.message)
+          await new Promise(r => setTimeout(r, RETRY_DELAYS[attempt]))
+          continue
+        }
+        // Network failure, try next model
+        console.warn(`[Gemini] ${model} network failed, trying next model...`)
+        break
+      }
+    }
+  }
+
+  return { ok: false, error: 'Gemini is currently unavailable. All models are experiencing high demand — please try again in a moment.' }
+}
 
 ipcMain.handle('gemini:chat', async (_event, apiKey: string, messages: Array<{ role: string; parts: Array<{ text: string }> }>) => {
   if (!apiKey) return { error: 'No API key configured. Go to Settings → Connected Apps → Gemini to add one.' }
 
   try {
-    const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          system_instruction: {
-            parts: [{ text: GEMINI_SYSTEM_PROMPT }],
-          },
-          contents: messages,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 4096,
-          },
-        }),
-      }
-    )
+    const result = await callGeminiAPI(apiKey, {
+      system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT }] },
+      contents: messages,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+    })
 
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error('[Gemini] API error:', response.status, errText)
-      if (response.status === 400) return { error: 'Invalid API key. Check Settings → Connected Apps → Gemini.' }
-      if (response.status === 429) return { error: 'Rate limit reached. Wait a moment and try again.' }
-      return { error: `API error (${response.status}): ${errText.slice(0, 200)}` }
-    }
+    if (!result.ok) return { error: result.error }
 
-    const data = await response.json()
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    const text = result.data?.candidates?.[0]?.content?.parts?.[0]?.text
     if (!text) return { error: 'No response from Gemini. Try again.' }
 
     return { text }
@@ -2791,26 +2882,15 @@ ipcMain.handle('gemini:chat-vision', async (_event, apiKey: string, textPrompt: 
       },
     ]
 
-    const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nThe user has shared a screenshot of the Loom Launcher. Describe what you see and answer their question about it. The launcher has pages: Library (game instances), Browse (mods), Players (lookup), Settings, and Gemini AI (this chat).' }] },
-          contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
-        }),
-      }
-    )
+    const result = await callGeminiAPI(apiKey, {
+      system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nThe user has shared a screenshot of the Loom Launcher. Describe what you see and answer their question about it. The launcher has pages: Library (game instances), Browse (mods), Players (lookup), Settings, and Gemini AI (this chat).' }] },
+      contents,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 4096 },
+    })
 
-    if (!response.ok) {
-      const errText = await response.text()
-      return { error: `API error (${response.status}): ${errText.slice(0, 200)}` }
-    }
+    if (!result.ok) return { error: result.error }
 
-    const data = await response.json()
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    const text = result.data?.candidates?.[0]?.content?.parts?.[0]?.text
     return text ? { text } : { error: 'No response from Gemini.' }
   } catch (err: any) {
     return { error: err.message || 'Failed to reach Gemini API' }
@@ -2833,27 +2913,15 @@ ipcMain.handle('gemini:chat-audio', async (_event, apiKey: string, audioBase64: 
       },
     ]
 
-    const response = await net.fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nIMPORTANT: The user is speaking via voice. First, transcribe exactly what they said in quotes. Then respond concisely (1-3 sentences). Format: "[transcription]"\n\nYour response here.' }] },
-          contents,
-          generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
-        }),
-      }
-    )
+    const result = await callGeminiAPI(apiKey, {
+      system_instruction: { parts: [{ text: GEMINI_SYSTEM_PROMPT + '\n\nIMPORTANT: The user is speaking via voice. First, transcribe exactly what they said in quotes. Then respond concisely (1-3 sentences). Format: "[transcription]"\n\nYour response here.' }] },
+      contents,
+      generationConfig: { temperature: 0.7, maxOutputTokens: 512 },
+    })
 
-    if (!response.ok) {
-      const errText = await response.text()
-      console.error('[Loomie] Audio API error:', response.status, errText.slice(0, 200))
-      return { error: `API error (${response.status})` }
-    }
+    if (!result.ok) return { error: result.error || 'API error' }
 
-    const data = await response.json()
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+    const text = result.data?.candidates?.[0]?.content?.parts?.[0]?.text
     return text ? { text } : { error: 'No response from Loomie.' }
   } catch (err: any) {
     console.error('[Loomie] Audio fetch error:', err)
@@ -2998,13 +3066,13 @@ async function executeLoomieTool(name: string, args: Record<string, any>): Promi
         return { success: true, version: version.version_number, fileName }
       }
       case 'get_instances': {
-        return getAllInstances()
+        return await getAllInstances()
       }
       case 'get_installed_mods': {
         return readInstanceMods(args.instanceId)
       }
       case 'create_instance': {
-        const inst = createInstance(args.name, args.version, args.loader)
+        const inst = await createInstance(args.name, args.version, args.loader)
         predownloadForInstance(inst.id, args.version, args.loader).catch(() => {})
         return inst
       }
@@ -3150,32 +3218,22 @@ ipcMain.handle('gemini:chat-with-tools', async (_event, apiKey: string, messages
     const MAX_ITERATIONS = 5
 
     for (let i = 0; i < MAX_ITERATIONS; i++) {
-      const response = await net.fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemText }] },
-            contents: conversationContents,
-            tools: LOOMIE_TOOLS,
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 4096,
-            },
-          }),
-        }
-      )
+      const result = await callGeminiAPI(apiKey, {
+        system_instruction: { parts: [{ text: systemText }] },
+        contents: conversationContents,
+        tools: LOOMIE_TOOLS,
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 4096,
+        },
+      })
 
-      if (!response.ok) {
-        const errText = await response.text()
-        console.error('[Gemini Tools] API error:', response.status, errText)
-        if (response.status === 400) return { error: 'Invalid API key. Check Settings → Connected Apps → Gemini.' }
-        if (response.status === 429) return { error: 'Rate limit reached. Wait a moment and try again.' }
-        return { error: `API error (${response.status}): ${errText.slice(0, 200)}` }
+      if (!result.ok) {
+        if (result.status === 400) return { error: 'Invalid API key. Check Settings → Connected Apps → Gemini.' }
+        return { error: result.error || 'Failed to reach Gemini API' }
       }
 
-      const data = await response.json()
+      const data = result.data
       const candidate = data?.candidates?.[0]
       if (!candidate?.content?.parts?.length) {
         return { error: 'No response from Gemini. Try again.' }

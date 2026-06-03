@@ -1,4 +1,5 @@
 import { app, shell } from 'electron'
+import * as fs from 'fs/promises'
 import { join, basename } from 'path'
 import {
   existsSync,
@@ -50,6 +51,14 @@ const TRASH_DIR = join(app.getPath('userData'), 'trash')
 function ensureDir(dir: string): void {
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
+  }
+}
+
+async function ensureDirAsync(dir: string): Promise<void> {
+  try {
+    await fs.access(dir)
+  } catch {
+    await fs.mkdir(dir, { recursive: true })
   }
 }
 
@@ -120,10 +129,10 @@ export function migrateOrphanInstances(activeUuid: string): number {
   return migrated
 }
 
-export function getAllInstances(): InstanceConfig[] {
-  ensureDir(INSTANCES_DIR)
+export async function getAllInstances(): Promise<InstanceConfig[]> {
+  await ensureDirAsync(INSTANCES_DIR)
 
-  const entries = readdirSync(INSTANCES_DIR, { withFileTypes: true })
+  const entries = await fs.readdir(INSTANCES_DIR, { withFileTypes: true })
   const instances: InstanceConfig[] = []
 
   for (const entry of entries) {
@@ -134,8 +143,8 @@ export function getAllInstances(): InstanceConfig[] {
         try {
           const modsDir = join(INSTANCES_DIR, entry.name, 'mods')
           if (existsSync(modsDir)) {
-            const jarCount = readdirSync(modsDir).filter(f => f.endsWith('.jar')).length
-            config.mods = jarCount
+            const jarFiles = await fs.readdir(modsDir)
+            config.mods = jarFiles.filter(f => f.endsWith('.jar')).length
           }
         } catch { /* ignore */ }
         instances.push(config)
@@ -169,20 +178,18 @@ const STANDARD_DIRS = [
 /**
  * Ensure standard Minecraft subdirectories exist inside an instance
  */
-export function scaffoldInstanceDirs(instanceDir: string): void {
-  for (const dir of STANDARD_DIRS) {
-    ensureDir(join(instanceDir, dir))
-  }
+export async function scaffoldInstanceDirs(instanceDir: string): Promise<void> {
+  await Promise.all(STANDARD_DIRS.map(dir => ensureDirAsync(join(instanceDir, dir))))
 }
 
-export function createInstance(
+export async function createInstance(
   name: string,
   version: string,
   loader: string,
   createdBy?: string,
   loaderVersion?: string
-): InstanceConfig {
-  ensureDir(INSTANCES_DIR)
+): Promise<InstanceConfig> {
+  await ensureDirAsync(INSTANCES_DIR)
 
   const id = generateId(name)
   const instanceDir = join(INSTANCES_DIR, id)
@@ -201,11 +208,11 @@ export function createInstance(
 
   writeInstanceJson(instanceDir, config)
   // Pre-create standard Minecraft folders so the file explorer isn't empty
-  scaffoldInstanceDirs(instanceDir)
+  await scaffoldInstanceDirs(instanceDir)
   return config
 }
 
-export function deleteInstance(id: string): boolean | string {
+export async function deleteInstance(id: string): Promise<boolean | string> {
   const instanceDir = join(INSTANCES_DIR, id)
 
   if (!existsSync(instanceDir)) {
@@ -217,29 +224,30 @@ export function deleteInstance(id: string): boolean | string {
   const trashDest = join(TRASH_DIR, id)
   // If already in trash, remove old one first
   try {
-    if (existsSync(trashDest)) rmSync(trashDest, { recursive: true, force: true })
+    if (existsSync(trashDest)) await fs.rm(trashDest, { recursive: true, force: true })
   } catch { /* ignore */ }
 
   try {
-    cpSync(instanceDir, trashDest, { recursive: true })
+    await fs.cp(instanceDir, trashDest, { recursive: true })
   } catch { /* copy best-effort */ }
 
   // Write trash metadata
   const meta = { deletedAt: Date.now(), expiresAt: Date.now() + 30 * 24 * 60 * 60 * 1000 }
   try {
-    writeFileSync(join(trashDest, '.trash-meta.json'), JSON.stringify(meta), 'utf-8')
+    await fs.writeFile(join(trashDest, '.trash-meta.json'), JSON.stringify(meta), 'utf-8')
   } catch { /* ignore */ }
 
   // Remove from instances — retry if files are locked (game still running)
   try {
-    rmSync(instanceDir, { recursive: true, force: true })
+    await fs.rm(instanceDir, { recursive: true, force: true })
   } catch (err: any) {
     if (err.code === 'EBUSY' || err.code === 'EPERM') {
       return 'Close the game first before deleting this instance.'
     }
     // Try once more after a brief pause
     try {
-      rmSync(instanceDir, { recursive: true, force: true })
+      await new Promise(r => setTimeout(r, 500))
+      await fs.rm(instanceDir, { recursive: true, force: true })
     } catch {
       return 'Could not delete — some files are still in use. Try again in a moment.'
     }
@@ -248,9 +256,9 @@ export function deleteInstance(id: string): boolean | string {
 }
 
 /** Get all trashed instances */
-export function getTrashedInstances(): (InstanceConfig & { deletedAt: number; expiresAt: number })[] {
-  ensureDir(TRASH_DIR)
-  const entries = readdirSync(TRASH_DIR, { withFileTypes: true })
+export async function getTrashedInstances(): Promise<(InstanceConfig & { deletedAt: number; expiresAt: number })[]> {
+  await ensureDirAsync(TRASH_DIR)
+  const entries = await fs.readdir(TRASH_DIR, { withFileTypes: true })
   const results: (InstanceConfig & { deletedAt: number; expiresAt: number })[] = []
 
   for (const entry of entries) {
@@ -272,7 +280,7 @@ export function getTrashedInstances(): (InstanceConfig & { deletedAt: number; ex
 
     // Auto-expire: permanently delete if past expiry
     if (Date.now() > expiresAt) {
-      rmSync(dir, { recursive: true, force: true })
+      await fs.rm(dir, { recursive: true, force: true })
       continue
     }
 
@@ -283,31 +291,31 @@ export function getTrashedInstances(): (InstanceConfig & { deletedAt: number; ex
 }
 
 /** Recover an instance from trash */
-export function recoverInstance(id: string): InstanceConfig | null {
+export async function recoverInstance(id: string): Promise<InstanceConfig | null> {
   const trashDir = join(TRASH_DIR, id)
   if (!existsSync(trashDir)) return null
 
   const config = readInstanceJson(trashDir)
   if (!config) return null
 
-  ensureDir(INSTANCES_DIR)
+  await ensureDirAsync(INSTANCES_DIR)
   const destDir = join(INSTANCES_DIR, id)
-  cpSync(trashDir, destDir, { recursive: true })
+  await fs.cp(trashDir, destDir, { recursive: true })
 
   // Remove trash metadata
   const metaPath = join(destDir, '.trash-meta.json')
-  if (existsSync(metaPath)) rmSync(metaPath)
+  if (existsSync(metaPath)) await fs.rm(metaPath)
 
   // Remove from trash
-  rmSync(trashDir, { recursive: true, force: true })
+  await fs.rm(trashDir, { recursive: true, force: true })
   return config
 }
 
 /** Permanently delete from trash */
-export function permanentlyDeleteInstance(id: string): boolean {
+export async function permanentlyDeleteInstance(id: string): Promise<boolean> {
   const trashDir = join(TRASH_DIR, id)
   if (!existsSync(trashDir)) return false
-  rmSync(trashDir, { recursive: true, force: true })
+  await fs.rm(trashDir, { recursive: true, force: true })
   return true
 }
 
@@ -333,7 +341,7 @@ export function updateInstance(
   return updated
 }
 
-export function cloneInstance(id: string, newName: string, targetProfileId?: string): InstanceConfig | null {
+export async function cloneInstance(id: string, newName: string, targetProfileId?: string): Promise<InstanceConfig | null> {
   const sourceDir = join(INSTANCES_DIR, id)
   const sourceConfig = readInstanceJson(sourceDir)
 
@@ -343,7 +351,7 @@ export function cloneInstance(id: string, newName: string, targetProfileId?: str
   const destDir = join(INSTANCES_DIR, newId)
 
   // Copy entire instance directory (mods, configs, worlds, etc.)
-  cpSync(sourceDir, destDir, { recursive: true })
+  await fs.cp(sourceDir, destDir, { recursive: true })
 
   const cloned: InstanceConfig = {
     ...sourceConfig,
@@ -399,20 +407,20 @@ function assertWithin(instanceDir: string, targetPath: string): void {
 /**
  * List files/folders at a relative path within an instance
  */
-export function listInstanceDir(id: string, relativePath: string = ''): FileEntry[] {
+export async function listInstanceDir(id: string, relativePath: string = ''): Promise<FileEntry[]> {
   const instanceDir = join(INSTANCES_DIR, id)
   assertWithin(instanceDir, relativePath)
 
   // Auto-scaffold standard folders if browsing root
   if (!relativePath || relativePath === '') {
-    scaffoldInstanceDirs(instanceDir)
+    await scaffoldInstanceDirs(instanceDir)
   }
 
   const targetDir = join(instanceDir, relativePath)
 
   if (!existsSync(targetDir)) return []
 
-  const entries = readdirSync(targetDir, { withFileTypes: true })
+  const entries = await fs.readdir(targetDir, { withFileTypes: true })
   const results: FileEntry[] = []
 
   for (const entry of entries) {
@@ -426,7 +434,7 @@ export function listInstanceDir(id: string, relativePath: string = ''): FileEntr
     let size = 0
     let modified = Date.now()
     try {
-      const stat = statSync(fullPath)
+      const stat = await fs.stat(fullPath)
       size = isDir ? 0 : stat.size
       modified = stat.mtimeMs
     } catch { /* skip */ }
@@ -456,13 +464,13 @@ export function listInstanceDir(id: string, relativePath: string = ''): FileEntr
 /**
  * Delete a file or folder within an instance
  */
-export function deleteInstanceFile(id: string, relativePath: string): boolean {
+export async function deleteInstanceFile(id: string, relativePath: string): Promise<boolean> {
   const instanceDir = join(INSTANCES_DIR, id)
   assertWithin(instanceDir, relativePath)
   const target = join(instanceDir, relativePath)
 
   if (!existsSync(target)) return false
-  rmSync(target, { recursive: true, force: true })
+  await fs.rm(target, { recursive: true, force: true })
   return true
 }
 
@@ -502,16 +510,16 @@ export function openInstanceFile(id: string, relativePath: string): boolean {
  * Copy files from absolute OS paths into a subdirectory of an instance.
  * Used by drag-and-drop to import mods, resource packs, etc.
  */
-export function copyFilesToInstance(
+export async function copyFilesToInstance(
   id: string,
   relativeDest: string,
   filePaths: string[]
-): { copied: number; errors: string[] } {
+): Promise<{ copied: number; errors: string[] }> {
   const instanceDir = join(INSTANCES_DIR, id)
   assertWithin(instanceDir, relativeDest)
 
   const destDir = join(instanceDir, relativeDest)
-  ensureDir(destDir)
+  await ensureDirAsync(destDir)
 
   let copied = 0
   const errors: string[] = []
@@ -524,7 +532,7 @@ export function copyFilesToInstance(
       }
       const fileName = basename(srcPath)
       const destPath = join(destDir, fileName)
-      copyFileSync(srcPath, destPath)
+      await fs.copyFile(srcPath, destPath)
       copied++
     } catch (err: any) {
       errors.push(`Failed to copy ${srcPath}: ${err.message}`)

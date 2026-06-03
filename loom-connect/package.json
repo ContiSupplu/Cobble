@@ -1,0 +1,24 @@
+{
+  "name": "loom-connect",
+  "version": "1.0.0",
+  "description": "Lightweight P2P joiner for Loom Minecraft multiplayer — no launcher needed",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "package": "npm run build && pkg dist/index.js -t node20-win-x64 -o loom-connect.exe --compress GZip"
+  },
+  "dependencies": {
+    "node-datachannel": "^0.12.0",
+    "simple-peer": "^9.11.1",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/simple-peer": "^9.11.8",
+    "@types/ws": "^8.5.0",
+    "pkg": "^5.8.1",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}

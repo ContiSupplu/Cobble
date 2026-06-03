@@ -156,6 +156,12 @@ public class LauncherWebSocket extends WebSocketClient {
                         DynamicIslandMod.triggerNotification(finalNotif);
                     });
                 }
+            } else if (message.contains("\"type\":\"p2p_open_lan\"")) {
+                java.util.Map map = GSON.fromJson(message, java.util.Map.class);
+                com.google.gson.JsonObject jsonData = GSON.toJsonTree(map).getAsJsonObject();
+                com.cobble.dynamicisland.p2p.P2PHandler.handleOpenLAN(jsonData);
+            } else if (message.contains("\"type\":\"p2p_close_lan\"")) {
+                com.cobble.dynamicisland.p2p.P2PHandler.handleCloseLAN();
             }
         } catch (Exception e) {
             // Ignore parse errors

@@ -1,0 +1,389 @@
+/* ── P2P Multiplayer Panel ── */
+
+/* Overlay backdrop */
+.p2p-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: p2p-fadeIn 200ms ease;
+}
+
+@keyframes p2p-fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Main panel card */
+.p2p-panel {
+  width: 420px;
+  max-width: 90vw;
+  max-height: 85vh;
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  display: flex;
+  flex-direction: column;
+  animation: p2p-slideUp 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  overflow: hidden;
+}
+
+@keyframes p2p-slideUp {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Header */
+.p2p-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.p2p-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-0);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.p2p-title svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+}
+
+.p2p-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition);
+}
+
+.p2p-close:hover {
+  background: var(--bg-2);
+}
+
+.p2p-close svg {
+  width: 16px;
+  height: 16px;
+  color: var(--text-2);
+}
+
+/* Body */
+.p2p-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Tab switcher */
+.p2p-tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  padding: 3px;
+  margin-bottom: 24px;
+}
+
+.p2p-tab {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-2);
+  text-align: center;
+  border-radius: 6px;
+  transition: all var(--transition);
+}
+
+.p2p-tab:hover {
+  color: var(--text-1);
+}
+
+.p2p-tab.active {
+  background: var(--bg-1);
+  color: var(--text-0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Section labels */
+.p2p-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-2);
+  margin-bottom: 12px;
+}
+
+/* Invite link display */
+.p2p-invite-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+.p2p-invite-url {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: all;
+}
+
+.p2p-copy-btn {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-muted);
+  border-radius: 6px;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+
+.p2p-copy-btn:hover {
+  background: rgba(10, 132, 255, 0.2);
+}
+
+.p2p-copy-btn.copied {
+  color: var(--green);
+  background: rgba(48, 209, 88, 0.12);
+}
+
+/* Input field */
+.p2p-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  color: var(--text-0);
+  outline: none;
+  transition: border-color var(--transition);
+  margin-bottom: 16px;
+}
+
+.p2p-input::placeholder {
+  color: var(--text-3);
+}
+
+.p2p-input:focus {
+  border-color: var(--accent);
+}
+
+/* Primary action button */
+.p2p-action {
+  width: 100%;
+  padding: 12px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.p2p-action:hover:not(:disabled) {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+}
+
+.p2p-action:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.p2p-action svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Status section */
+.p2p-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+.p2p-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.p2p-status-dot.waiting {
+  background: var(--yellow);
+  animation: p2p-pulse 2s ease-in-out infinite;
+}
+
+.p2p-status-dot.connecting {
+  background: var(--accent);
+  animation: p2p-pulse 1s ease-in-out infinite;
+}
+
+.p2p-status-dot.connected {
+  background: var(--green);
+}
+
+.p2p-status-dot.error {
+  background: var(--red);
+}
+
+@keyframes p2p-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+
+.p2p-status-text {
+  font-size: 0.8125rem;
+  color: var(--text-1);
+}
+
+.p2p-status-text strong {
+  color: var(--text-0);
+  font-weight: 600;
+}
+
+/* Session info card */
+.p2p-session-info {
+  padding: 16px;
+  background: var(--bg-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: 16px;
+}
+
+.p2p-session-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.p2p-session-row:not(:last-child) {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+}
+
+.p2p-session-key {
+  font-size: 0.75rem;
+  color: var(--text-2);
+}
+
+.p2p-session-val {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-0);
+  font-family: var(--font-mono);
+}
+
+/* Error message */
+.p2p-error {
+  padding: 10px 14px;
+  background: rgba(255, 69, 58, 0.1);
+  border: 1px solid rgba(255, 69, 58, 0.2);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--red);
+  margin-bottom: 16px;
+}
+
+/* Disconnect button (secondary/danger) */
+.p2p-disconnect {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--red);
+  background: rgba(255, 69, 58, 0.1);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition);
+  margin-top: 8px;
+}
+
+.p2p-disconnect:hover {
+  background: rgba(255, 69, 58, 0.18);
+}
+
+/* Player pill */
+.p2p-player {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: rgba(48, 209, 88, 0.1);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--green);
+}
+
+.p2p-player-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--green);
+}
+
+/* Empty/loading state */
+.p2p-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-2);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.p2p-empty svg {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 12px;
+  opacity: 0.3;
+}
+
+/* Spinner */
+.p2p-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: p2p-spin 0.6s linear infinite;
+}
+
+@keyframes p2p-spin {
+  to { transform: rotate(360deg); }
+}

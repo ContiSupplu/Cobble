@@ -366,7 +366,7 @@ export async function preloadEssentials() {
   // Step 3: Prefetch Fabric loader metadata for all Fabric instances
   broadcastPreload('Loading mod loaders...', 45)
   try {
-    const instances = getAllInstances()
+    const instances = await getAllInstances()
     const fabricVersions = [...new Set(instances.filter(i => i.loader === 'Fabric').map(i => i.version))]
     if (fabricVersions.length > 0) {
       // getLoaderArtifactListFor — from static import
@@ -479,7 +479,7 @@ export async function prewarmInstanceCache(instanceId: string): Promise<void> {
 
     // 2. Warm the version JAR
     if (!abort.signal.aborted) {
-      const instances = getAllInstances()
+      const instances = await getAllInstances()
       const instance = instances.find(i => i.id === instanceId)
       if (instance) {
         const versionJar = join(rootPath, 'versions', instance.version, `${instance.version}.jar`)
@@ -1157,7 +1157,7 @@ export async function launchInstance(id: string) {
     throw new Error('An instance is already running')
   }
 
-  const instances = getAllInstances()
+  const instances = await getAllInstances()
   const instance = instances.find(i => i.id === id)
   if (!instance) throw new Error('Instance not found')
 

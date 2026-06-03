@@ -10,7 +10,8 @@
     "SkinRandomizerMixin",
     "PlayerListHudMixin",
     "SplashOverlayMixin",
-    "GameRendererMixin"
+    "GameRendererMixin",
+    "GameMenuScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1

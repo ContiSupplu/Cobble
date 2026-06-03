@@ -7,6 +7,7 @@ const api = (window as any).electronAPI
 
 interface SidebarProps {
   onOpenProfiles?: () => void
+  onOpenP2P?: () => void
 }
 
 const I = {
@@ -15,7 +16,7 @@ const I = {
   strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const,
 }
 
-export default function Sidebar({ onOpenProfiles }: SidebarProps) {
+export default function Sidebar({ onOpenProfiles, onOpenP2P }: SidebarProps) {
   const { user, privacyEnabled } = useAuth()
   const navigate = useNavigate()
   const [skinDataUrl, setSkinDataUrl] = useState<string | null>(null)
@@ -65,6 +66,9 @@ export default function Sidebar({ onOpenProfiles }: SidebarProps) {
         <NavLink to="/gallery" className={({ isActive }) => `sidebar-item${isActive ? ' active' : ''}`} data-tooltip="Content">
           <svg {...I}><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
         </NavLink>
+        <button className="sidebar-item" onClick={onOpenP2P} data-tooltip="Play with Friends">
+          <svg {...I}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+        </button>
       </nav>
 
       <div className="sidebar-spacer" />

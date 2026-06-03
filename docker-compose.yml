@@ -1,0 +1,44 @@
+# Loom P2P Infrastructure
+# Run: docker compose up -d
+# Required: Set TURN_SECRET in .env
+
+services:
+  # ── Signaling Server ──────────────────────────────────────────
+  signaling:
+    build: ./signaling-server
+    restart: unless-stopped
+    ports:
+      - "8090:8090"
+    environment:
+      - PORT=8090
+      - NODE_ENV=production
+    healthcheck:
+      test: ["CMD", "node", "-e", "const ws = new (require('ws'))('ws://localhost:8090'); ws.on('open', () => { ws.close(); process.exit(0); }); ws.on('error', () => process.exit(1)); setTimeout(() => process.exit(1), 3000);"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: '0.5'
+
+  # ── TURN Server (coturn) ──────────────────────────────────────
+  # Required for peers behind symmetric NAT / CGNAT
+  coturn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    ports:
+      - "3478:3478"        # STUN/TURN UDP
+      - "3478:3478/tcp"    # STUN/TURN TCP
+      - "5349:5349"        # TURNS (TLS)
+      - "5349:5349/tcp"    # TURNS (TLS)
+      - "49152-49200:49152-49200/udp"  # Relay ports
+    volumes:
+      - ./coturn/turnserver.conf:/etc/turnserver.conf:ro
+    command: ["-c", "/etc/turnserver.conf"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
