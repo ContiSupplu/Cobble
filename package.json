@@ -1,6 +1,6 @@
 {
   "name": "loom-launcher",
-  "version": "1.6.5",
+  "version": "1.6.6",
   "description": "Loom — A premium Minecraft launcher with Dynamic Island, AI assistant, and built-in security",
   "main": "./out/main/index.js",
   "author": "_jackoboy",
