@@ -5,6 +5,7 @@ import { useProxiedImage } from '../hooks/useProxiedImage'
 import SpotifyWidget from '../components/SpotifyWidget'
 import PrivacyCard from '../components/PrivacyCard'
 import FileExplorer from '../components/FileExplorer'
+import ShareCardModal from '../components/ShareCardModal'
 import defaultInstanceIcon from '../assets/default-instance-icon.png'
 import './LibraryPage.css'
 
@@ -719,6 +720,9 @@ export default function LibraryPage() {
   const [modpackProgress, setModpackProgress] = useState<any>(null)
   const modpackFileRef = useRef<HTMLInputElement>(null)
 
+  // Share Card modal state
+  const [showShareModal, setShowShareModal] = useState(false)
+
   const closeModpackBrowser = useCallback(() => {
     if (modpackInstalling) return
     setModpackClosing(true)
@@ -1078,6 +1082,19 @@ export default function LibraryPage() {
             </div>
 
             <div className="library-play-container">
+              <button
+                className="library-hero-share"
+                onClick={() => setShowShareModal(true)}
+                title="Share Your Game"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+                  <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
+                </svg>
+              </button>
               <button
                 className={`library-hero-fav${selected.favorite ? ' active' : ''}`}
                 onClick={async (e) => {
@@ -1607,6 +1624,13 @@ export default function LibraryPage() {
             </div>
           </div>
         </div>
+      )}
+      {showShareModal && selected && (
+        <ShareCardModal
+          instance={selected}
+          user={user}
+          onClose={() => setShowShareModal(false)}
+        />
       )}
     </div>
   )

@@ -130,7 +130,7 @@
   z-index: 1;
   width: 100%;
   padding: 14px 20px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass-hover);
   color: #fff;
   font-size: 14px;
   font-weight: 600;
@@ -152,7 +152,7 @@
 }
 
 .login-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--glass-hover);
   border-color: rgba(255, 255, 255, 0.28);
   transform: translateY(-1px);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);

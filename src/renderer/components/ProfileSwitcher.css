@@ -86,7 +86,7 @@
   background: rgba(22, 22, 20, 0.88);
   backdrop-filter: blur(40px) saturate(120%) brightness(1.05);
   -webkit-backdrop-filter: blur(40px) saturate(120%) brightness(1.05);
-  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border: 1.5px solid var(--glass-border);
   border-radius: 14px;
   box-shadow: 0 12px 48px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.08);
   padding: 6px;
@@ -134,7 +134,7 @@
 }
 
 .profile-switcher-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
 }
 
 .profile-switcher-row.active {
@@ -215,7 +215,7 @@
 }
 
 .profile-switcher-more:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
   color: var(--text-1);
 }
 
@@ -229,7 +229,7 @@
   background: rgba(18, 18, 16, 0.95);
   backdrop-filter: blur(30px);
   -webkit-backdrop-filter: blur(30px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid var(--glass-border);
   border-radius: 10px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
   padding: 4px;
@@ -257,7 +257,7 @@
 }
 
 .profile-switcher-context-item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   color: var(--text-0);
 }
 
@@ -281,8 +281,8 @@
   width: 100%;
   height: 24px;
   padding: 2px 6px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 6px;
   color: var(--text-0);
   font-size: 12px;
@@ -329,13 +329,13 @@
 }
 
 .profile-switcher-confirm-btn.cancel {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
   color: var(--text-2);
 }
 
 .profile-switcher-confirm-btn.cancel:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass-hover);
   color: var(--text-1);
 }
 
@@ -353,7 +353,7 @@
 
 .profile-switcher-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   margin: 4px 6px;
 }
 
@@ -372,7 +372,7 @@
 }
 
 .profile-switcher-add:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   color: var(--text-0);
 }
 
@@ -380,8 +380,8 @@
   width: 28px;
   height: 28px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1.5px dashed rgba(255, 255, 255, 0.12);
+  background: var(--glass-bg);
+  border: 1.5px dashed var(--glass-border);
   display: flex;
   align-items: center;
   justify-content: center;

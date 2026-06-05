@@ -3,6 +3,7 @@ import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import './styles/globals.css'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { CustomizationProvider } from './context/CustomizationContext'
+import { ThemeProvider } from './context/ThemeContext'
 import { LoomieProvider } from './context/LoomieContext'
 import Titlebar from './components/Titlebar'
 import Sidebar from './components/Sidebar'
@@ -24,6 +25,7 @@ import SplashScreen from './components/SplashScreen'
 import SetupWizard, { type WizardSettings } from './components/SetupWizard'
 import WelcomeWalkthrough, { type WalkthroughSlide } from './components/WelcomeWalkthrough'
 import P2PPanel from './components/P2PPanel'
+import GuidedTour from './components/GuidedTour'
 
 /* ── Versioning — codenames + simplified display ── */
 const CURRENT_VERSION = '1.6.0'
@@ -126,9 +128,17 @@ function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
     return seen === CURRENT_VERSION
   })
 
+  // First-launch guided tour — shown once after setup wizard + profile select
+  const [tourDone, setTourDone] = useState(() => localStorage.getItem('loom_tour_done') === 'true')
+
   const handleWalkthroughComplete = useCallback(() => {
     localStorage.setItem('loom_last_seen_version', CURRENT_VERSION)
     setWalkthroughDone(true)
+  }, [])
+
+  const handleTourComplete = useCallback(() => {
+    localStorage.setItem('loom_tour_done', 'true')
+    setTourDone(true)
   }, [])
   const [showProfileScreen, setShowProfileScreen] = useState(false)
   const [showP2P, setShowP2P] = useState(false)
@@ -153,6 +163,7 @@ function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
     localStorage.setItem('loom_dynamic_island', String(settings.dynamicIsland))
     localStorage.setItem('loom_close_on_launch', String(settings.closeOnLaunch))
     localStorage.setItem('loom_discord_rpc', String(settings.discordRPC))
+    localStorage.setItem('loom_theme', settings.theme)
     setSetupDone(true)
   }, [])
 
@@ -165,6 +176,8 @@ function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
       setQuickLaunchAttempted(true)
       // Skip profile screen — use last active account
       setProfileDone(true)
+      // Skip tour in Quick Launch mode
+      setTourDone(true)
       // Only skip walkthrough if it was already seen
       const alreadySeen = localStorage.getItem('loom_last_seen_version') === CURRENT_VERSION
       if (alreadySeen) {
@@ -308,6 +321,11 @@ function AppShell({ quickLaunched = false }: { quickLaunched?: boolean }) {
       {showP2P && (
         <P2PPanel onClose={() => setShowP2P(false)} />
       )}
+
+      {/* First-launch guided tour — renders as overlay on top of real UI */}
+      {!tourDone && (
+        <GuidedTour onComplete={handleTourComplete} />
+      )}
     </HashRouter>
   )
 }
@@ -334,12 +352,14 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <CustomizationProvider>
-        <LoomieProvider>
-          <AppShell quickLaunched={quickLaunched} />
-        </LoomieProvider>
-      </CustomizationProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <CustomizationProvider>
+          <LoomieProvider>
+            <AppShell quickLaunched={quickLaunched} />
+          </LoomieProvider>
+        </CustomizationProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }

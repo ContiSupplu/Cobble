@@ -59,6 +59,77 @@
   font-size: 12px;
 }
 
+/* ── Theme Cards ── */
+.settings-themes {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.settings-theme-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 12px;
+  border: 2px solid var(--glass-border);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 200ms, box-shadow 200ms, transform 150ms;
+}
+
+.settings-theme-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.settings-theme-card.active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-muted), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.settings-theme-preview {
+  width: 64px;
+  height: 44px;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.stp-sidebar {
+  width: 14px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+.stp-content {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stp-accent {
+  width: 20px;
+  height: 6px;
+  border-radius: 3px;
+  opacity: 0.9;
+}
+
+.settings-theme-name {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-1);
+  white-space: nowrap;
+}
+
+.settings-theme-card.active .settings-theme-name {
+  color: var(--text-0);
+}
+
 /* ── Color Swatches (glass border) ── */
 .settings-colors {
   display: flex;
@@ -107,7 +178,7 @@
 }
 
 .settings-btn-sm:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--glass-hover);
   border-color: rgba(255, 255, 255, 0.14);
   color: var(--text-0);
 }
@@ -175,8 +246,8 @@
   width: 40px;
   height: 22px;
   border-radius: 11px;
-  background: var(--glass-bg);
-  border: 1.5px solid var(--glass-border);
+  background: var(--glass-border);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
   cursor: pointer;
   position: relative;
   flex-shrink: 0;
@@ -184,13 +255,13 @@
 }
 
 .settings-toggle:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .settings-toggle.on {
   background: var(--accent);
   border-color: var(--accent);
-  box-shadow: 0 0 12px var(--accent-muted);
+  box-shadow: 0 0 8px var(--accent-muted);
 }
 
 .settings-toggle-dot {
@@ -289,7 +360,7 @@
 }
 
 .settings-app-connected {
-  color: #4ade80;
+  color: var(--green);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -303,7 +374,7 @@
 }
 
 .settings-app-dot.connected {
-  background: #4ade80;
+  background: var(--green);
   box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
 }
 
@@ -375,7 +446,7 @@
 }
 
 .settings-app-btn.danger {
-  color: #ef4444;
+  color: var(--red);
   border-color: rgba(239, 68, 68, 0.15);
 }
 
@@ -386,7 +457,7 @@
 
 .settings-app-error {
   font-size: 11px;
-  color: #ef4444;
+  color: var(--red);
   background: rgba(239, 68, 68, 0.08);
   padding: 6px 10px;
   border-radius: 6px;
@@ -405,7 +476,7 @@
   flex: 1;
   display: flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(28, 23, 51, 0.10);
   border: 1.5px solid var(--glass-border);
   border-radius: 8px;
   overflow: hidden;
@@ -488,7 +559,7 @@
 
 .settings-tutorial-body {
   padding: 8px 12px 10px;
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(28, 23, 51, 0.08);
   border-radius: 8px;
   margin-top: 2px;
   animation: tutorial-open 0.2s ease;
@@ -527,7 +598,7 @@
 .settings-tutorial-steps code {
   font-family: var(--font-mono);
   font-size: 10px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   padding: 1px 5px;
   border-radius: 4px;
   color: var(--text-1);

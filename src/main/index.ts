@@ -19,6 +19,7 @@ import { detectLaunchers, getImportableData, importFromLauncher } from './migrat
 import { shareToDiscord, uploadToYouTube, getSocialConfig, addDiscordWebhook, removeDiscordWebhook, setYouTubeTokenPath } from './social'
 import { storeAndLink, linkExisting, removeInstanceRefs, migrateExistingMods, getDiskSavings, getStoreStats } from './mod-store'
 import { getSyncConfig, saveSyncConfig, createSyncGroup, deleteSyncGroup, addInstanceToGroup, removeInstanceFromGroup, getSyncableItems, syncToInstance, syncFromInstance, getInstanceSyncGroups, getSyncGroupStats } from './file-sync'
+import { generateCardManifest, publishCard, getMyCards, deleteCard, updateCard } from './loom-cards'
 
 // ============================================================
 // Simple file-based config store (replaces electron-store)
@@ -36,7 +37,7 @@ const CONFIG_FILE = join(CONFIG_DIR, 'settings.json')
 
 function loadConfig(): StoreData {
   const defaults: StoreData = {
-    theme: 'dark',
+    theme: 'loom',
     windowBounds: { width: 1280, height: 800 },
     maximized: false
   }
@@ -98,7 +99,7 @@ function createWindow(): void {
     frame: false,
     titleBarStyle: 'hidden',
     icon: iconPath,
-    backgroundColor: config.theme === 'dark' ? '#1a1a17' : '#ffffff',
+    backgroundColor: (() => { const t = config.theme; return t === 'midnight' ? '#0d0d0d' : '#6A5BE8' })(),
     show: false,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -106,7 +107,7 @@ function createWindow(): void {
       nodeIntegration: false,
       sandbox: true,
       webSecurity: true,
-      webviewTag: false
+      webviewTag: true
     }
   })
 
@@ -616,6 +617,89 @@ ipcMain.handle('modpack:browse', async () => {
 })
 
 // ============================================================
+// IPC Handlers — Loom Cards
+// ============================================================
+
+ipcMain.handle('cards:generateManifest', async (_e, instanceId: string) => {
+  const raw = generateCardManifest(instanceId)
+  // Reshape to the nested structure the renderer expects
+  return {
+    instance: {
+      name: raw.name,
+      version: raw.version,
+      loader: raw.loader,
+      loaderVersion: raw.loaderVersion,
+      memoryMax: raw.memory,
+    },
+    mods: raw.mods,
+    shaderPacks: raw.shaderPacks,
+    resourcePacks: raw.resourcePacks,
+  }
+})
+
+ipcMain.handle('cards:publish', async (_e, manifest: any, options: any) => {
+  const account = getCachedAccount()
+  if (!account) throw new Error('Not logged in')
+
+  // Reshape nested manifest back to flat CardManifest
+  const flatManifest = {
+    instanceId: '',
+    name: manifest.instance?.name ?? options.cardName ?? 'Untitled',
+    version: manifest.instance?.version ?? '',
+    loader: manifest.instance?.loader ?? '',
+    loaderVersion: manifest.instance?.loaderVersion,
+    memory: manifest.instance?.memoryMax,
+    mods: (manifest.mods ?? []).filter((m: any) => !options.excludedMods?.includes(m.slug)),
+    shaderPacks: options.includeShaders !== false ? (manifest.shaderPacks ?? []) : [],
+    resourcePacks: options.includeResourcePacks !== false ? (manifest.resourcePacks ?? []) : [],
+  }
+
+  // Build PublishOptions
+  const publishOptions = {
+    author: {
+      username: account.username,
+      uuid: account.uuid,
+    },
+    name: options.cardName || flatManifest.name,
+    description: options.description || '',
+    tags: [],
+    sharing: {
+      includeMods: options.includeMods !== false,
+      includeShaders: options.includeShaders !== false,
+      includeResourcePacks: options.includeResourcePacks !== false,
+      includeServer: false,
+      includeVersion: options.includeVersion !== false,
+    },
+  }
+
+  return publishCard(flatManifest, publishOptions)
+})
+
+ipcMain.handle('cards:getMine', async (_e) => {
+  const account = getCachedAccount()
+  if (!account) return []
+  return getMyCards(account.uuid)
+})
+
+ipcMain.handle('cards:delete', async (_e, cardId: string) => {
+  return deleteCard(cardId)
+})
+
+ipcMain.handle('cards:update', async (_e, cardId: string, patch: any) => {
+  return updateCard(cardId, patch)
+})
+
+// ============================================================
+// IPC Handlers — Clipboard
+// ============================================================
+
+ipcMain.handle('clipboard:write', (_e, text: string) => {
+  const { clipboard } = require('electron')
+  clipboard.writeText(text)
+  return true
+})
+
+// ============================================================
 // IPC Handlers — Window Controls
 // ============================================================
 
@@ -631,10 +715,14 @@ ipcMain.handle('window:isMaximized', () => mainWindow?.isMaximized() ?? false)
 // IPC Handlers — Theme
 // ============================================================
 
-ipcMain.handle('theme:get', () => storeGet('theme'))
+ipcMain.handle('theme:get', () => storeGet('theme') || 'loom')
 ipcMain.handle('theme:set', (_event, theme: string) => {
   storeSet('theme', theme)
-  mainWindow?.setBackgroundColor(theme === 'dark' ? '#191919' : '#ffffff')
+  const bgMap: Record<string, string> = {
+    loom: '#6A5BE8',
+    midnight: '#0d0d0d',
+  }
+  mainWindow?.setBackgroundColor(bgMap[theme] || '#6A5BE8')
 })
 
 // ============================================================

@@ -385,6 +385,16 @@ const electronAPI = {
     ipcRenderer.on('p2p:deepLink', handler)
     return () => ipcRenderer.removeListener('p2p:deepLink', handler)
   },
+
+  // Loom Cards
+  cardsGenerateManifest: (instanceId: string) => ipcRenderer.invoke('cards:generateManifest', instanceId),
+  cardsPublish: (manifest: any, options: any) => ipcRenderer.invoke('cards:publish', manifest, options),
+  cardsGetMine: () => ipcRenderer.invoke('cards:getMine'),
+  cardsDelete: (cardId: string) => ipcRenderer.invoke('cards:delete', cardId),
+  cardsUpdate: (cardId: string, patch: any) => ipcRenderer.invoke('cards:update', cardId, patch),
+
+  // Clipboard
+  writeClipboard: (text: string) => ipcRenderer.invoke('clipboard:write', text),
 }
 
 contextBridge.exposeInMainWorld('electronAPI', electronAPI)

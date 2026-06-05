@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
 
 export interface CustomizationSettings {
   homeBackground: string | null  // file path or URL
@@ -45,22 +45,31 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
     }
   })
 
+  // Function to apply accent color based on current theme
+  const applyAccentColor = useCallback(() => {
+    const root = document.documentElement
+    const themeId = root.dataset.theme || 'loom'
+    const isLoomTheme = themeId === 'loom'
+
+    if (!isLoomTheme) {
+      // Midnight or other unlocked themes: apply user's accent
+      root.style.setProperty('--accent', settings.accentColor)
+      const r = parseInt(settings.accentColor.slice(1, 3), 16)
+      const g = parseInt(settings.accentColor.slice(3, 5), 16)
+      const b = parseInt(settings.accentColor.slice(5, 7), 16)
+      root.style.setProperty('--accent-hover', `rgb(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)})`)
+      root.style.setProperty('--accent-muted', `rgba(${r}, ${g}, ${b}, 0.08)`)
+    }
+  }, [settings.accentColor])
+
   useEffect(() => {
     localStorage.setItem('customization', JSON.stringify(settings))
     if (settings.geminiApiKey) {
       ;(window as any).electronAPI?.storeSet('geminiApiKey', settings.geminiApiKey)
     }
 
-    // Apply accent color as CSS custom property
-    const root = document.documentElement
-    root.style.setProperty('--accent', settings.accentColor)
-
-    // Compute hover (slightly darker)
-    const r = parseInt(settings.accentColor.slice(1, 3), 16)
-    const g = parseInt(settings.accentColor.slice(3, 5), 16)
-    const b = parseInt(settings.accentColor.slice(5, 7), 16)
-    root.style.setProperty('--accent-hover', `rgb(${Math.max(0, r - 20)}, ${Math.max(0, g - 20)}, ${Math.max(0, b - 20)})`)
-    root.style.setProperty('--accent-muted', `rgba(${r}, ${g}, ${b}, 0.08)`)
+    // Apply accent color — but only if the active theme doesn't lock it
+    applyAccentColor()
 
     // Font scale — use zoom to scale all px-based elements proportionally
     const appBody = document.querySelector('.app-layout') as HTMLElement
@@ -68,8 +77,19 @@ export function CustomizationProvider({ children }: { children: ReactNode }) {
       appBody.style.zoom = String(settings.fontScale)
     }
     // Also set a CSS variable for components that want to opt-in
+    const root = document.documentElement
     root.style.setProperty('--font-scale', String(settings.fontScale))
-  }, [settings])
+  }, [settings, applyAccentColor])
+
+  // Re-apply accent when theme changes (ThemeContext dispatches 'theme-changed')
+  useEffect(() => {
+    const handler = () => {
+      // Small delay to ensure ThemeContext has finished applying its changes
+      requestAnimationFrame(() => applyAccentColor())
+    }
+    window.addEventListener('theme-changed', handler)
+    return () => window.removeEventListener('theme-changed', handler)
+  }, [applyAccentColor])
 
   const update = <K extends keyof CustomizationSettings>(key: K, value: CustomizationSettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }))

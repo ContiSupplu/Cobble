@@ -2,6 +2,7 @@ import { useRef, useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useCustomization } from '../context/CustomizationContext'
+import { useTheme } from '../context/ThemeContext'
 import SpotifySetup from '../components/SpotifySetup'
 import SyncSettings from '../components/SyncSettings'
 import ModStoreStats from '../components/ModStoreStats'
@@ -36,6 +37,7 @@ function TutorialDropdown({ title, children }: { title: string; children: React.
 export default function SettingsPage() {
   const { user } = useAuth()
   const { settings, update, reset } = useCustomization()
+  const { activeTheme, theme: currentTheme, setTheme, themes } = useTheme()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const api = (window as any).electronAPI
   const navigate = useNavigate()
@@ -210,6 +212,31 @@ export default function SettingsPage() {
 
         <div className="settings-row">
           <div>
+            <div className="settings-row-title">Theme</div>
+            <div className="settings-row-desc">Choose how Loom looks</div>
+          </div>
+          <div className="settings-themes">
+            {themes.map((t) => (
+              <button
+                key={t.id}
+                className={`settings-theme-card${activeTheme === t.id ? ' active' : ''}`}
+                onClick={() => setTheme(t.id)}
+              >
+                <div className="settings-theme-preview">
+                  <div className="stp-sidebar" style={{ background: t.preview.sidebar }} />
+                  <div className="stp-content" style={{ background: t.preview.bg }}>
+                    <div className="stp-accent" style={{ background: t.preview.accent }} />
+                  </div>
+                </div>
+                <span className="settings-theme-name">{t.name}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {!currentTheme.lockedAccent && (
+        <div className="settings-row">
+          <div>
             <div className="settings-row-title">Accent Color</div>
             <div className="settings-row-desc">Choose a color for buttons and highlights</div>
           </div>
@@ -225,6 +252,7 @@ export default function SettingsPage() {
             ))}
           </div>
         </div>
+        )}
 
         <div className="settings-row">
           <div>
@@ -542,11 +570,12 @@ export default function SettingsPage() {
         </div>
         <div className="settings-row">
           <div>
-            <div className="settings-row-title">Setup Wizard</div>
-            <div className="settings-row-desc">Re-run the first-launch setup experience</div>
+            <div className="settings-row-title">Onboarding</div>
+            <div className="settings-row-desc">Replay the first-launch setup and guided tour</div>
           </div>
           <button className="settings-btn-sm settings-btn-accent" onClick={() => {
             localStorage.removeItem('loom_setup_done')
+            localStorage.removeItem('loom_tour_done')
             window.location.reload()
           }}>Replay</button>
         </div>

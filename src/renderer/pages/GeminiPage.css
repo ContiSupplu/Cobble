@@ -38,14 +38,14 @@
   padding: 7px 14px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   color: var(--text-1);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
-.gem-sidebar-new:hover { background: rgba(255, 255, 255, 0.08); }
+.gem-sidebar-new:hover { background: var(--glass-hover); }
 
 .gem-sidebar-toggle {
   display: flex;
@@ -59,7 +59,7 @@
   cursor: pointer;
   transition: all 0.15s;
 }
-.gem-sidebar-toggle:hover { background: rgba(255, 255, 255, 0.06); color: var(--text-1); }
+.gem-sidebar-toggle:hover { background: var(--glass-bg); color: var(--text-1); }
 
 .gem-sidebar-list {
   flex: 1;
@@ -77,8 +77,8 @@
   cursor: pointer;
   transition: all 0.12s;
 }
-.gem-sidebar-item:hover { background: rgba(255, 255, 255, 0.05); }
-.gem-sidebar-item.active { background: rgba(255, 255, 255, 0.08); }
+.gem-sidebar-item:hover { background: var(--glass-bg); }
+.gem-sidebar-item.active { background: var(--glass-hover); }
 .gem-sidebar-item-title {
   font-size: 12px;
   font-weight: 500;
@@ -107,7 +107,7 @@
   padding: 0;
 }
 .gem-sidebar-item:hover .gem-sidebar-item-delete { display: flex; }
-.gem-sidebar-item-delete:hover { color: #ef4444; background: rgba(239, 68, 68, 0.1); }
+.gem-sidebar-item-delete:hover { color: var(--red); background: rgba(239, 68, 68, 0.1); }
 .gem-sidebar-empty { text-align: center; padding: 24px 10px; font-size: 12px; color: var(--text-3); }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -127,7 +127,7 @@
   width: 32px; height: 32px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   color: var(--text-2);
   cursor: pointer;
   display: flex;
@@ -135,7 +135,7 @@
   justify-content: center;
   transition: all 0.15s;
 }
-.gem-sidebar-open-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-0); }
+.gem-sidebar-open-btn:hover { background: var(--glass-hover); color: var(--text-0); }
 
 /* â”€â”€ Header â”€â”€ */
 .gem-header {
@@ -174,14 +174,14 @@
   padding: 6px 14px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   color: var(--text-2);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.15s;
 }
-.gem-clear:hover, .gem-live-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-1); }
+.gem-clear:hover, .gem-live-btn:hover { background: var(--glass-hover); color: var(--text-1); }
 .gem-live-btn {
   border-color: rgba(66, 133, 244, 0.25);
   color: #4285F4;
@@ -262,13 +262,13 @@
 .gem-input-wrap {
   display: flex;
   align-items: center;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 999px;
   padding: 4px 6px 4px 16px;
   transition: border-color 0.2s, background 0.2s;
 }
-.gem-input-wrap:focus-within { border-color: rgba(255, 255, 255, 0.15); background: rgba(255, 255, 255, 0.08); }
+.gem-input-wrap:focus-within { border-color: rgba(255, 255, 255, 0.15); background: var(--glass-hover); }
 .gem-input-plus { font-size: 18px; font-weight: 300; color: var(--text-3); margin-right: 10px; user-select: none; flex-shrink: 0; }
 .gem-input {
   flex: 1;
@@ -342,7 +342,7 @@
   transition: all 0.2s;
   white-space: nowrap;
 }
-.gem-chip:hover { border-color: rgba(255, 255, 255, 0.18); background: rgba(255, 255, 255, 0.06); color: var(--text-1); }
+.gem-chip:hover { border-color: rgba(255, 255, 255, 0.18); background: var(--glass-bg); color: var(--text-1); }
 
 /* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
    MESSAGES
@@ -367,7 +367,7 @@
 }
 .gem-msg--user { justify-content: flex-end; padding: 8px 0; }
 .gem-msg--user .gem-msg-body {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
   border-radius: 20px 20px 4px 20px;
   padding: 12px 18px;
   max-width: 75%;
@@ -392,7 +392,7 @@
 .gem-inline-code {
   font-family: var(--font-mono);
   font-size: 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   padding: 2px 6px;
   border-radius: 4px;
   color: #a5b4fc;
@@ -432,7 +432,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   border-radius: 50%;
   flex-shrink: 0;
 }
@@ -448,7 +448,7 @@
   align-items: center;
   gap: 6px;
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 16px;
   backdrop-filter: blur(8px);
@@ -496,14 +496,14 @@
   padding: 6px 14px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   color: var(--text-2);
   font-size: 12px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
 }
-.gem-otg-btn:hover { background: rgba(255, 255, 255, 0.08); color: var(--text-1); }
+.gem-otg-btn:hover { background: var(--glass-hover); color: var(--text-1); }
 .gem-otg-btn.active {
   border-color: rgba(66, 133, 244, 0.4);
   background: linear-gradient(135deg, rgba(66, 133, 244, 0.15), rgba(155, 114, 203, 0.1));

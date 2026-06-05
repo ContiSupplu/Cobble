@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import './SplashScreen.css'
+import loomIconHires from '../assets/loom-icon-hires.png'
 
 interface SplashScreenProps {
   onComplete: () => void
@@ -8,25 +9,38 @@ interface SplashScreenProps {
 }
 
 export default function SplashScreen({ onComplete, quickLaunchEnabled, onQuickLaunch }: SplashScreenProps) {
-  const [progress, setProgress] = useState(0)
-  const [step, setStep] = useState('Starting up...')
-  const [fadeOut, setFadeOut] = useState(false)
-  const [loadingDone, setLoadingDone] = useState(false)
-  const smoothProgress = useRef(0)
-  const animFrame = useRef<number | null>(null)
+  const [state, setState] = useState<'idle' | 'in' | 'done'>('idle')
+  const [determinate, setDeterminate] = useState(false)
+  const [fillWidth, setFillWidth] = useState(0)
+  // Use refs to avoid stale closures in the preload effect
+  const doneRef = useRef(false)
+  const onCompleteRef = useRef(onComplete)
+  onCompleteRef.current = onComplete
 
-  // Listen for preload progress from main process
+  // Trigger entrance animation on mount
+  useEffect(() => {
+    requestAnimationFrame(() => setState('in'))
+  }, [])
+
+  // Stable complete function — no dependency on state, uses ref
+  const completeRef = useRef(() => {
+    if (doneRef.current) return
+    doneRef.current = true
+    setState('done')
+    setTimeout(() => {
+      onCompleteRef.current()
+    }, 400)
+  })
+
+  // Listen for preload progress from main process — runs ONCE on mount
   useEffect(() => {
     const api = (window as any).electronAPI
     const startTime = Date.now()
-    const MIN_DISPLAY_MS = 1800 // minimum time to show splash
+    const MIN_DISPLAY_MS = 800 // Just enough for the logo to register visually
 
     if (!api?.onPreloadProgress) {
-      // No API available — just fade out after a moment
-      const timer = setTimeout(() => {
-        setFadeOut(true)
-        setTimeout(onComplete, 800)
-      }, 1500)
+      // No API — brief hold then finish
+      const timer = setTimeout(() => completeRef.current(), 1500)
       return () => clearTimeout(timer)
     }
 
@@ -36,22 +50,20 @@ export default function SplashScreen({ onComplete, quickLaunchEnabled, onQuickLa
       const elapsed = Date.now() - startTime
       const remaining = Math.max(0, MIN_DISPLAY_MS - elapsed)
 
-      // Ensure bar reaches 100 before fading
-      smoothProgress.current = 100
+      // Fill bar to 100% before fading
+      setDeterminate(true)
+      setFillWidth(100)
 
       setTimeout(() => {
-        setLoadingDone(true)
-        // Always auto-proceed after loading completes
-        setTimeout(() => {
-          setFadeOut(true)
-          setTimeout(onComplete, 800)
-        }, 400)
-      }, remaining + 400) // 400ms extra to show full bar
+        completeRef.current()
+      }, remaining + 300)
     }
 
     const unsub = api.onPreloadProgress((data: { step: string; progress: number }) => {
-      setStep(data.step)
-      smoothProgress.current = data.progress
+      if (data.progress > 0 && data.progress < 100) {
+        setDeterminate(true)
+        setFillWidth(data.progress)
+      }
 
       if (data.progress >= 100 && !preloadDone) {
         preloadDone = true
@@ -59,104 +71,46 @@ export default function SplashScreen({ onComplete, quickLaunchEnabled, onQuickLa
       }
     })
 
-    // Fallback: if preload doesn't send 100% within 8s, proceed anyway
+    // Fallback: if preload doesn't complete within 4s, proceed anyway
     const fallback = setTimeout(() => {
       if (!preloadDone) {
         preloadDone = true
         finishSplash()
       }
-    }, 8000)
+    }, 4000)
 
     return () => {
       unsub?.()
       clearTimeout(fallback)
     }
-  }, [onComplete])
+  }, []) // Empty deps — runs once, uses refs for everything
 
-  // Smooth progress animation — fast enough to keep up
-  useEffect(() => {
-    const animate = () => {
-      setProgress(prev => {
-        const target = smoothProgress.current
-        const diff = target - prev
-        if (Math.abs(diff) < 0.3) return target
-        return prev + diff * 0.18
-      })
-      animFrame.current = requestAnimationFrame(animate)
-    }
-    animFrame.current = requestAnimationFrame(animate)
-    return () => {
-      if (animFrame.current) cancelAnimationFrame(animFrame.current)
-    }
-  }, [])
+  const stageClass = ['splash-stage', state].filter(Boolean).join(' ')
 
   return (
-    <div className={`splash ${fadeOut ? 'splash-fade-out' : ''}`}>
-      <video
-        className="splash-video"
-        src="./login-bg.mp4"
-        autoPlay
-        loop
-        muted
-        playsInline
+    <div id="splash-stage" className={stageClass}>
+      <img
+        className="splash-logo"
+        src={loomIconHires}
+        alt="Loom"
+        draggable={false}
       />
-      <div className="splash-overlay" />
 
-      {/* Floating particles */}
-      <div className="splash-particles">
-        {Array.from({ length: 20 }).map((_, i) => (
-          <div
-            key={i}
-            className="splash-particle"
-            style={{
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 6}s`,
-              animationDuration: `${6 + Math.random() * 8}s`,
-              opacity: 0.15 + Math.random() * 0.25,
-              width: `${2 + Math.random() * 3}px`,
-              height: `${2 + Math.random() * 3}px`,
-            }}
-          />
-        ))}
+      <div className={`splash-bar ${determinate ? 'determinate' : ''}`}>
+        <div className="splash-sweep" />
+        <div className="splash-fill" style={{ width: `${fillWidth}%` }} />
       </div>
 
-      {/* Center content */}
-      <div className="splash-content">
-        <div className="splash-logo-group">
-          <div className="splash-logo">Loom</div>
-          <div className="splash-tagline">Minecraft Launcher</div>
-        </div>
-
-        <div className="splash-progress-area">
-          <div className="splash-progress-track">
-            <div
-              className="splash-progress-fill"
-              style={{ width: `${progress}%` }}
-            />
-            <div
-              className="splash-progress-glow"
-              style={{ left: `${progress}%` }}
-            />
-          </div>
-          <div className="splash-step">
-            <span className="splash-step-text">{step}</span>
-            <span className="splash-step-pct">{Math.round(progress)}%</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="splash-credit">Credit: Roburrito DX</div>
-
-      {/* Quick Launch button — visible immediately when enabled */}
-      {quickLaunchEnabled && !fadeOut && (
+      {/* Quick Launch button */}
+      {quickLaunchEnabled && state !== 'done' && (
         <button
           className="splash-quick-launch"
           onClick={() => {
-            setFadeOut(true)
-            setTimeout(() => onQuickLaunch?.(), 800)
+            setState('done')
+            setTimeout(() => onQuickLaunch?.(), 400)
           }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <polygon points="5 3 19 12 5 21 5 3" />
           </svg>
           Quick Launch

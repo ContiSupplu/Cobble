@@ -54,7 +54,7 @@
   display: flex;
   gap: 4px;
   padding: 3px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
@@ -73,7 +73,7 @@
 }
 
 .changing-room-variant-btn.active {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass-hover);
   color: var(--text-0);
 }
 
@@ -88,7 +88,7 @@
   padding: 8px 20px;
   border-radius: 10px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   color: var(--text-1);
   font-size: 13px;
   font-weight: 500;
@@ -98,7 +98,7 @@
 }
 
 .changing-room-upload-btn:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-hover);
   border-color: rgba(255, 255, 255, 0.15);
   color: var(--text-0);
 }

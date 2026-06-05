@@ -47,7 +47,7 @@
 }
 
 .gallery-merge-toggle:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--glass-hover);
   border-color: rgba(255, 255, 255, 0.14);
   color: var(--text-0);
 }
@@ -81,8 +81,8 @@
 }
 
 .gallery-sort option {
-  background: #1a1a1e;
-  color: var(--text-0);
+  background: var(--bg-1);
+  color: #fff;
 }
 
 /* ── Filter Tabs ── */
@@ -115,7 +115,7 @@
 
 .gallery-tab.active {
   color: var(--text-0);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
   border-color: rgba(255, 255, 255, 0.15);
 }
 
@@ -123,7 +123,7 @@
   font-size: 10px;
   font-weight: 600;
   color: var(--text-3);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   padding: 1px 6px;
   border-radius: 6px;
   min-width: 18px;
@@ -131,7 +131,7 @@
 }
 
 .gallery-tab.active .gallery-tab-count {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-hover);
   color: var(--text-2);
 }
 
@@ -192,7 +192,7 @@
 .gallery-card {
   position: relative;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   backdrop-filter: blur(40px) saturate(80%);
   -webkit-backdrop-filter: blur(40px) saturate(80%);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -376,7 +376,7 @@
 }
 
 .gallery-card-edit:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--glass-hover);
   color: var(--text-0);
   border-color: rgba(255, 255, 255, 0.15);
 }
@@ -389,7 +389,7 @@
   justify-content: center;
   padding: 64px 24px;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   backdrop-filter: blur(40px) saturate(80%);
   -webkit-backdrop-filter: blur(40px) saturate(80%);
   border: 1px solid rgba(255, 255, 255, 0.06);
@@ -464,7 +464,7 @@
 }
 
 .gallery-ctx-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-hover);
 }
 
 .gallery-ctx-item.danger {
@@ -516,7 +516,7 @@
   width: 32px;
   height: 32px;
   border-radius: 8px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--text-0);
   cursor: pointer;
@@ -527,7 +527,7 @@
 }
 
 .gallery-player-close:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: var(--glass-hover);
 }
 
 .gallery-player-title {
@@ -655,14 +655,14 @@
 }
 
 .gallery-editor-close:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass-hover);
   color: var(--text-0);
 }
 
 .gallery-editor-section {
   padding: 14px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
@@ -802,7 +802,7 @@
   font-size: 11px;
   font-weight: 500;
   color: var(--text-2);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   border: 1px solid rgba(255, 255, 255, 0.06);
   cursor: pointer;
   text-align: center;
@@ -847,7 +847,7 @@
 .gallery-editor-status {
   font-size: 11px;
   font-weight: 500;
-  color: #4ade80;
+  color: var(--green);
   background: rgba(74, 222, 128, 0.08);
   padding: 8px 12px;
   border-radius: 8px;

@@ -1,596 +1,630 @@
+// ============================================================
+// Loom Setup Wizard — Phase 1
+// 5 screens · spring animations · purple/yellow brand palette
+// ============================================================
+
 import { useState, useCallback, useRef, useEffect } from 'react'
-import { useAuth } from '../context/AuthContext'
+import { useTheme } from '../context/ThemeContext'
+import loomIconHires from '../assets/loom-icon-hires.png'
+import minecraftIcon from '../assets/minecraft-icon.svg'
+import prismIcon from '../assets/prism-icon.svg'
+import curseforgeIcon from '../assets/curseforge-icon.svg'
 import './SetupWizard.css'
 
-interface SetupWizardProps {
-  onComplete: (settings: WizardSettings) => void
-}
+// ── Public types ─────────────────────────────────────────────
 
 export interface WizardSettings {
   ram: number
   dynamicIsland: boolean
   closeOnLaunch: boolean
   discordRPC: boolean
+  theme: 'loom' | 'midnight'
 }
 
-const TOTAL_SCREENS = 7
+// ── Constants ────────────────────────────────────────────────
 
-export default function SetupWizard({ onComplete }: SetupWizardProps) {
+const TOTAL_SCREENS = 5
+
+const RAM_STEPS = [2, 3, 4, 6, 8, 12, 16]
+const RAM_MIN = RAM_STEPS[0]
+const RAM_MAX = RAM_STEPS[RAM_STEPS.length - 1]
+const RAM_TICKS = [2, 4, 8, 12, 16]
+
+// ── SVG icons (inline, no deps) ──────────────────────────────
+
+function ArrowIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 5v14M19 12l-7 7-7-7" />
+    </svg>
+  )
+}
+
+function GearIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    </svg>
+  )
+}
+
+function MusicNoteIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 18V5l12-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="18" cy="16" r="3" />
+    </svg>
+  )
+}
+
+function SparkleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12 2l2.09 6.26L20 10l-5.91 1.74L12 18l-2.09-6.26L4 10l5.91-1.74L12 2z" />
+      <path d="M18 14l1.18 3.54L22.72 18.72l-3.54 1.18L18 23.44l-1.18-3.54L13.28 18.72l3.54-1.18L18 14z" opacity={0.6} />
+    </svg>
+  )
+}
+
+function GamepadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="6" width="20" height="12" rx="3" />
+      <path d="M8 6v12M12 10v4M6 12h4" />
+      <circle cx="17" cy="10" r="1" fill="currentColor" />
+      <circle cx="17" cy="14" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
+// ── Blobs background ─────────────────────────────────────────
+
+function BlobsBackground() {
+  return (
+    <div className="wizard-blobs">
+      <div className="wizard-blob wizard-blob--1" />
+      <div className="wizard-blob wizard-blob--2" />
+      <div className="wizard-blob wizard-blob--3" />
+    </div>
+  )
+}
+
+// ── Toggle switch ────────────────────────────────────────────
+
+function Toggle({ on, onToggle }: { on: boolean; onToggle: () => void }) {
+  return (
+    <button
+      type="button"
+      className={`wiz-toggle ${on ? 'wiz-toggle--on' : 'wiz-toggle--off'}`}
+      onClick={onToggle}
+      aria-pressed={on}
+    >
+      <span className="wiz-toggle-knob" />
+    </button>
+  )
+}
+
+// ── RAM Slider (index-based positioning) ─────────────────────
+
+function valueToIndex(val: number): number {
+  let closest = 0
+  let minDist = Math.abs(val - RAM_STEPS[0])
+  for (let i = 1; i < RAM_STEPS.length; i++) {
+    const dist = Math.abs(val - RAM_STEPS[i])
+    if (dist < minDist) {
+      minDist = dist
+      closest = i
+    }
+  }
+  return closest
+}
+
+function indexToPct(idx: number): number {
+  return (idx / (RAM_STEPS.length - 1)) * 100
+}
+
+function tickPct(tickVal: number): number {
+  const idx = RAM_STEPS.indexOf(tickVal)
+  if (idx === -1) return 0
+  return indexToPct(idx)
+}
+
+function RamSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const trackRef = useRef<HTMLDivElement>(null)
+  const dragging = useRef(false)
+
+  const pct = indexToPct(valueToIndex(value))
+
+  const updateFromEvent = useCallback((clientX: number) => {
+    const track = trackRef.current
+    if (!track) return
+    const rect = track.getBoundingClientRect()
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    // Map ratio to the nearest step index
+    const floatIdx = ratio * (RAM_STEPS.length - 1)
+    const snapIdx = Math.round(floatIdx)
+    onChange(RAM_STEPS[snapIdx])
+  }, [onChange])
+
+  const onPointerDown = useCallback((e: React.PointerEvent) => {
+    dragging.current = true
+    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
+    updateFromEvent(e.clientX)
+  }, [updateFromEvent])
+
+  const onPointerMove = useCallback((e: React.PointerEvent) => {
+    if (!dragging.current) return
+    updateFromEvent(e.clientX)
+  }, [updateFromEvent])
+
+  const onPointerUp = useCallback(() => {
+    dragging.current = false
+  }, [])
+
+  return (
+    <div className="ram-section">
+      <div className="ram-label-row">
+        <span className="ram-label">Memory (RAM)</span>
+        <span className="ram-value">{value} GB</span>
+      </div>
+      <div
+        className="ram-slider-track"
+        ref={trackRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+      >
+        <div className="ram-slider-fill" style={{ width: `${pct}%` }} />
+        <div className="ram-slider-thumb" style={{ left: `${pct}%` }} />
+      </div>
+      <div className="ram-ticks" style={{ position: 'relative', height: '18px', marginTop: '8px' }}>
+        {RAM_TICKS.map(t => (
+          <span
+            className="ram-tick"
+            key={t}
+            style={{
+              position: 'absolute',
+              left: `${tickPct(t)}%`,
+              transform: 'translateX(-50%)',
+            }}
+          >{t}</span>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Screen 0: Welcome ────────────────────────────────────────
+
+function WelcomeScreen({ onNext }: { onNext: () => void }) {
+  return (
+    <div className="wizard-fullscreen">
+      <BlobsBackground />
+      <div className="welcome-content">
+        <span className="welcome-to">Welcome to</span>
+        <span className="welcome-loom">Loom</span>
+        <div className="hello-get-started">
+          <button className="wiz-btn-pill" onClick={onNext}>
+            Get Started
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Screen 1: Migration ──────────────────────────────────────
+
+interface DetectedLauncher {
+  id: string
+  name: string
+  instanceCount: number
+}
+
+function LauncherIcon({ name }: { name: string }) {
+  const n = name.toLowerCase()
+  if (n.includes('minecraft') || n.includes('official') || n.includes('vanilla')) {
+    return <img className="migration-launcher-icon" src={minecraftIcon} alt="Minecraft" />
+  }
+  if (n.includes('prism')) {
+    return <img className="migration-launcher-icon" src={prismIcon} alt="Prism Launcher" />
+  }
+  if (n.includes('curse') || n.includes('forge') || n.includes('overwolf')) {
+    return (
+      <div className="migration-launcher-icon" style={{ background: '#F16436', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img src={curseforgeIcon} alt="CurseForge" style={{ width: '22px', height: '22px', filter: 'invert(1)' }} />
+      </div>
+    )
+  }
+  // Generic launcher icon
+  return (
+    <svg className="migration-launcher-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <rect x="7" y="7" width="4" height="4" rx="1" />
+      <rect x="13" y="7" width="4" height="4" rx="1" />
+      <rect x="7" y="13" width="4" height="4" rx="1" />
+      <rect x="13" y="13" width="4" height="4" rx="1" />
+    </svg>
+  )
+}
+
+function MigrationScreen() {
+  const [loading, setLoading] = useState(true)
+  const [launchers, setLaunchers] = useState<DetectedLauncher[]>([])
+  const [importing, setImporting] = useState<string | null>(null)
+  const [result, setResult] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const detect = async () => {
+      try {
+        const api = (window as any).electronAPI
+        const detected = await api.migrationDetect()
+        if (!cancelled) {
+          setLaunchers(detected || [])
+          setLoading(false)
+        }
+      } catch {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    detect()
+    return () => { cancelled = true }
+  }, [])
+
+  const handleImport = useCallback(async (id: string) => {
+    setImporting(id)
+    setResult(null)
+    try {
+      const api = (window as any).electronAPI
+      const res = await api.migrationImport(id)
+      setResult(res?.message || 'Import complete!')
+    } catch {
+      setResult('Import failed — you can try again later.')
+    } finally {
+      setImporting(null)
+    }
+  }, [])
+
+  return (
+    <>
+      <div className="wiz-icon-box wiz-icon-box--migration">
+        <ArrowIcon />
+      </div>
+      <h2 className="wiz-screen-heading">Transfer Your Data</h2>
+      <p className="wiz-screen-sub">Import worlds, mods, and settings from another launcher.</p>
+
+      <div className="migration-body">
+        {loading ? (
+          <div className="migration-status">
+            <div className="migration-spinner" />
+            <span>Scanning for launchers…</span>
+          </div>
+        ) : launchers.length === 0 ? (
+          <div className="migration-empty">Fresh start! You can skip this step.</div>
+        ) : (
+          <div className="wiz-glass-card">
+            {launchers.map(l => (
+              <div className="migration-launcher-row" key={l.id}>
+                <LauncherIcon name={l.name} />
+                <div className="migration-launcher-info">
+                  <div className="migration-launcher-name">{l.name}</div>
+                  <div className="migration-launcher-count">
+                    {l.instanceCount} instance{l.instanceCount !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <button
+                  className="wiz-btn-sm"
+                  disabled={importing !== null}
+                  onClick={() => handleImport(l.id)}
+                >
+                  {importing === l.id ? 'Importing…' : 'Import'}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {result && <div className="migration-result">{result}</div>}
+      </div>
+    </>
+  )
+}
+
+// ── Screen 2: Preferences ────────────────────────────────────
+
+function PreferencesScreen({
+  settings,
+  onUpdate,
+  onThemeChange,
+}: {
+  settings: WizardSettings
+  onUpdate: (patch: Partial<WizardSettings>) => void
+  onThemeChange: (theme: 'loom' | 'midnight') => void
+}) {
+  return (
+    <>
+      <div className="wiz-icon-box wiz-icon-box--prefs">
+        <GearIcon />
+      </div>
+      <h2 className="wiz-screen-heading">Make It Yours</h2>
+      <p className="wiz-screen-sub">You can always change these later in Settings.</p>
+
+      <div className="prefs-body">
+        <div className="wiz-glass-card">
+          <RamSlider value={settings.ram} onChange={v => onUpdate({ ram: v })} />
+
+          <div className="prefs-separator" />
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-name">Dynamic Island</div>
+              <div className="setting-desc">Floating status bar for downloads &amp; tasks</div>
+            </div>
+            <Toggle on={settings.dynamicIsland} onToggle={() => onUpdate({ dynamicIsland: !settings.dynamicIsland })} />
+          </div>
+
+          <div className="prefs-separator" />
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-name">Discord Rich Presence</div>
+              <div className="setting-desc">Show what you're playing on Discord</div>
+            </div>
+            <Toggle on={settings.discordRPC} onToggle={() => onUpdate({ discordRPC: !settings.discordRPC })} />
+          </div>
+
+          <div className="prefs-separator" />
+
+          <div className="setting-row">
+            <div className="setting-text">
+              <div className="setting-name">Close on Game Start</div>
+              <div className="setting-desc">Hide launcher when Minecraft launches</div>
+            </div>
+            <Toggle on={settings.closeOnLaunch} onToggle={() => onUpdate({ closeOnLaunch: !settings.closeOnLaunch })} />
+          </div>
+        </div>
+
+        {/* Theme Picker */}
+        <div className="theme-picker">
+          <div className="theme-picker-label">Choose Your Look</div>
+          <div className="theme-picker-row">
+            <div
+              className={`theme-card theme-card--loom ${settings.theme === 'loom' ? 'selected' : ''}`}
+              onClick={() => { onUpdate({ theme: 'loom' }); onThemeChange('loom') }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter') { onUpdate({ theme: 'loom' }); onThemeChange('loom') } }}
+            >
+              <div className="theme-card-inner">
+                <div className="theme-card-stripe" />
+                <div className="theme-card-preview">
+                  <div className="theme-card-bar" />
+                  <div className="theme-card-bar" />
+                  <div className="theme-card-bar" />
+                </div>
+                <span className="theme-card-name">Loom</span>
+              </div>
+            </div>
+
+            <div
+              className={`theme-card theme-card--midnight ${settings.theme === 'midnight' ? 'selected' : ''}`}
+              onClick={() => { onUpdate({ theme: 'midnight' }); onThemeChange('midnight') }}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => { if (e.key === 'Enter') { onUpdate({ theme: 'midnight' }); onThemeChange('midnight') } }}
+            >
+              <div className="theme-card-inner">
+                <div className="theme-card-stripe" />
+                <div className="theme-card-preview">
+                  <div className="theme-card-bar" />
+                  <div className="theme-card-bar" />
+                  <div className="theme-card-bar" />
+                </div>
+                <span className="theme-card-name">Midnight</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── Screen 3: Feature Preview ────────────────────────────────
+
+function FeaturePreviewScreen() {
+  return (
+    <>
+      <h2 className="wiz-screen-heading">More Than a Launcher</h2>
+      <p className="wiz-screen-sub">Here's a taste of what Loom can do.</p>
+
+      <div className="feature-body">
+        <div className="feature-cards">
+          <div className="feature-card feature-card--music">
+            <div className="feature-card-icon"><MusicNoteIcon /></div>
+            <div className="feature-card-title">Music</div>
+            <div className="feature-card-desc">Spotify in your game</div>
+          </div>
+          <div className="feature-card feature-card--ai">
+            <div className="feature-card-icon"><SparkleIcon /></div>
+            <div className="feature-card-title">Loomie</div>
+            <div className="feature-card-desc">Your AI companion</div>
+          </div>
+          <div className="feature-card feature-card--bedrock">
+            <div className="feature-card-icon"><GamepadIcon /></div>
+            <div className="feature-card-title">Bedrock</div>
+            <div className="feature-card-desc">Java + Bedrock</div>
+          </div>
+        </div>
+        <div className="feature-bottom-text">We'll show you around inside</div>
+      </div>
+    </>
+  )
+}
+
+// ── Screen 4: Transition ─────────────────────────────────────
+
+function TransitionScreen({ onEnter }: { onEnter: () => void }) {
+  return (
+    <div className="wizard-fullscreen">
+      <BlobsBackground />
+      <div className="transition-content">
+        <img src={loomIconHires} alt="Loom" className="transition-logo-img" />
+        <h2 className="transition-heading">Ready to explore.</h2>
+        <p className="transition-sub">Your launcher awaits.</p>
+        <div className="transition-cta">
+          <button className="wiz-btn-pill wiz-btn-pill--large" onClick={onEnter}>
+            Enter Loom
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Wizard screen transition wrapper ─────────────────────────
+
+function WizardScreenWrap({
+  screenIndex,
+  direction,
+  children,
+}: {
+  screenIndex: number
+  direction: 'right' | 'left'
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      key={screenIndex}
+      className={`wizard-screen enter-${direction}`}
+    >
+      {children}
+    </div>
+  )
+}
+
+// ── Main component ───────────────────────────────────────────
+
+export default function SetupWizard({ onComplete }: { onComplete: (settings: WizardSettings) => void }) {
+  const { setTheme: applyTheme } = useTheme()
   const [screen, setScreen] = useState(0)
-  const [prevScreen, setPrevScreen] = useState(-1)
+  const [direction, setDirection] = useState<'right' | 'left'>('right')
   const [exiting, setExiting] = useState(false)
+  const [prevScreen, setPrevScreen] = useState<number | null>(null)
+  const [prevDirection, setPrevDirection] = useState<'right' | 'left'>('right')
 
-  const [ram, setRam] = useState(4)
-  const [dynamicIsland, setDynamicIsland] = useState(true)
-  const [closeOnLaunch, setCloseOnLaunch] = useState(false)
-  const [discordRPC, setDiscordRPC] = useState(true)
+  const [settings, setSettings] = useState<WizardSettings>({
+    ram: 4,
+    dynamicIsland: true,
+    closeOnLaunch: false,
+    discordRPC: true,
+    theme: 'loom',
+  })
 
-  const finish = useCallback((settings: WizardSettings) => {
-    setExiting(true)
-    setTimeout(() => onComplete(settings), 800)
-  }, [onComplete])
+  const updateSettings = useCallback((patch: Partial<WizardSettings>) => {
+    setSettings(prev => ({ ...prev, ...patch }))
+  }, [])
+
+  const handleThemeChange = useCallback((theme: 'loom' | 'midnight') => {
+    applyTheme(theme)
+  }, [applyTheme])
 
   const goTo = useCallback((target: number) => {
+    const dir = target > screen ? 'right' : 'left'
     setPrevScreen(screen)
+    setPrevDirection(dir === 'right' ? 'left' : 'right')
+    setDirection(dir)
     setScreen(target)
   }, [screen])
 
   const next = useCallback(() => {
-    if (screen >= TOTAL_SCREENS - 1) {
-      finish({ ram, dynamicIsland, closeOnLaunch, discordRPC })
-    } else {
-      goTo(screen + 1)
-    }
-  }, [screen, ram, dynamicIsland, closeOnLaunch, discordRPC, finish, goTo])
+    if (screen < TOTAL_SCREENS - 1) goTo(screen + 1)
+  }, [screen, goTo])
 
   const back = useCallback(() => {
     if (screen > 0) goTo(screen - 1)
   }, [screen, goTo])
 
-  // Show footer on screens 1-4 (not hello or allset)
-  const showFooter = screen > 0 && screen < TOTAL_SCREENS - 1
+  const finish = useCallback(() => {
+    setExiting(true)
+    setTimeout(() => onComplete(settings), 780)
+  }, [settings, onComplete])
 
-  return (
-    <div className={`wizard ${exiting ? 'wizard-exit' : ''}`}>
-      <div className="wizard-stage">
-        {/* Screen 0: Hello */}
-        <WizardScreen index={0} current={screen} prev={prevScreen}>
-          <HelloScreen onContinue={next} isActive={screen === 0} />
-        </WizardScreen>
+  const showFooter = screen >= 1 && screen <= 3
 
-        {/* Screen 1: What's New */}
-        <WizardScreen index={1} current={screen} prev={prevScreen}>
-          <WhatsNewScreen />
-        </WizardScreen>
-
-        {/* Screen 2: Meet Loomie */}
-        <WizardScreen index={2} current={screen} prev={prevScreen}>
-          <MeetLoomieScreen />
-        </WizardScreen>
-
-        {/* Screen 3: Sign In */}
-        <WizardScreen index={3} current={screen} prev={prevScreen}>
-          <SignInScreen onNext={next} isActive={screen === 3} />
-        </WizardScreen>
-
-        {/* Screen 4: Transfer Data (Migration) */}
-        <WizardScreen index={4} current={screen} prev={prevScreen}>
-          <MigrationScreen isActive={screen === 4} />
-        </WizardScreen>
-
-        {/* Screen 5: Preferences */}
-        <WizardScreen index={5} current={screen} prev={prevScreen}>
-          <PreferencesScreen
-            ram={ram} onRamChange={setRam}
-            dynamicIsland={dynamicIsland} onDynamicIslandChange={setDynamicIsland}
-            discordRPC={discordRPC} onDiscordRPCChange={setDiscordRPC}
-            closeOnLaunch={closeOnLaunch} onCloseOnLaunchChange={setCloseOnLaunch}
-          />
-        </WizardScreen>
-
-        {/* Screen 6: All Set */}
-        <WizardScreen index={6} current={screen} prev={prevScreen}>
-          <AllSetScreen onFinish={() => finish({ ram, dynamicIsland, closeOnLaunch, discordRPC })} />
-        </WizardScreen>
-      </div>
-
-      {/* Footer */}
-      {showFooter && (
-        <div className="wizard-footer">
-          <div className="wizard-dots">
-            {Array.from({ length: TOTAL_SCREENS }).map((_, i) => (
-              <div key={i} className={`wizard-dot${i === screen ? ' active' : i < screen ? ' done' : ''}`} />
-            ))}
-          </div>
-          <div className="wizard-nav">
-            <button className="wizard-nav-back" onClick={back}>Back</button>
-            <button className="wizard-nav-continue" onClick={next}>Continue</button>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/* ── Screen wrapper with directional transitions ── */
-function WizardScreen({ index, current, prev, children }: {
-  index: number; current: number; prev: number; children: React.ReactNode
-}) {
-  const isActive = index === current
-  const wasActive = index === prev
-  const goingForward = current > prev
-
-  let className = 'wz-screen'
-  if (isActive) className += ' wz-screen-enter' + (goingForward ? '-right' : '-left')
-  else if (wasActive) className += ' wz-screen-exit' + (goingForward ? '-left' : '-right')
-  else className += ' wz-screen-hidden'
-
-  return <div className={className}>{children}</div>
-}
-
-
-/* ═══════════════════════════════════════════════════
-   Screen 0: Hello
-   ═══════════════════════════════════════════════════ */
-
-function HelloScreen({ onContinue, isActive }: { onContinue: () => void; isActive: boolean }) {
-  const [phase, setPhase] = useState<'hello' | 'welcome'>('hello')
-
-  useEffect(() => {
-    if (!isActive) { setPhase('hello'); return }
-    const t = setTimeout(() => setPhase('welcome'), 2400)
-    return () => clearTimeout(t)
-  }, [isActive])
-
-  return (
-    <div className="hello">
-      {/* Organic gradient blobs */}
-      <div className="hello-blob hello-blob-1" />
-      <div className="hello-blob hello-blob-2" />
-      <div className="hello-blob hello-blob-3" />
-
-      <div className="hello-center">
-        <div className={`hello-script ${phase === 'welcome' ? 'hello-script-out' : ''}`}>
-          hello
-        </div>
-
-        <div className={`hello-title ${phase === 'welcome' ? 'hello-title-in' : ''}`}>
-          <span className="hello-title-text">Welcome to</span>
-          <span className="hello-title-brand">Loom</span>
-        </div>
-      </div>
-
-      <div className={`hello-action ${phase === 'welcome' ? 'hello-action-in' : ''}`}>
-        <button className="wz-btn-hero" onClick={onContinue}>Get Started</button>
-      </div>
-    </div>
-  )
-}
-
-
-/* ═══════════════════════════════════════════════════
-   Screen 1: What's New
-   ═══════════════════════════════════════════════════ */
-
-function WhatsNewScreen() {
-  return (
-    <div className="wz-content">
-      <div className="wz-content-inner">
-        <div className="wz-icon-wrap">
-          <svg viewBox="0 0 56 56" className="wz-icon-svg">
-            <defs>
-              <linearGradient id="iconGrad1" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#5e5ce6" />
-                <stop offset="100%" stopColor="#bf5af2" />
-              </linearGradient>
-            </defs>
-            <rect width="56" height="56" rx="14" fill="url(#iconGrad1)" />
-            <path d="M18 38V24l10-8 10 8v14H18z" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            <path d="M24 38v-8h8v8" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <h1 className="wz-heading">What's New</h1>
-        <p className="wz-subheading">A Minecraft launcher, reimagined.</p>
-
-        <div className="wz-features">
-          <div className="wz-feature">
-            <div className="wz-feature-icon">
-              <svg viewBox="0 0 32 32"><defs><linearGradient id="f1" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#0a84ff" /><stop offset="100%" stopColor="#5e5ce6" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f1)" /><rect x="9" y="12" width="14" height="8" rx="4" fill="white" /></svg>
-            </div>
-            <div className="wz-feature-text">
-              <div className="wz-feature-name">Dynamic Island</div>
-              <div className="wz-feature-desc">A living HUD that follows your game — health, coordinates, music, and more.</div>
-            </div>
-          </div>
-
-          <div className="wz-feature">
-            <div className="wz-feature-icon">
-              <svg viewBox="0 0 32 32"><defs><linearGradient id="f2" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#bf5af2" /><stop offset="100%" stopColor="#ff375f" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f2)" /><circle cx="16" cy="16" r="5" fill="white" /><circle cx="16" cy="16" r="8" fill="none" stroke="white" strokeWidth="1.5" opacity="0.6" /></svg>
-            </div>
-            <div className="wz-feature-text">
-              <div className="wz-feature-name">Loomie AI</div>
-              <div className="wz-feature-desc">Your Minecraft companion — knows every recipe, every mob, every trick.</div>
-            </div>
-          </div>
-
-          <div className="wz-feature">
-            <div className="wz-feature-icon">
-              <svg viewBox="0 0 32 32"><defs><linearGradient id="f3" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#30d158" /><stop offset="100%" stopColor="#0a84ff" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f3)" /><rect x="10" y="11" width="12" height="10" rx="2" fill="white" /><rect x="12" y="14" width="8" height="1.5" rx="0.75" fill="url(#f3)" /><rect x="12" y="17" width="5" height="1.5" rx="0.75" fill="url(#f3)" /></svg>
-            </div>
-            <div className="wz-feature-text">
-              <div className="wz-feature-name">Smart Library</div>
-              <div className="wz-feature-desc">Create instances, browse mods, and manage everything in one place.</div>
-            </div>
-          </div>
-
-          <div className="wz-feature">
-            <div className="wz-feature-icon">
-              <svg viewBox="0 0 32 32"><defs><linearGradient id="f4" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#f59e0b" /><stop offset="100%" stopColor="#ef4444" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f4)" /><rect x="10" y="10" width="12" height="12" rx="3" fill="white" /><path d="M14 14h4v4h-4z" fill="url(#f4)" /></svg>
-            </div>
-            <div className="wz-feature-text">
-              <div className="wz-feature-name">Quick Servers</div>
-              <div className="wz-feature-desc">Host your own Minecraft server with one click, right from Loom.</div>
-            </div>
-          </div>
-
-          <div className="wz-feature">
-            <div className="wz-feature-icon">
-              <svg viewBox="0 0 32 32"><defs><linearGradient id="f5" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse"><stop offset="0%" stopColor="#10b981" /><stop offset="100%" stopColor="#059669" /></linearGradient></defs><circle cx="16" cy="16" r="14" fill="url(#f5)" /><path d="M11 16l3 3 7-7" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            </div>
-            <div className="wz-feature-text">
-              <div className="wz-feature-name">Bedrock Edition</div>
-              <div className="wz-feature-desc">Launch and manage Minecraft Bedrock, browse add-ons, all in one place.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-/* ═══════════════════════════════════════════════════
-   Screen 2: Meet Loomie
-   ═══════════════════════════════════════════════════ */
-
-function MeetLoomieScreen() {
-  return (
-    <div className="wz-content">
-      <div className="wz-content-inner wz-loomie">
-        <div className="loomie-glow">
-          <div className="loomie-orb" />
-        </div>
-        <h1 className="wz-heading">Meet Loomie</h1>
-        <p className="wz-subheading">Your personal Minecraft companion,<br />powered by Gemini.</p>
-
-        <div className="loomie-caps">
-          <div className="loomie-cap">
-            <div className="loomie-cap-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4l3 3" /></svg>
-            </div>
-            <div>
-              <div className="loomie-cap-title">Encyclopedic knowledge</div>
-              <div className="loomie-cap-desc">Every recipe, every mob stat, every redstone mechanic — instant answers.</div>
-            </div>
-          </div>
-          <div className="loomie-cap">
-            <div className="loomie-cap-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
-            </div>
-            <div>
-              <div className="loomie-cap-title">Natural conversation</div>
-              <div className="loomie-cap-desc">Ask anything the way you'd ask a friend. Loomie responds naturally.</div>
-            </div>
-          </div>
-          <div className="loomie-cap">
-            <div className="loomie-cap-icon">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z" /></svg>
-            </div>
-            <div>
-              <div className="loomie-cap-title">Launcher actions</div>
-              <div className="loomie-cap-desc">Install mods, create instances, adjust settings — all by asking.</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-/* ═══════════════════════════════════════════════════
-   Screen 3: Sign In
-   ═══════════════════════════════════════════════════ */
-
-function SignInScreen({ onNext, isActive }: { onNext: () => void; isActive: boolean }) {
-  const { addAccount, isAuthenticated, user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [signedIn, setSignedIn] = useState(false)
-  const autoAdvanced = useRef(false)
-
-  const handleSignIn = useCallback(async () => {
-    setLoading(true)
-    try { await addAccount() } catch { /* */ }
-    finally { setLoading(false) }
-  }, [addAccount])
-
-  useEffect(() => {
-    if (isActive && isAuthenticated && !autoAdvanced.current) {
-      setSignedIn(true)
-      autoAdvanced.current = true
-      const t = setTimeout(onNext, 1500)
-      return () => clearTimeout(t)
+  // Render the active screen
+  const renderScreen = (idx: number) => {
+    switch (idx) {
+      case 0:
+        return <WelcomeScreen onNext={next} />
+      case 1:
+        return <MigrationScreen />
+      case 2:
+        return <PreferencesScreen settings={settings} onUpdate={updateSettings} onThemeChange={handleThemeChange} />
+      case 3:
+        return <FeaturePreviewScreen />
+      case 4:
+        return <TransitionScreen onEnter={finish} />
+      default:
+        return null
     }
-  }, [isActive, isAuthenticated, onNext])
+  }
 
-  useEffect(() => {
-    if (!isActive) { autoAdvanced.current = false; setSignedIn(false) }
-  }, [isActive])
+  // Determine exit direction for previous screen
+  const exitDir = prevDirection === 'left' ? 'left' : 'right'
 
   return (
-    <div className="wz-content">
-      <div className="wz-content-inner">
-        <div className="wz-icon-wrap">
-          <svg viewBox="0 0 56 56" className="wz-icon-svg">
-            <rect width="56" height="56" rx="14" fill="#1a1a1e" />
-            <g transform="translate(15, 15)">
-              <rect x="0" y="0" width="12" height="12" fill="#F25022" rx="1.5" />
-              <rect x="14" y="0" width="12" height="12" fill="#7FBA00" rx="1.5" />
-              <rect x="0" y="14" width="12" height="12" fill="#00A4EF" rx="1.5" />
-              <rect x="14" y="14" width="12" height="12" fill="#FFB900" rx="1.5" />
-            </g>
-          </svg>
-        </div>
-        <h1 className="wz-heading">Sign in with Microsoft</h1>
-        <p className="wz-subheading">Connect your Minecraft account to get started.</p>
-
-        {signedIn ? (
-          <div className="signin-done">
-            <div className="signin-check">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
-            </div>
-            <div className="signin-done-name">{user?.displayName || user?.username}</div>
-          </div>
-        ) : (
-          <div className="signin-actions">
-            <button className={`wz-btn-primary signin-main ${loading ? 'loading' : ''}`} onClick={handleSignIn} disabled={loading}>
-              {loading ? <><span className="wz-spinner" />Signing in…</> : 'Sign In'}
-            </button>
-            <button className="wz-btn-text" onClick={onNext}>Set Up Later</button>
+    <div className={`setup-wizard ${exiting ? 'wizard-exiting' : ''} ${settings.theme === 'midnight' ? 'wizard-midnight' : ''}`}>
+      <div className="wizard-screen-wrapper">
+        {/* Exiting screen */}
+        {prevScreen !== null && (
+          <div
+            key={`exit-${prevScreen}`}
+            className={`wizard-screen exit-${exitDir}`}
+            onAnimationEnd={() => setPrevScreen(null)}
+          >
+            {renderScreen(prevScreen)}
           </div>
         )}
+
+        {/* Active screen */}
+        {screen === 0 || screen === 4 ? (
+          // Fullscreen screens render directly (no wrapper padding)
+          <div key={`screen-${screen}`} className={`wizard-screen enter-${direction}`}>
+            {renderScreen(screen)}
+          </div>
+        ) : (
+          <WizardScreenWrap screenIndex={screen} direction={direction}>
+            {renderScreen(screen)}
+          </WizardScreenWrap>
+        )}
       </div>
-    </div>
-  )
-}
 
+      {/* Footer with dots and nav */}
+      {showFooter && (
+        <div className="wizard-footer">
+          <button className="wiz-btn-text" onClick={back}>
+            Back
+          </button>
 
-/* ═══════════════════════════════════════════════════
-   Screen 4: Preferences
-   ═══════════════════════════════════════════════════ */
+          <div className="wizard-dots">
+            {Array.from({ length: TOTAL_SCREENS }, (_, i) => {
+              let cls = 'wizard-dot '
+              if (i === screen) cls += 'wizard-dot--active'
+              else if (i < screen) cls += 'wizard-dot--done'
+              else cls += 'wizard-dot--upcoming'
+              return <div key={i} className={cls} />
+            })}
+          </div>
 
-interface PrefsProps {
-  ram: number; onRamChange: (v: number) => void
-  dynamicIsland: boolean; onDynamicIslandChange: (v: boolean) => void
-  discordRPC: boolean; onDiscordRPCChange: (v: boolean) => void
-  closeOnLaunch: boolean; onCloseOnLaunchChange: (v: boolean) => void
-}
-
-function PreferencesScreen({ ram, onRamChange, dynamicIsland, onDynamicIslandChange, discordRPC, onDiscordRPCChange, closeOnLaunch, onCloseOnLaunchChange }: PrefsProps) {
-  return (
-    <div className="wz-content">
-      <div className="wz-content-inner">
-        <div className="wz-icon-wrap">
-          <svg viewBox="0 0 56 56" className="wz-icon-svg">
-            <defs>
-              <linearGradient id="prefsGrad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#636366" />
-                <stop offset="100%" stopColor="#48484a" />
-              </linearGradient>
-            </defs>
-            <rect width="56" height="56" rx="14" fill="url(#prefsGrad)" />
-            <circle cx="28" cy="28" r="10" fill="none" stroke="white" strokeWidth="2" />
-            <circle cx="28" cy="28" r="4" fill="white" />
-            <line x1="28" y1="12" x2="28" y2="18" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            <line x1="28" y1="38" x2="28" y2="44" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            <line x1="12" y1="28" x2="18" y2="28" stroke="white" strokeWidth="2" strokeLinecap="round" />
-            <line x1="38" y1="28" x2="44" y2="28" stroke="white" strokeWidth="2" strokeLinecap="round" />
-          </svg>
+          <button className="wiz-btn-pill" onClick={next}>
+            Continue
+          </button>
         </div>
-        <h1 className="wz-heading">Make It Yours</h1>
-        <p className="wz-subheading">You can always change these later in Settings.</p>
-
-        <div className="prefs-group">
-          <RamSlider value={ram} onChange={onRamChange} />
-
-          <div className="prefs-sep" />
-
-          <label className="prefs-row" onClick={() => onDynamicIslandChange(!dynamicIsland)}>
-            <div className="prefs-row-info">
-              <span className="prefs-row-name">Dynamic Island</span>
-              <span className="prefs-row-desc">Apple‑style HUD overlay in Minecraft</span>
-            </div>
-            <div className={`prefs-toggle ${dynamicIsland ? 'on' : ''}`}><div className="prefs-toggle-knob" /></div>
-          </label>
-
-          <label className="prefs-row" onClick={() => onDiscordRPCChange(!discordRPC)}>
-            <div className="prefs-row-info">
-              <span className="prefs-row-name">Discord Rich Presence</span>
-              <span className="prefs-row-desc">Show what you're playing on Discord</span>
-            </div>
-            <div className={`prefs-toggle ${discordRPC ? 'on' : ''}`}><div className="prefs-toggle-knob" /></div>
-          </label>
-
-          <label className="prefs-row" onClick={() => onCloseOnLaunchChange(!closeOnLaunch)}>
-            <div className="prefs-row-info">
-              <span className="prefs-row-name">Close on Game Start</span>
-              <span className="prefs-row-desc">Free up resources while you play</span>
-            </div>
-            <div className={`prefs-toggle ${closeOnLaunch ? 'on' : ''}`}><div className="prefs-toggle-knob" /></div>
-          </label>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-/* ═══════════════════════════════════════════════════
-   Screen 4: Transfer Data (Migration)
-   ═══════════════════════════════════════════════════ */
-
-const api = (window as any).electronAPI
-
-function MigrationScreen({ isActive }: { isActive: boolean }) {
-  const [launchers, setLaunchers] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<string | null>(null)
-  const [selected, setSelected] = useState<Record<string, boolean>>({})
-  const detected = useRef(false)
-
-  useEffect(() => {
-    if (!isActive || detected.current) return
-    detected.current = true
-    setLoading(true)
-    api?.migrationDetect?.().then((result: any[]) => {
-      setLaunchers(result || [])
-      // Auto-select all detected launchers
-      const sel: Record<string, boolean> = {}
-      ;(result || []).forEach((l: any) => { sel[l.name] = true })
-      setSelected(sel)
-    }).catch(() => {}).finally(() => setLoading(false))
-  }, [isActive])
-
-  const handleImport = async (launcher: any) => {
-    setImporting(true)
-    try {
-      await api?.migrationImport?.(launcher.type, launcher.path, {
-        worlds: true, mods: true, resourcePacks: true, settings: true
-      })
-      setImportResult(`Imported data from ${launcher.name}`)
-    } catch (e: any) {
-      setImportResult(`Failed: ${e.message}`)
-    }
-    setImporting(false)
-  }
-
-  return (
-    <div className="wz-content">
-      <div className="wz-content-inner">
-        <div className="wz-icon-wrap">
-          <svg viewBox="0 0 56 56" className="wz-icon-svg">
-            <defs>
-              <linearGradient id="migrateGrad" x1="0" y1="0" x2="56" y2="56" gradientUnits="userSpaceOnUse">
-                <stop offset="0%" stopColor="#0a84ff" />
-                <stop offset="100%" stopColor="#30d158" />
-              </linearGradient>
-            </defs>
-            <rect width="56" height="56" rx="14" fill="url(#migrateGrad)" />
-            <path d="M18 28h20M30 20l8 8-8 8" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <h1 className="wz-heading">Transfer Your Data</h1>
-        <p className="wz-subheading">Import worlds, mods, and settings from another launcher.</p>
-
-        <div className="prefs-group">
-          {loading ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#a1a1a6', fontSize: 13 }}>
-              <span className="wz-spinner" style={{ marginRight: 8 }} />
-              Scanning for launchers...
-            </div>
-          ) : launchers.length === 0 ? (
-            <div style={{ padding: '20px', textAlign: 'center', color: '#a1a1a6', fontSize: 13 }}>
-              No other launchers detected. You can skip this step.
-            </div>
-          ) : (
-            <>
-              {launchers.map((l: any) => (
-                <label key={l.name} className="prefs-row" onClick={() => handleImport(l)} style={{ cursor: importing ? 'wait' : 'pointer' }}>
-                  <div className="prefs-row-info">
-                    <span className="prefs-row-name">{l.name}</span>
-                    <span className="prefs-row-desc">{l.instanceCount || 0} instance{l.instanceCount !== 1 ? 's' : ''} found</span>
-                  </div>
-                  <div className="prefs-row-info" style={{ textAlign: 'right', opacity: 0.6, fontSize: 11 }}>
-                    Import
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginLeft: 4 }}>
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </div>
-                </label>
-              ))}
-              {importResult && (
-                <div style={{ padding: '12px 16px', fontSize: 12, color: '#30d158', textAlign: 'center' }}>
-                  {importResult}
-                </div>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-
-/* ═══════════════════════════════════════════════════
-   Screen 5: All Set
-   ═══════════════════════════════════════════════════ */
-
-function AllSetScreen({ onFinish }: { onFinish: () => void }) {
-  return (
-    <div className="allset">
-      <div className="allset-blob allset-blob-1" />
-      <div className="allset-blob allset-blob-2" />
-      <div className="allset-blob allset-blob-3" />
-      <div className="allset-center">
-        <h1 className="allset-heading">You're all set.</h1>
-        <p className="allset-sub">Loom is ready. Let's play.</p>
-        <button className="wz-btn-hero" onClick={onFinish}>Get Started</button>
-      </div>
-    </div>
-  )
-}
-
-
-/* ═══════════════════════════════════════════════════
-   RAM Slider
-   ═══════════════════════════════════════════════════ */
-
-function RamSlider({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const trackRef = useRef<HTMLDivElement>(null)
-  const dragging = useRef(false)
-  const min = 2, max = 16
-  const pct = ((value - min) / (max - min)) * 100
-
-  const update = (x: number) => {
-    const r = trackRef.current?.getBoundingClientRect()
-    if (!r) return
-    const ratio = Math.max(0, Math.min(1, (x - r.left) / r.width))
-    onChange(Math.round(ratio * (max - min) + min))
-  }
-
-  useEffect(() => {
-    const move = (e: MouseEvent) => { if (dragging.current) update(e.clientX) }
-    const up = () => { dragging.current = false }
-    window.addEventListener('mousemove', move)
-    window.addEventListener('mouseup', up)
-    return () => { window.removeEventListener('mousemove', move); window.removeEventListener('mouseup', up) }
-  }, []) // eslint-disable-line
-
-  return (
-    <div className="ram-slider">
-      <div className="ram-header">
-        <span className="ram-label">Allocated Memory</span>
-        <span className="ram-value">{value} GB</span>
-      </div>
-      <div className="ram-track" ref={trackRef} onMouseDown={e => { dragging.current = true; update(e.clientX); e.preventDefault() }}>
-        <div className="ram-fill" style={{ width: `${pct}%` }} />
-        <div className="ram-thumb" style={{ left: `${pct}%` }} />
-      </div>
-      <div className="ram-ticks">
-        <span>2 GB</span><span>4</span><span>8</span><span>12</span><span>16 GB</span>
-      </div>
+      )}
     </div>
   )
 }

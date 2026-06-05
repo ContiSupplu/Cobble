@@ -28,15 +28,13 @@
   height: 38px;
   padding: 0 16px;
   border-radius: 100px;
-  background: #000;
+  background: var(--di-bg, #000);
   cursor: pointer;
   overflow: hidden;
   position: relative;
   isolation: isolate;
 
-  box-shadow:
-    0 3px 16px rgba(0, 0, 0, 0.45),
-    0 1px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--di-shadow, 0 3px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3));
 
   transition:
     min-width 0.6s cubic-bezier(0.34, 1.56, 0.64, 1),
@@ -48,8 +46,8 @@
 
 .di-pill:hover {
   box-shadow:
-    0 5px 22px rgba(0, 0, 0, 0.55),
-    0 1px 3px rgba(0, 0, 0, 0.3);
+    var(--di-shadow, 0 5px 22px rgba(0, 0, 0, 0.55), 0 1px 3px rgba(0, 0, 0, 0.3));
+  filter: brightness(1.05);
 }
 
 .di-pill:active {
@@ -225,7 +223,7 @@
   font-family: var(--font-sans);
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--di-text, rgba(255, 255, 255, 0.6));
   letter-spacing: 0.03em;
 }
 
@@ -269,7 +267,7 @@
   font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--di-text, rgba(255, 255, 255, 0.85));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -278,7 +276,7 @@
 }
 
 .di-label-dim {
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--di-text-dim, rgba(255, 255, 255, 0.5));
   font-size: 11.5px;
   transition: opacity 0.2s ease;
 }
@@ -330,7 +328,7 @@
 .di-progress-pct {
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--di-text-dim, rgba(255, 255, 255, 0.4));
   flex-shrink: 0;
   min-width: 30px;
   text-align: right;
@@ -405,7 +403,7 @@
   font-family: var(--font-sans);
   font-size: 12.5px;
   font-weight: 600;
-  color: #fff;
+  color: var(--di-text, #fff);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -415,7 +413,7 @@
 .di-track-artist {
   font-family: var(--font-sans);
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--di-text-dim, rgba(255, 255, 255, 0.4));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -480,7 +478,7 @@
   justify-content: space-between;
   font-family: var(--font-mono);
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--di-text-dim, rgba(255, 255, 255, 0.3));
   padding: 0 2px;
 }
 
@@ -517,13 +515,13 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--di-text-dim, rgba(255, 255, 255, 0.7));
   transition: all 0.12s ease;
   padding: 0;
 }
 
 .di-ctrl-btn:hover {
-  color: #fff;
+  color: var(--di-text, #fff);
   background: rgba(255, 255, 255, 0.1);
 }
 
@@ -594,12 +592,12 @@
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 500;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--di-text-dim, rgba(255, 255, 255, 0.4));
   transition: all 0.12s ease;
 }
 
 .di-footer-btn:hover {
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--di-text, rgba(255, 255, 255, 0.7));
   background: rgba(255, 255, 255, 0.06);
 }
 
@@ -623,7 +621,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: #000;
+  background: var(--di-bg, #000);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -631,8 +629,8 @@
   -webkit-app-region: no-drag;
   overflow: hidden;
   box-shadow:
-    0 2px 10px rgba(0, 0, 0, 0.4),
-    0 0.5px 2px rgba(0, 0, 0, 0.25);
+    0 2px 10px rgba(0, 0, 0, 0.25),
+    0 0.5px 2px rgba(0, 0, 0, 0.15);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   animation: di-mini-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
 }

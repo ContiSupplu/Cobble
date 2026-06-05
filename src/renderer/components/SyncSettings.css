@@ -100,7 +100,7 @@
 }
 
 .sync-group-card:hover {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--glass-border);
 }
 
 .sync-group-header {
@@ -130,7 +130,7 @@
 }
 
 .sync-group-delete:hover {
-  color: #ef4444;
+  color: var(--red);
   border-color: rgba(239, 68, 68, 0.3);
   background: rgba(239, 68, 68, 0.08);
 }
@@ -150,7 +150,7 @@
   border-radius: 6px;
   font-size: 11px;
   color: var(--text-3);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-bg);
   border: 1px solid var(--glass-border);
 }
 
@@ -203,7 +203,7 @@
 }
 
 .sync-instance-chip:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: rgba(28, 23, 51, 0.28);
   color: var(--text-0);
 }
 
@@ -217,7 +217,7 @@
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -326,7 +326,7 @@
   padding: 8px 12px;
   border-radius: 8px;
   border: 1.5px solid var(--glass-border);
-  background: rgba(0, 0, 0, 0.25);
+  background: rgba(28, 23, 51, 0.10);
   color: var(--text-0);
   font-size: 13px;
   font-family: var(--font-sans);
@@ -376,7 +376,7 @@
 }
 
 .sync-form-item:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: var(--glass-border);
   color: var(--text-0);
 }
 
@@ -423,7 +423,7 @@
 }
 
 .sync-form-instance:hover {
-  border-color: rgba(255, 255, 255, 0.14);
+  border-color: var(--glass-border);
   color: var(--text-0);
 }
 
@@ -437,7 +437,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -470,8 +470,8 @@
 }
 
 .sync-form-btn:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: var(--glass-bg);
+  border-color: var(--glass-border);
   color: var(--text-0);
 }
 
@@ -516,7 +516,7 @@
 }
 
 .modvault-stat-card:hover {
-  border-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--glass-border);
 }
 
 .modvault-stat-icon {
@@ -602,6 +602,37 @@
 
 .modvault-result {
   font-size: 11px;
-  color: #4ade80;
+  color: var(--green);
   margin-top: 8px;
+}
+
+/* ── Loom overrides — accent is white, so use yellow instead ── */
+:root:not([data-theme="midnight"]) .modvault-progress-fill {
+  background: #E8E511;
+}
+
+:root:not([data-theme="midnight"]) .modvault-progress-bar {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+:root:not([data-theme="midnight"]) .modvault-stat-label,
+:root:not([data-theme="midnight"]) .modvault-progress-label {
+  color: rgba(255, 255, 255, 0.65);
+}
+
+:root:not([data-theme="midnight"]) .modvault-stat-icon {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+:root:not([data-theme="midnight"]) .modvault-optimize-btn {
+  background: rgba(232, 229, 17, 0.15);
+  color: #E8E511;
+  border-color: rgba(232, 229, 17, 0.25);
+}
+
+:root:not([data-theme="midnight"]) .modvault-optimize-btn:hover {
+  background: #E8E511;
+  color: #1C1733;
+  box-shadow: 0 0 16px rgba(232, 229, 17, 0.3);
 }

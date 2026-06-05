@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loom Card</title>
+    <meta name="description" content="A Loom Card — shareable Minecraft instance snapshot. Clone mods, shaders, and resource packs into your launcher.">
+    <link rel="icon" href="../assets/loom-icon.png" type="image/png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(255, 255, 255, 0.03);
+            --bg-card-hover: rgba(255, 255, 255, 0.06);
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-hover: rgba(255, 255, 255, 0.12);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8a8a9a;
+            --text-tertiary: #55556a;
+            --accent-amber: #d97706;
+            --accent-orange: #f59e0b;
+            --accent-red: #b91c1c;
+            --gradient-netherite: linear-gradient(135deg, #d97706, #b91c1c);
+            --gradient-netherite-soft: linear-gradient(135deg, rgba(217, 119, 6, 0.15), rgba(185, 28, 28, 0.15));
+        }
+
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+        }
+
+        /* ── Navigation ── */
+        nav {
+            position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+            padding: 0 2rem; height: 64px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .nav-brand {
+            display: flex; align-items: center; gap: 0.75rem;
+            text-decoration: none; color: var(--text-primary);
+        }
+        .nav-brand img { width: 28px; height: 28px; border-radius: 6px; }
+        .nav-brand span { font-weight: 600; font-size: 0.95rem; letter-spacing: -0.01em; }
+
+        .nav-links { display: flex; align-items: center; gap: 2rem; list-style: none; }
+        .nav-links a { color: var(--text-secondary); text-decoration: none; font-size: 0.875rem; font-weight: 450; transition: color 0.2s; }
+        .nav-links a:hover { color: var(--text-primary); }
+        .nav-cta {
+            background: var(--gradient-netherite); color: white !important;
+            padding: 0.5rem 1.25rem; border-radius: 8px;
+            font-weight: 500; font-size: 0.85rem !important;
+            transition: opacity 0.2s, transform 0.2s !important;
+        }
+        .nav-cta:hover { opacity: 0.9; transform: translateY(-1px); }
+
+        /* ── Main Content ── */
+        .page-content {
+            max-width: 680px; margin: 0 auto;
+            padding: 100px 2rem 4rem;
+        }
+
+        /* ── Loading ── */
+        .loading-state {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            gap: 16px; padding: 120px 24px; text-align: center;
+        }
+        .spinner {
+            width: 32px; height: 32px;
+            border: 3px solid rgba(255,255,255,0.08);
+            border-top-color: var(--accent-orange);
+            border-radius: 50%;
+            animation: spin 700ms linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { font-size: 14px; color: var(--text-secondary); }
+
+        /* ── Error ── */
+        .error-state {
+            display: none; flex-direction: column; align-items: center; justify-content: center;
+            gap: 16px; padding: 120px 24px; text-align: center;
+        }
+        .error-icon {
+            width: 56px; height: 56px; border-radius: 16px;
+            background: rgba(185, 28, 28, 0.1); border: 1.5px solid rgba(185, 28, 28, 0.2);
+            display: flex; align-items: center; justify-content: center; color: #ef4444;
+        }
+        .error-icon svg { width: 28px; height: 28px; }
+        .error-title { font-size: 20px; font-weight: 700; }
+        .error-desc { font-size: 14px; color: var(--text-secondary); max-width: 360px; }
+        .error-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 10px 24px; border-radius: 10px; border: none;
+            background: var(--gradient-netherite); color: white;
+            font-size: 14px; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: all 0.2s; text-decoration: none;
+            margin-top: 8px;
+        }
+        .error-btn:hover { transform: translateY(-1px); opacity: 0.9; }
+
+        /* ── Card Container ── */
+        .card-view {
+            display: none;
+            animation: fadeUp 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Card Header ── */
+        .card-header {
+            display: flex; align-items: flex-start; gap: 16px;
+            margin-bottom: 28px;
+        }
+        .card-avatar {
+            width: 48px; height: 48px; border-radius: 12px;
+            background: var(--gradient-netherite-soft);
+            border: 1px solid rgba(217, 119, 6, 0.2);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0; overflow: hidden;
+        }
+        .card-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .card-avatar svg { width: 24px; height: 24px; color: var(--accent-orange); }
+
+        .card-header-info { flex: 1; min-width: 0; }
+        .card-title {
+            font-size: 24px; font-weight: 700; letter-spacing: -0.02em;
+            line-height: 1.2; margin-bottom: 4px;
+        }
+        .card-author {
+            font-size: 13px; color: var(--text-secondary);
+        }
+        .card-author strong { color: var(--accent-orange); font-weight: 600; }
+
+        .card-description {
+            font-size: 14px; color: var(--text-secondary); line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        /* ── Meta Bar ── */
+        .card-meta {
+            display: flex; flex-wrap: wrap; gap: 8px;
+            margin-bottom: 24px;
+        }
+        .meta-tag {
+            display: inline-flex; align-items: center; gap: 6px;
+            padding: 6px 12px; border-radius: 8px;
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            font-size: 12px; font-weight: 500; color: var(--text-secondary);
+        }
+        .meta-tag svg { width: 13px; height: 13px; color: var(--text-tertiary); }
+        .meta-tag.accent { color: var(--accent-orange); border-color: rgba(217, 119, 6, 0.2); background: var(--gradient-netherite-soft); }
+
+        /* ── Content Sections ── */
+        .card-section {
+            margin-bottom: 20px;
+        }
+        .card-section-title {
+            font-size: 11px; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.08em; color: var(--text-tertiary);
+            margin-bottom: 10px; padding-left: 2px;
+        }
+
+        /* ── Mod List ── */
+        .mod-list {
+            display: flex; flex-direction: column;
+            border-radius: 12px; overflow: hidden;
+            border: 1px solid var(--border-subtle);
+        }
+        .mod-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-subtle);
+            transition: background 120ms;
+        }
+        .mod-item:last-child { border-bottom: none; }
+        .mod-item:hover { background: var(--bg-card-hover); }
+
+        .mod-icon {
+            width: 32px; height: 32px; border-radius: 6px;
+            object-fit: cover; flex-shrink: 0; background: var(--bg-card);
+        }
+        .mod-icon-fallback {
+            width: 32px; height: 32px; border-radius: 6px;
+            background: var(--bg-card); display: flex;
+            align-items: center; justify-content: center;
+            flex-shrink: 0; color: var(--text-tertiary);
+        }
+        .mod-icon-fallback svg { width: 16px; height: 16px; }
+
+        .mod-info { flex: 1; min-width: 0; }
+        .mod-name {
+            font-size: 13px; font-weight: 500; color: var(--text-primary);
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .mod-version {
+            font-size: 11px; color: var(--text-tertiary);
+        }
+        .mod-source {
+            font-size: 9px; font-weight: 600; padding: 2px 6px;
+            border-radius: 4px; background: var(--bg-card);
+            color: var(--text-tertiary); text-transform: uppercase;
+            letter-spacing: 0.03em; flex-shrink: 0;
+        }
+
+        /* ── Pack List ── */
+        .pack-list {
+            display: flex; flex-direction: column; gap: 4px;
+        }
+        .pack-item {
+            display: flex; align-items: center; gap: 10px;
+            padding: 8px 14px; border-radius: 8px;
+            background: var(--bg-card); border: 1px solid var(--border-subtle);
+            font-size: 13px; font-weight: 500; color: var(--text-secondary);
+        }
+        .pack-item svg { width: 14px; height: 14px; color: var(--text-tertiary); flex-shrink: 0; }
+
+        /* ── CTA ── */
+        .card-cta {
+            margin-top: 32px; padding-top: 24px;
+            border-top: 1px solid var(--border-subtle);
+            text-align: center;
+        }
+        .cta-text {
+            font-size: 13px; color: var(--text-tertiary); margin-bottom: 14px;
+        }
+        .cta-btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 28px; border-radius: 12px; border: none;
+            background: var(--gradient-netherite); color: white;
+            font-size: 15px; font-weight: 600; font-family: inherit;
+            cursor: pointer; transition: all 0.25s;
+            box-shadow: 0 4px 24px rgba(217, 119, 6, 0.25);
+            text-decoration: none;
+        }
+        .cta-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(217, 119, 6, 0.35);
+        }
+        .cta-btn svg { width: 18px; height: 18px; }
+
+        /* ── Stats ── */
+        .card-stats {
+            display: flex; justify-content: center; gap: 24px;
+            margin-top: 20px;
+        }
+        .card-stat {
+            font-size: 12px; color: var(--text-tertiary);
+            display: flex; align-items: center; gap: 4px;
+        }
+        .card-stat svg { width: 13px; height: 13px; }
+        .card-stat strong { color: var(--text-secondary); font-weight: 600; }
+
+        /* ── Footer ── */
+        footer {
+            border-top: 1px solid var(--border-subtle);
+            padding: 3rem 2rem; background: var(--bg-primary);
+            margin-top: 4rem;
+        }
+        .footer-inner {
+            max-width: 680px; margin: 0 auto;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .footer-brand { display: flex; align-items: center; gap: 0.6rem; }
+        .footer-brand img { width: 22px; height: 22px; border-radius: 5px; }
+        .footer-brand span { font-weight: 500; font-size: 0.9rem; color: var(--text-secondary); }
+        .footer-copy { color: var(--text-tertiary); font-size: 0.8rem; }
+
+        /* ── Responsive ── */
+        @media (max-width: 640px) {
+            nav { padding: 0 1.25rem; }
+            .nav-links li:not(:last-child) { display: none; }
+            .page-content { padding: 88px 1.25rem 3rem; }
+            .card-title { font-size: 20px; }
+            .card-meta { gap: 6px; }
+            .footer-inner { flex-direction: column; gap: 1rem; text-align: center; }
+        }
+
+        /* ── Scrollbar ── */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <a href="../index.html" class="nav-brand">
+            <img src="../assets/loom-icon.png" alt="Loom">
+            <span>Loom Launcher</span>
+        </a>
+        <ul class="nav-links">
+            <li><a href="../index.html#features">Features</a></li>
+            <li><a href="../changelog.html">Changelog</a></li>
+            <li><a href="../download.html">Download</a></li>
+            <li><a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.6.1.exe" class="nav-cta">Download v1.6</a></li>
+        </ul>
+    </nav>
+
+    <div class="page-content">
+        <!-- Loading State -->
+        <div id="loading" class="loading-state">
+            <div class="spinner"></div>
+            <div class="loading-text">Loading card…</div>
+        </div>
+
+        <!-- Error State -->
+        <div id="error" class="error-state">
+            <div class="error-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <div class="error-title">Card not found</div>
+            <div class="error-desc">This card may have been deleted or the link might be incorrect.</div>
+            <a href="../index.html" class="error-btn">← Back to Loom</a>
+        </div>
+
+        <!-- Card View -->
+        <div id="card" class="card-view">
+            <!-- Header -->
+            <div class="card-header">
+                <div class="card-avatar" id="cardAvatar">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+                    </svg>
+                </div>
+                <div class="card-header-info">
+                    <div class="card-title" id="cardTitle">—</div>
+                    <div class="card-author">by <strong id="cardAuthor">—</strong></div>
+                </div>
+            </div>
+
+            <div class="card-description" id="cardDesc"></div>
+
+            <!-- Meta Tags -->
+            <div class="card-meta" id="cardMeta"></div>
+
+            <!-- Mods -->
+            <div class="card-section" id="modsSection" style="display:none;">
+                <div class="card-section-title">Mods</div>
+                <div class="mod-list" id="modList"></div>
+            </div>
+
+            <!-- Shaders -->
+            <div class="card-section" id="shadersSection" style="display:none;">
+                <div class="card-section-title">Shader Packs</div>
+                <div class="pack-list" id="shaderList"></div>
+            </div>
+
+            <!-- Resource Packs -->
+            <div class="card-section" id="resourcesSection" style="display:none;">
+                <div class="card-section-title">Resource Packs</div>
+                <div class="pack-list" id="resourceList"></div>
+            </div>
+
+            <!-- CTA -->
+            <div class="card-cta">
+                <div class="cta-text">Open this card in Loom Launcher to clone it to your library.</div>
+                <a href="https://github.com/ContiSupplu/Cobble/releases/latest/download/Loom-Setup-1.6.1.exe" class="cta-btn">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Get Loom Launcher
+                </a>
+                <div class="card-stats">
+                    <div class="card-stat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <strong id="statOpens">0</strong> views
+                    </div>
+                    <div class="card-stat">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                        <strong id="statClones">0</strong> clones
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-inner">
+            <div class="footer-brand">
+                <img src="../assets/loom-icon.png" alt="Loom">
+                <span>Loom Launcher</span>
+            </div>
+            <div class="footer-copy">© 2025 Loom. Built with ❤️ for Minecraft.</div>
+        </div>
+    </footer>
+
+    <!-- Firebase SDK (CDN for static site) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js';
+        import { getFirestore, doc, getDoc } from 'https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: 'AIzaSyDqVh8cp1_zW_BYFF55IihLBo91bMN-Tbw',
+            authDomain: 'loom-cards.firebaseapp.com',
+            projectId: 'loom-cards',
+            storageBucket: 'loom-cards.firebasestorage.app',
+            messagingSenderId: '387698383350',
+            appId: '1:387698383350:web:569c2834c57aa3ee96cfd7'
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Extract card ID: check ?id= query param first (from 404.html redirect), then path
+        const urlParams = new URLSearchParams(window.location.search);
+        let cardId = urlParams.get('id');
+        if (!cardId) {
+            const pathParts = window.location.pathname.split('/').filter(Boolean);
+            const cardIdx = pathParts.indexOf('card');
+            cardId = cardIdx !== -1 ? pathParts[cardIdx + 1] : null;
+        }
+
+        const loadingEl = document.getElementById('loading');
+        const errorEl = document.getElementById('error');
+        const cardEl = document.getElementById('card');
+
+        if (!cardId) {
+            showError();
+        } else {
+            loadCard(cardId);
+        }
+
+        async function loadCard(id) {
+            try {
+                const docRef = doc(db, 'cards', id);
+                const snap = await getDoc(docRef);
+
+                if (!snap.exists()) {
+                    showError();
+                    return;
+                }
+
+                const data = snap.data();
+                renderCard(data);
+                // Update page title
+                document.title = `${data.name} — Loom Card`;
+                // Update meta
+                const metaDesc = document.querySelector('meta[name="description"]');
+                if (metaDesc) metaDesc.content = data.description || `A Loom Card by ${data.author?.username || 'unknown'} — ${data.name}`;
+            } catch (err) {
+                console.error('Failed to load card:', err);
+                showError();
+            }
+        }
+
+        function showError() {
+            loadingEl.style.display = 'none';
+            errorEl.style.display = 'flex';
+        }
+
+        function renderCard(data) {
+            loadingEl.style.display = 'none';
+            cardEl.style.display = 'block';
+
+            // Header
+            document.getElementById('cardTitle').textContent = data.name || 'Untitled Card';
+            document.getElementById('cardAuthor').textContent = data.author?.username || 'Unknown';
+
+            // Avatar — use Crafatar for player head
+            if (data.author?.uuid) {
+                const avatar = document.getElementById('cardAvatar');
+                avatar.innerHTML = `<img src="https://crafatar.com/avatars/${data.author.uuid}?size=48&overlay" alt="${data.author.username}" onerror="this.parentElement.innerHTML='<svg viewBox=\\'0 0 24 24\\' fill=\\'none\\' stroke=\\'currentColor\\' stroke-width=\\'2\\'><path d=\\'M12 2L2 7l10 5 10-5-10-5z\\'/><path d=\\'M2 17l10 5 10-5\\'/><path d=\\'M2 12l10 5 10-5\\'/></svg>'">`
+            }
+
+            // Description
+            const descEl = document.getElementById('cardDesc');
+            if (data.description) {
+                descEl.textContent = data.description;
+                descEl.style.display = 'block';
+            } else {
+                descEl.style.display = 'none';
+            }
+
+            // Meta tags
+            const metaEl = document.getElementById('cardMeta');
+            const java = data.java || {};
+            const tags = [];
+
+            if (java.version) tags.push({ icon: 'cube', text: `Minecraft ${java.version}` });
+            if (java.loader) tags.push({ icon: 'loader', text: java.loader.charAt(0).toUpperCase() + java.loader.slice(1) });
+            if (java.mods?.length) tags.push({ icon: 'puzzle', text: `${java.mods.length} mod${java.mods.length !== 1 ? 's' : ''}`, accent: true });
+            if (java.shaderPacks?.length) tags.push({ icon: 'shader', text: `${java.shaderPacks.length} shader${java.shaderPacks.length !== 1 ? 's' : ''}` });
+            if (java.resourcePacks?.length) tags.push({ icon: 'palette', text: `${java.resourcePacks.length} resource pack${java.resourcePacks.length !== 1 ? 's' : ''}` });
+
+            metaEl.innerHTML = tags.map(t => `
+                <div class="meta-tag${t.accent ? ' accent' : ''}">
+                    ${getIcon(t.icon)}
+                    ${t.text}
+                </div>
+            `).join('');
+
+            // Mods
+            if (java.mods?.length) {
+                document.getElementById('modsSection').style.display = 'block';
+                const modList = document.getElementById('modList');
+                modList.innerHTML = java.mods.map(mod => {
+                    const iconSrc = mod.projectId ? `https://cdn.modrinth.com/data/${mod.projectId}/icon.png` : '';
+                    const iconHtml = iconSrc
+                        ? `<img class="mod-icon" src="${iconSrc}" alt="" onerror="this.outerHTML='<div class=\\'mod-icon-fallback\\'>${getIcon('puzzle')}</div>'">`
+                        : `<div class="mod-icon-fallback">${getIcon('puzzle')}</div>`;
+                    return `
+                        <div class="mod-item">
+                            ${iconHtml}
+                            <div class="mod-info">
+                                <div class="mod-name">${escapeHtml(mod.name)}</div>
+                                ${mod.version ? `<div class="mod-version">${escapeHtml(mod.version)}</div>` : ''}
+                            </div>
+                            ${mod.source ? `<span class="mod-source">${escapeHtml(mod.source)}</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Shaders
+            if (java.shaderPacks?.length) {
+                document.getElementById('shadersSection').style.display = 'block';
+                document.getElementById('shaderList').innerHTML = java.shaderPacks.map(p => `
+                    <div class="pack-item">
+                        ${getIcon('shader')}
+                        ${escapeHtml(p.name || p.fileName)}
+                    </div>
+                `).join('');
+            }
+
+            // Resource Packs
+            if (java.resourcePacks?.length) {
+                document.getElementById('resourcesSection').style.display = 'block';
+                document.getElementById('resourceList').innerHTML = java.resourcePacks.map(p => `
+                    <div class="pack-item">
+                        ${getIcon('palette')}
+                        ${escapeHtml(p.name || p.fileName)}
+                    </div>
+                `).join('');
+            }
+
+            // Stats
+            document.getElementById('statOpens').textContent = data.stats?.opens || 0;
+            document.getElementById('statClones').textContent = data.stats?.clones || 0;
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str || '';
+            return div.innerHTML;
+        }
+
+        function getIcon(name) {
+            const icons = {
+                cube: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/></svg>',
+                loader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
+                puzzle: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 16V7a2 2 0 00-2-2H6a2 2 0 00-2 2v9m16 0H4m16 0l1.28 2.55a1 1 0 01-.9 1.45H3.62a1 1 0 01-.9-1.45L4 16"/></svg>',
+                shader: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M5 19l1 3 1-3 3-1-3-1-1-3-1 3-3 1 3 1z"/></svg>',
+                palette: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13.5" cy="6.5" r="2.5"/><path d="M17.5 10.5l-5-5L2 16l6 6 4-4"/><path d="M15 17l5 5"/><path d="M20 12l-9.5 9.5"/></svg>',
+            };
+            return icons[name] || '';
+        }
+    </script>
+</body>
+</html>

@@ -68,6 +68,28 @@
 .spotify-connect-btn:hover:not(:disabled) { background: rgba(30, 215, 96, 0.1); }
 .spotify-connect-btn:disabled { opacity: 0.5; cursor: wait; }
 
+/* ── Loom: dark icon on yellow glass cards ── */
+:root:not([data-theme="midnight"]) .spotify-icon-wrap {
+  background: rgba(28, 23, 51, 0.08);
+  border-color: rgba(28, 23, 51, 0.15);
+  color: #1C1733;
+}
+
+:root:not([data-theme="midnight"]) .spotify-icon-green {
+  background: rgba(28, 23, 51, 0.10);
+  border-color: rgba(28, 23, 51, 0.18);
+}
+
+:root:not([data-theme="midnight"]) .spotify-connect-btn {
+  color: #1C1733;
+  background: rgba(28, 23, 51, 0.06);
+  border-color: rgba(28, 23, 51, 0.15);
+}
+
+:root:not([data-theme="midnight"]) .spotify-connect-btn:hover:not(:disabled) {
+  background: rgba(28, 23, 51, 0.12);
+}
+
 .spotify-art {
   position: relative;
   z-index: 1;
@@ -151,12 +173,12 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   border: 1.5px solid var(--glass-border);
   color: var(--text-0);
 }
 
-.spotify-play:hover { background: rgba(255, 255, 255, 0.1); }
+.spotify-play:hover { background: var(--glass-hover); }
 
 /* --- Volume Slider --- */
 
@@ -324,7 +346,7 @@
 .spotify-bar {
   flex: 1;
   height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--glass-hover);
   border-radius: 2px;
   overflow: hidden;
 }

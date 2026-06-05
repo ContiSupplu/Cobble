@@ -5,7 +5,7 @@
    ============================================================ */
 
 /* --- CSS Variables ----------------------------------------- */
-:root {
+.qs-page {
   /* Tier accent palette */
   --qs-free:      #10B981;
   --qs-pro:       #3B82F6;
@@ -23,21 +23,10 @@
   --qs-proplus-bg:     rgba(139, 92, 246, 0.12);
   --qs-promax-bg:      rgba(245, 158, 11, 0.12);
 
-  /* Glass tokens (mirrors launcher variables) */
-  --glass-bg:     rgba(255, 255, 255, 0.06);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-blur:   40px;
-
   /* Elevation layers */
   --qs-surface-0: rgba(255, 255, 255, 0.03);
   --qs-surface-1: rgba(255, 255, 255, 0.06);
   --qs-surface-2: rgba(255, 255, 255, 0.09);
-
-  /* Typography */
-  --text-0: #ffffff;
-  --text-1: rgba(255, 255, 255, 0.82);
-  --text-2: rgba(255, 255, 255, 0.52);
-  --text-3: rgba(255, 255, 255, 0.28);
 
   /* Misc */
   --qs-danger:    #EF4444;
@@ -48,7 +37,6 @@
   --qs-radius-pill: 999px;
   --qs-transition-fast: 0.2s ease;
   --qs-transition-mid:  0.3s ease;
-  --bg-0: #0d0d0d;
 }
 
 /* ============================================================
@@ -1008,7 +996,7 @@
   height: 420px;
   border-radius: var(--qs-radius);
   background: #050505;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--glass-border);
   overflow: hidden;
   font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "Consolas", monospace;
 }
@@ -1052,7 +1040,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.02);
 }
 
@@ -2215,7 +2203,7 @@
   height: 2px;
   min-width: 32px;
   max-width: 90px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--glass-bg);
   align-self: flex-start;
   margin-top: 19px;
   border-radius: 1px;
@@ -2247,7 +2235,7 @@
 .qs-progress-track {
   width: 100%;
   height: 3px;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   border-radius: 2px;
   overflow: hidden;
   margin: 0 24px;
@@ -3495,7 +3483,7 @@
 
 .qs-nav-prev:hover {
   color: var(--text-0);
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--glass-bg);
   transform: translateX(-2px);
 }
 
@@ -4044,7 +4032,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  border-top: 1px solid var(--glass-border);
   background: rgba(255, 255, 255, 0.02);
 }
 

@@ -2,12 +2,108 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root {
+/* ════════════════════════════════════════
+   The Loom Style (DEFAULT)
+   Purple backgrounds, yellow sidebar, white accent
+   ════════════════════════════════════════ */
+:root, [data-theme="loom"] {
+  /* Surfaces — brand purple */
+  --bg-0: #6A5BE8;
+  --bg-1: #5548C4;
+  --bg-2: rgba(255, 255, 255, 0.10);
+  --bg-3: rgba(255, 255, 255, 0.15);
+  --border: rgba(255, 255, 255, 0.18);
+
+  /* Sidebar — yellow */
+  --sidebar-bg: #E8E511;
+  --sidebar-text: #1C1733;
+  --sidebar-text-dim: #3D3856;
+  --sidebar-active-bg: rgba(28, 23, 51, 0.12);
+  --sidebar-active-text: #1C1733;
+  --sidebar-hover-bg: rgba(28, 23, 51, 0.08);
+  --sidebar-icon: #3D3856;
+  --sidebar-icon-active: #1C1733;
+  --sidebar-border: rgba(28, 23, 51, 0.12);
+  --sidebar-glass-bg: rgba(28, 23, 51, 0.06);
+  --sidebar-tooltip-bg: rgba(28, 23, 51, 0.90);
+  --sidebar-tooltip-text: #E8E511;
+  --sidebar-tooltip-border: rgba(28, 23, 51, 0.3);
+
+  /* Text — white hierarchy for purple backgrounds */
+  --text-0: #FFFFFF;
+  --text-1: rgba(255, 255, 255, 0.80);
+  --text-2: rgba(255, 255, 255, 0.55);
+  --text-3: rgba(255, 255, 255, 0.30);
+
+  /* Accent — white */
+  --accent: #FFFFFF;
+  --accent-hover: rgba(255, 255, 255, 0.85);
+  --accent-muted: rgba(255, 255, 255, 0.12);
+
+  /* Semantic */
+  --green: #30D158;
+  --red: #FF453A;
+  --yellow: #E8E511;
+
+  /* Typography */
+  --font-sans: -apple-system, 'Inter', 'SF Pro Display', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+  /* Glass — solid yellow cards */
+  --glass-bg: #E8E511;
+  --glass-border: rgba(106, 91, 232, 0.30);
+  --glass-hover: #EDE940;
+  --glass-blur: 40px;
+  --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.15), 0 0 1px rgba(28, 23, 51, 0.10);
+
+  /* Glass text — dark purple on yellow (matches sidebar) */
+  --glass-text: #1C1733;
+  --glass-text-dim: #3D3856;
+
+  /* Layout */
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --transition: 200ms ease;
+
+  /* Titlebar — purple to match main bg */
+  --titlebar-bg: #5548C4;
+  --titlebar-text: #FFFFFF;
+  --titlebar-text-dim: rgba(255, 255, 255, 0.55);
+  --titlebar-hover: rgba(255, 255, 255, 0.08);
+  --titlebar-border: rgba(255, 255, 255, 0.10);
+
+  /* Dynamic Island — black */
+  --di-bg: #000;
+  --di-text: rgba(255, 255, 255, 0.6);
+  --di-text-dim: rgba(255, 255, 255, 0.4);
+  --di-shadow: 0 3px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* ════════════════════════════════════════
+   Midnight (legacy dark)
+   ════════════════════════════════════════ */
+[data-theme="midnight"] {
   --bg-0: #0d0d0d;
   --bg-1: #161616;
   --bg-2: rgba(255, 255, 255, 0.05);
   --bg-3: rgba(255, 255, 255, 0.08);
   --border: rgba(255, 255, 255, 0.1);
+
+  --sidebar-bg: #161616;
+  --sidebar-text: #a1a1a6;
+  --sidebar-text-dim: #6e6e73;
+  --sidebar-active-bg: rgba(255, 255, 255, 0.08);
+  --sidebar-active-text: #f5f5f7;
+  --sidebar-hover-bg: rgba(255, 255, 255, 0.05);
+  --sidebar-icon: #6e6e73;
+  --sidebar-icon-active: #f5f5f7;
+  --sidebar-border: rgba(255, 255, 255, 0.1);
+  --sidebar-glass-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-tooltip-bg: rgba(255, 255, 255, 0.06);
+  --sidebar-tooltip-text: #f5f5f7;
+  --sidebar-tooltip-border: rgba(255, 255, 255, 0.1);
+
   --text-0: #f5f5f7;
   --text-1: #a1a1a6;
   --text-2: #6e6e73;
@@ -18,17 +114,25 @@
   --green: #30D158;
   --red: #FF453A;
   --yellow: #FFD60A;
-  --font-sans: -apple-system, 'Inter', 'SF Pro Display', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
 
   --glass-bg: rgba(255, 255, 255, 0.06);
   --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hover: rgba(255, 255, 255, 0.10);
   --glass-blur: 40px;
   --glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255, 255, 255, 0.05);
-  --radius: 12px;
-  --radius-sm: 8px;
-  --radius-lg: 16px;
-  --transition: 200ms ease;
+  --glass-text: #f5f5f7;
+  --glass-text-dim: #a1a1a6;
+
+  --titlebar-bg: #161616;
+  --titlebar-text: #a1a1a6;
+  --titlebar-text-dim: #6e6e73;
+  --titlebar-hover: rgba(255, 255, 255, 0.06);
+  --titlebar-border: rgba(255, 255, 255, 0.1);
+
+  --di-bg: #000;
+  --di-text: rgba(255, 255, 255, 0.6);
+  --di-text-dim: rgba(255, 255, 255, 0.4);
+  --di-shadow: 0 3px 16px rgba(0, 0, 0, 0.45), 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 html { font-size: 16px; }
@@ -43,7 +147,7 @@ body {
 
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--text-3); border-radius: 3px; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.25); border-radius: 3px; }
 ::selection { background: var(--accent-muted); color: var(--accent); }
 
 a { color: inherit; text-decoration: none; }
@@ -106,9 +210,344 @@ input, select, textarea { font-family: inherit; font-size: inherit; color: inher
 }
 
 [data-privacy="true"] .app-content {
-  background: #0e0e0c;
+  background: rgba(0, 0, 0, 0.15);
 }
 
 [data-privacy="true"] .titlebar {
   background: rgba(0, 0, 0, 0.3);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Loom: dark purple text on yellow glass surfaces
+   Color cascades to all children via inheritance.
+   Only applies on Loom theme (default); Midnight uses white text.
+   ════════════════════════════════════════════════════════════════ */
+:root:not([data-theme="midnight"]) .library-hero,
+:root:not([data-theme="midnight"]) .library-play,
+:root:not([data-theme="midnight"]) .library-empty,
+:root:not([data-theme="midnight"]) .library-inst,
+:root:not([data-theme="midnight"]) .library-new:hover,
+:root:not([data-theme="midnight"]) .library-form,
+:root:not([data-theme="midnight"]) .library-form-select,
+:root:not([data-theme="midnight"]) .library-form-loader,
+:root:not([data-theme="midnight"]) .library-form-submit,
+:root:not([data-theme="midnight"]) .library-version-trigger,
+:root:not([data-theme="midnight"]) .library-version-search-wrap,
+:root:not([data-theme="midnight"]) .library-version-chip,
+:root:not([data-theme="midnight"]) .library-delete-confirm-box,
+:root:not([data-theme="midnight"]) .library-edit-modal-box,
+:root:not([data-theme="midnight"]) .library-bg-upload-btn,
+:root:not([data-theme="midnight"]) .library-edit-action-btn:hover,
+:root:not([data-theme="midnight"]) .library-icon-preview,
+:root:not([data-theme="midnight"]) .library-update-downloading,
+:root:not([data-theme="midnight"]) .library-changelog-toggle,
+:root:not([data-theme="midnight"]) .library-modpack-close,
+:root:not([data-theme="midnight"]) .library-modpack-search input,
+:root:not([data-theme="midnight"]) .spotify-widget,
+:root:not([data-theme="midnight"]) .spotify-play,
+:root:not([data-theme="midnight"]) .privacy,
+:root:not([data-theme="midnight"]) .privacy-dropdown,
+:root:not([data-theme="midnight"]) .privacy-option:hover,
+:root:not([data-theme="midnight"]) .account-profile,
+:root:not([data-theme="midnight"]) .account-logout,
+:root:not([data-theme="midnight"]) .account-empty,
+:root:not([data-theme="midnight"]) .friend-add-form,
+:root:not([data-theme="midnight"]) .friend-card,
+:root:not([data-theme="midnight"]) .friend-note:hover,
+:root:not([data-theme="midnight"]) .friend-note-cancel,
+:root:not([data-theme="midnight"]) .friend-confirm-no,
+:root:not([data-theme="midnight"]) .bedrock-hero,
+:root:not([data-theme="midnight"]) .bedrock-hero-icon,
+:root:not([data-theme="midnight"]) .bedrock-fav-btn,
+:root:not([data-theme="midnight"]) .bedrock-play,
+:root:not([data-theme="midnight"]) .bedrock-refresh,
+:root:not([data-theme="midnight"]) .bedrock-world,
+:root:not([data-theme="midnight"]) .bedrock-world-icon,
+:root:not([data-theme="midnight"]) .bedrock-folder,
+:root:not([data-theme="midnight"]) .bedrock-site-card,
+:root:not([data-theme="midnight"]) .bedrock-status-card,
+:root:not([data-theme="midnight"]) .bedrock-glass-btn,
+:root:not([data-theme="midnight"]) .bedrock-browser-bar,
+:root:not([data-theme="midnight"]) .bedrock-back-btn,
+:root:not([data-theme="midnight"]) .bedrock-browser-tab:hover,
+:root:not([data-theme="midnight"]) .bedrock-nav-btn,
+:root:not([data-theme="midnight"]) .bedrock-queue-badge-btn,
+:root:not([data-theme="midnight"]) .bedrock-queue-panel-close,
+:root:not([data-theme="midnight"]) .bedrock-queue-item:hover,
+:root:not([data-theme="midnight"]) .bedrock-queue-item-icon,
+:root:not([data-theme="midnight"]) .gallery-merge-toggle,
+:root:not([data-theme="midnight"]) .gallery-sort,
+:root:not([data-theme="midnight"]) .gallery-tab:hover,
+:root:not([data-theme="midnight"]) .gallery-tab.active,
+:root:not([data-theme="midnight"]) .gallery-tab-count,
+:root:not([data-theme="midnight"]) .gallery-card,
+:root:not([data-theme="midnight"]) .gallery-empty,
+:root:not([data-theme="midnight"]) .gallery-player-close,
+:root:not([data-theme="midnight"]) .gallery-editor-section,
+:root:not([data-theme="midnight"]) .gallery-editor-pos-chip,
+:root:not([data-theme="midnight"]) .gem-sidebar-new,
+:root:not([data-theme="midnight"]) .gem-sidebar-toggle,
+:root:not([data-theme="midnight"]) .gem-sidebar-item,
+:root:not([data-theme="midnight"]) .gem-sidebar-open-btn,
+:root:not([data-theme="midnight"]) .gem-clear,
+:root:not([data-theme="midnight"]) .gem-live-btn,
+:root:not([data-theme="midnight"]) .gem-input-wrap,
+:root:not([data-theme="midnight"]) .gem-chip,
+:root:not([data-theme="midnight"]) .gem-msg--user .gem-msg-body,
+:root:not([data-theme="midnight"]) .gem-inline-code,
+:root:not([data-theme="midnight"]) .gem-thinking-avatar,
+:root:not([data-theme="midnight"]) .gem-thinking-content,
+:root:not([data-theme="midnight"]) .gem-otg-btn,
+:root:not([data-theme="midnight"]) .mods-instance-select,
+:root:not([data-theme="midnight"]) .mods-search,
+:root:not([data-theme="midnight"]) .mods-tab,
+:root:not([data-theme="midnight"]) .mods-tab.active,
+:root:not([data-theme="midnight"]) .mods-item,
+:root:not([data-theme="midnight"]) .mods-back,
+:root:not([data-theme="midnight"]) .mods-detail,
+:root:not([data-theme="midnight"]) .changing-room-variant-row,
+:root:not([data-theme="midnight"]) .changing-room-upload-btn,
+:root:not([data-theme="midnight"]) .qs-server-card,
+:root:not([data-theme="midnight"]) .qs-btn,
+:root:not([data-theme="midnight"]) .qs-play-option,
+:root:not([data-theme="midnight"]) .qs-tier-card,
+:root:not([data-theme="midnight"]) .qs-duration-btn,
+:root:not([data-theme="midnight"]) .qs-review-summary,
+:root:not([data-theme="midnight"]) .qs-control-back,
+:root:not([data-theme="midnight"]) .qs-stat-card,
+:root:not([data-theme="midnight"]) .qs-ad-banner,
+:root:not([data-theme="midnight"]) .qs-ad-sidebar,
+:root:not([data-theme="midnight"]) .qs-checkout-card,
+:root:not([data-theme="midnight"]) .qs-step-line,
+:root:not([data-theme="midnight"]) .qs-progress-track,
+:root:not([data-theme="midnight"]) .qs-play-card,
+:root:not([data-theme="midnight"]) .qs-plan-card,
+:root:not([data-theme="midnight"]) .qs-ram-btn,
+:root:not([data-theme="midnight"]) .qs-price-card,
+:root:not([data-theme="midnight"]) .qs-checkout-section,
+:root:not([data-theme="midnight"]) .qs-checkout-right,
+:root:not([data-theme="midnight"]) .qs-nav-btn,
+:root:not([data-theme="midnight"]) .qs-nav-prev:hover,
+:root:not([data-theme="midnight"]) .qs-dashboard-sidebar,
+:root:not([data-theme="midnight"]) .qs-dashboard-stat-card,
+:root:not([data-theme="midnight"]) .qs-overview-card,
+:root:not([data-theme="midnight"]) .qs-card,
+:root:not([data-theme="midnight"]) .qs-plugin-card,
+:root:not([data-theme="midnight"]) .settings-btn-sm,
+:root:not([data-theme="midnight"]) .settings-slider,
+:root:not([data-theme="midnight"]) .settings-toggle,
+:root:not([data-theme="midnight"]) .settings-app-card,
+:root:not([data-theme="midnight"]) .settings-tutorial-steps code,
+:root:not([data-theme="midnight"]) .tool-item,
+:root:not([data-theme="midnight"]) .tool-toggle,
+:root:not([data-theme="midnight"]) .player-lookup-input,
+:root:not([data-theme="midnight"]) .player-card,
+:root:not([data-theme="midnight"]) .player-card-friend,
+:root:not([data-theme="midnight"]) .privacy-card,
+:root:not([data-theme="midnight"]) .privacy-service,
+:root:not([data-theme="midnight"]) .sync-empty,
+:root:not([data-theme="midnight"]) .sync-group-card,
+:root:not([data-theme="midnight"]) .sync-item,
+:root:not([data-theme="midnight"]) .sync-instance-avatar,
+:root:not([data-theme="midnight"]) .sync-create-form,
+:root:not([data-theme="midnight"]) .sync-form-instance-avatar,
+:root:not([data-theme="midnight"]) .sync-form-btn:hover,
+:root:not([data-theme="midnight"]) .modvault-stat-card,
+:root:not([data-theme="midnight"]) .modvault-progress-bar,
+:root:not([data-theme="midnight"]) .profile-card--add .profile-card-add-icon,
+:root:not([data-theme="midnight"]) .profile-card--add:hover .profile-card-add-icon,
+:root:not([data-theme="midnight"]) .profile-card-edit-input,
+:root:not([data-theme="midnight"]) .profile-card-confirm-btn,
+:root:not([data-theme="midnight"]) .profile-screen-close:hover,
+:root:not([data-theme="midnight"]) .profile-switcher-trigger:hover,
+:root:not([data-theme="midnight"]) .profile-switcher-trigger.open,
+:root:not([data-theme="midnight"]) .profile-switcher-row:hover,
+:root:not([data-theme="midnight"]) .profile-switcher-more:hover,
+:root:not([data-theme="midnight"]) .profile-switcher-context-item:hover,
+:root:not([data-theme="midnight"]) .profile-switcher-edit-input,
+:root:not([data-theme="midnight"]) .profile-switcher-confirm-btn.cancel,
+:root:not([data-theme="midnight"]) .profile-switcher-divider,
+:root:not([data-theme="midnight"]) .profile-switcher-add:hover,
+:root:not([data-theme="midnight"]) .profile-switcher-add-icon,
+:root:not([data-theme="midnight"]) .wz-feature:hover,
+:root:not([data-theme="midnight"]) .prefs-group,
+:root:not([data-theme="midnight"]) .prefs-sep,
+:root:not([data-theme="midnight"]) .splash-quick-launch,
+:root:not([data-theme="midnight"]) .walkthrough-skip:hover,
+:root:not([data-theme="midnight"]) .fe-nav-btn:hover:not(:disabled),
+:root:not([data-theme="midnight"]) .fe-breadcrumb-seg:hover,
+:root:not([data-theme="midnight"]) .fe-close-btn:hover,
+:root:not([data-theme="midnight"]) .fe-row.selected,
+:root:not([data-theme="midnight"]) .fe-action-btn:hover,
+:root:not([data-theme="midnight"]) .fe-footer-btn:hover,
+:root:not([data-theme="midnight"]) .login-btn {
+  color: var(--glass-text);
+  --text-0: #1C1733;
+  --text-1: #3D3856;
+  --text-2: #5A5470;
+  --text-3: #7A758E;
+  --border: rgba(28, 23, 51, 0.18);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Loom-only: Yellow toggles & accent buttons
+   These override the theme-variable-based defaults above
+   so they only appear in Loom, never in Midnight.
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Toggles: OFF = white, ON = yellow ── */
+:root:not([data-theme="midnight"]) .settings-toggle,
+:root:not([data-theme="midnight"]) .tool-toggle,
+:root:not([data-theme="midnight"]) .prefs-toggle {
+  background: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+:root:not([data-theme="midnight"]) .settings-toggle:hover,
+:root:not([data-theme="midnight"]) .tool-toggle:hover,
+:root:not([data-theme="midnight"]) .prefs-toggle:hover {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+:root:not([data-theme="midnight"]) .settings-toggle.on,
+:root:not([data-theme="midnight"]) .tool-toggle.on,
+:root:not([data-theme="midnight"]) .prefs-toggle.on {
+  background: #E8E511;
+  border-color: rgba(28, 23, 51, 0.25);
+  box-shadow: 0 0 12px rgba(232, 229, 17, 0.3);
+}
+
+/* ── Accent buttons: hover = yellow ── */
+:root:not([data-theme="midnight"]) .settings-btn-accent:hover {
+  background: #E8E511;
+  border-color: rgba(28, 23, 51, 0.25);
+  color: #1C1733;
+  box-shadow: 0 0 16px rgba(232, 229, 17, 0.3);
+}
+
+:root:not([data-theme="midnight"]) .settings-app-btn.accent:hover {
+  background: #E8E511;
+  color: #1C1733;
+  box-shadow: 0 0 12px rgba(232, 229, 17, 0.3);
+}
+
+/* ════════════════════════════════════════════════════════════════
+   Loom-only: Purple-tinted inputs, borders, and backgrounds
+   Uses bright brand purple #6A5BE8 = rgba(106, 91, 232)
+   ════════════════════════════════════════════════════════════════ */
+
+/* ── Inputs: purple-tinted bg instead of grey ── */
+:root:not([data-theme="midnight"]) .settings-app-key-input-wrap {
+  background: rgba(106, 91, 232, 0.10);
+}
+
+:root:not([data-theme="midnight"]) .settings-app-key-input-wrap:focus-within {
+  border-color: rgba(106, 91, 232, 0.50);
+}
+
+:root:not([data-theme="midnight"]) .sync-form-input {
+  background: rgba(106, 91, 232, 0.10);
+}
+
+:root:not([data-theme="midnight"]) .sync-form-input:focus {
+  border-color: rgba(106, 91, 232, 0.50);
+}
+
+/* ── Tutorial body: purple-tinted ── */
+:root:not([data-theme="midnight"]) .settings-tutorial-body {
+  background: rgba(106, 91, 232, 0.06);
+}
+
+/* ── Sync inner items: use variable or explicit purple ── */
+:root:not([data-theme="midnight"]) .sync-item {
+  background: rgba(106, 91, 232, 0.06);
+}
+
+:root:not([data-theme="midnight"]) .sync-instance-chip:hover {
+  border-color: rgba(106, 91, 232, 0.45);
+}
+
+:root:not([data-theme="midnight"]) .sync-instance-avatar {
+  background: rgba(106, 91, 232, 0.12);
+}
+
+:root:not([data-theme="midnight"]) .sync-group-stats {
+  border-top-color: rgba(106, 91, 232, 0.18);
+}
+
+:root:not([data-theme="midnight"]) .sync-form-item:hover {
+  border-color: rgba(106, 91, 232, 0.45);
+}
+
+:root:not([data-theme="midnight"]) .sync-form-instance:hover {
+  border-color: rgba(106, 91, 232, 0.45);
+}
+
+:root:not([data-theme="midnight"]) .sync-form-instance-avatar {
+  background: rgba(106, 91, 232, 0.12);
+}
+
+:root:not([data-theme="midnight"]) .sync-form-btn:hover {
+  border-color: rgba(106, 91, 232, 0.45);
+  background: rgba(106, 91, 232, 0.06);
+}
+
+/* ── Active/Selected states: purple instead of white on yellow ── */
+:root:not([data-theme="midnight"]) .sync-item--active {
+  background: rgba(106, 91, 232, 0.15);
+  border-color: rgba(106, 91, 232, 0.35);
+  color: #5548C4;
+}
+
+:root:not([data-theme="midnight"]) .sync-instance-chip.active {
+  background: rgba(106, 91, 232, 0.15);
+  border-color: rgba(106, 91, 232, 0.35);
+  color: #5548C4;
+}
+
+:root:not([data-theme="midnight"]) .sync-instance-chip.active .sync-instance-avatar {
+  background: #6A5BE8;
+  color: #FFFFFF;
+}
+
+:root:not([data-theme="midnight"]) .sync-form-item.checked {
+  background: rgba(106, 91, 232, 0.15);
+  border-color: rgba(106, 91, 232, 0.35);
+  color: #5548C4;
+}
+
+:root:not([data-theme="midnight"]) .sync-form-item.checked .sync-form-item-check {
+  color: #6A5BE8;
+}
+
+:root:not([data-theme="midnight"]) .sync-form-instance.selected {
+  background: rgba(106, 91, 232, 0.15);
+  border-color: rgba(106, 91, 232, 0.35);
+  color: #5548C4;
+}
+
+:root:not([data-theme="midnight"]) .sync-form-instance.selected .sync-form-instance-avatar {
+  background: #6A5BE8;
+  color: #FFFFFF;
+}
+
+:root:not([data-theme="midnight"]) .sync-form-btn.primary {
+  background: rgba(106, 91, 232, 0.15);
+  border-color: rgba(106, 91, 232, 0.35);
+  color: #5548C4;
+}
+
+:root:not([data-theme="midnight"]) .sync-form-btn.primary:hover {
+  background: #6A5BE8;
+  color: #FFFFFF;
+  box-shadow: 0 0 12px rgba(106, 91, 232, 0.3);
+}
+
+/* ── Modvault inner elements ── */
+:root:not([data-theme="midnight"]) .modvault-stat-card {
+  background: rgba(106, 91, 232, 0.06);
+}
+
+:root:not([data-theme="midnight"]) .modvault-progress-bar {
+  background: rgba(106, 91, 232, 0.06);
 }

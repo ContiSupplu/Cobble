@@ -72,7 +72,7 @@
 }
 
 .tool-item:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--glass-hover);
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: 0 8px 40px rgba(0, 0, 0, 0.45), 0 0 0 0.5px rgba(255, 255, 255, 0.08);
 }
@@ -102,8 +102,8 @@
   position: relative;
   width: 36px;
   height: 20px;
-  background: var(--glass-bg);
-  border: 1.5px solid var(--glass-border);
+  background: var(--glass-border);
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
   border-radius: 999px;
   flex-shrink: 0;
   cursor: pointer;
@@ -111,14 +111,13 @@
 }
 
 .tool-toggle:hover {
-  background: var(--accent-muted);
-  border-color: rgba(255, 255, 255, 0.14);
-  box-shadow: 0 0 8px var(--accent-muted);
+  border-color: rgba(255, 255, 255, 0.3);
 }
 
 .tool-toggle.on {
   background: var(--accent);
   border-color: var(--accent);
+  box-shadow: 0 0 8px var(--accent-muted);
 }
 
 .tool-toggle-dot {
